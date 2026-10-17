@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Haze Studios — Chat Log Creator</title>
+  
+  <!-- Google Fonts: Inter & JetBrains Mono (Lation Emerald Standard) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="icon" type="image/png" href="./02_avatar_512x512.png">
+  
+  <!-- JSZip para exportação em lote (local com fallback para CDN) -->
+  <script src="./jszip.min.js"></script>
+  <script>
+    if (typeof JSZip === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');
+    }
+  </script>
+
+  <style>
+    /* ============================================================
+       LATION MODERN UI — EMERALD EDITION DESIGN SYSTEM (ROOT TOKENS)
+       ============================================================ */
+    :root {
+      /* Superfícies & Camadas */
+      --surface: #1e1f24;           /* Fundo principal de cards e modais */
+      --surface-band: #18191e;      /* Faixas de cabeçalho e divisores */
+      --surface-hover: #252630;     /* Estado hover de cards/linhas */
+      --surface-elevated: #2a2b31;  /* Elementos elevados / containers internos */
+      --surface-deep: #16171b;      /* Fundo de slots, inputs e tabelas */
+      --bg-page: #0f1013;           /* Fundo ultra profundo da aplicação */
+
+      /* Linhas & Bordas */
+      --line: #2a2b31;              /* Borda padrão */
+      --line-strong: #3a3b41;       /* Borda destacada / divisórias */
+      --line-hover: #4a4b51;        /* Borda ao passar o mouse */
+
+      /* Conteúdo & Tipografia */
+      --content: #e4e4e7;           /* Texto padrão de leitura */
+      --content-secondary: #a1a1aa; /* Subtítulos, descrições secundárias */
+      --content-muted: #71717a;     /* Labels desativadas, dicas fracas */
+      --content-heading: #ffffff;   /* Títulos principais em destaque */
+
+      /* Acentos Verde Esmeralda (Lation Emerald Palette) */
+      --accent: #10b981;            /* Verde esmeralda padrão */
+      --accent-soft: #34d399;       /* Verde claro / destaques suaves */
+      --accent-bright: #6afe87;     /* Verde neon brilhante (valores/XP/sucesso) */
+      --accent-dim: rgba(16, 185, 129, 0.12); /* Fundo de chips e glow suave */
+      --accent-glow: rgba(16, 185, 129, 0.28);/* Brilho de botões e seleções */
+
+      /* Botões Especializados Lation */
+      --btn-green-bg: #1b3b2d;
+      --btn-green-text: #6afe87;
+      --btn-green-border: #224d3a;
+      --btn-green-hover: #234d3b;
+
+      --btn-err-bg: #35202b;
+      --btn-err-text: #ff9f87;
+      --btn-err-border: #4a2b3b;
+
+      /* Alertas */
+      --error: #ef4444;
+      --warning: #f59e0b;
+
+      /* Raios e Sombras */
+      --radius: 10px;
+      --radius-sm: 6px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+      --panel-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.55);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-page);
+      font-family: var(--font-sans);
+      color: var(--content);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbars Padronizadas Lation */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface-deep); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* Inputs de Faixa (Range) estilizados no padrão Emerald */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      background: var(--surface-deep);
+      border-radius: 3px;
+      border: 1px solid var(--line);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-bright);
+      border: 2px solid var(--surface);
+      box-shadow: 0 0 10px var(--accent);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: #ffffff;
+    }
+
+    /* ============================================================
+       HEADER HAZE STUDIOS & LATION EMERALD
+       ============================================================ */
+    header.lation-header {
+      width: 100%;
+      background: var(--surface-band);
+      border-bottom: 2px solid var(--accent);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 18px var(--accent-dim);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-logo-img {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+
+    .brand-titles {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title-main {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #ffffff;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-title-main span.emerald-tag {
+      color: var(--accent-bright);
+      font-weight: 900;
+    }
+
+    .brand-sub {
+      font-family: var(--font-mono);
+      font-size: 8.5px;
+      letter-spacing: 3px;
+      color: var(--content-secondary);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-sub::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-chip {
+      background: var(--surface-deep);
+      border: 1px solid var(--line-strong);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--content-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-chip.emerald {
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      background: var(--accent-dim);
+    }
+
+    /* ============================================================
+       LAYOUT PRINCIPAL
+       ============================================================ */
+    main.app-container {
+      width: 100%;
+      max-width: 1320px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 24px;
+      flex: 1;
+    }
+
+    @media (max-width: 1024px) {
+      main.app-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Cards Lation com Destaque Vertical */
+    .lation-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--panel-shadow);
+      box-shadow: inset 3px 0 0 var(--accent), var(--panel-shadow);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.15s ease;
+    }
+
+    .lation-card:hover {
+      border-color: var(--line-hover);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+
+    .card-label {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--content-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-label .dot {
+      color: var(--accent-bright);
+      font-size: 8px;
+    }
+
+    .card-val {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent-bright);
+    }
+
+    /* Tabs de Modo (Uma Imagem vs Lote) */
+    .tabs-nav {
+      display: flex;
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--content-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: var(--content);
+      background: var(--surface-hover);
+    }
+
+    .tab-btn.active {
+      background: var(--btn-green-bg);
+      color: var(--accent-bright);
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 12px var(--accent-dim);
+    }
+
+    /* Dropzone de Upload */
+    .dropzone {
+      border: 1.5px dashed var(--line-strong);
+      background: var(--surface-deep);
+      border-radius: var(--radius-sm);
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      padding: 12px;
+      text-align: center;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: var(--surface-hover);
+      box-shadow: 0 0 16px var(--accent-dim);
+    }
+
+    .dropzone-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--content-secondary);
+    }
+
+    .dropzone-sub {
+      font-size: 9px;
+      color: var(--content-muted);
+      font-family: var(--font-mono);
+    }
+
+    .dropzone-preview {
+      position: relative;
+      width: 100%;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .dropzone-preview img {
+      width: 100%;
+      max-height: 95px;
+      object-fit: cover;
+      display: block;
+      border-radius: 4px;
+    }
+
+    .dropzone-overlay-change {
+      position: absolute;
+      inset: 0;
+      background: rgba(16, 23, 33, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-bright);
+      letter-spacing: 1.5px;
+    }
+
+    .dropzone-preview:hover .dropzone-overlay-change {
+      opacity: 1;
+    }
+
+    /* Grade de Imagens em Lote */
+    .batch-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 130px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .batch-thumb {
+      position: relative;
+      width: 62px;
+      height: 44px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .batch-thumb.active {
+      border-color: var(--accent-bright);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .batch-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .batch-thumb .rm-btn {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      background: var(--error);
+      color: #ffffff;
+      border: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .batch-thumb:hover .rm-btn {
+      opacity: 1;
+    }
+
+    /* Personagens e Chips */
+    .char-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .lation-input {
+      background: var(--surface-deep);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      color: var(--content-heading);
+      padding: 7px 10px;
+      font-family: var(--font-sans);
+      font-size: 11px;
+      outline: none;
+      flex: 1;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .lation-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 10px var(--accent-dim);
+    }
+
+    .char-chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 90px;
+      overflow-y: auto;
+    }
+
+    .char-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 8px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface-deep);
+      border: 1px solid var(--line-strong);
+      transition: all 0.15s ease;
+      color: var(--content);
+    }
+
+    .char-chip.active {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      box-shadow: 0 0 10px var(--accent-dim);
+    }
+
+    .char-color-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .char-chip .del-char {
+      background: transparent;
+      border: none;
+      color: var(--content-muted);
+      cursor: pointer;
+      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
+      padding-left: 2px;
+      transition: color 0.15s ease;
+    }
+
+    .char-chip .del-char:hover {
+      color: var(--error);
+    }
+
+    /* Botões de Ação Rápida de RP */
+    .rp-actions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .action-btn {
+      padding: 5px 9px;
+      border-radius: 5px;
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      color: var(--content-secondary);
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .action-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 0 10px var(--accent-dim);
+    }
+
+    .action-btn.btn-me { color: #cc99ff; border-color: rgba(204, 153, 255, 0.25); }
+    .action-btn.btn-do { color: #b17df8; border-color: rgba(177, 125, 248, 0.25); }
+    .action-btn.btn-item { color: #f5c500; border-color: rgba(245, 197, 0, 0.25); }
+    .action-btn.btn-cel { color: #f5c500; border-color: rgba(245, 197, 0, 0.25); }
+    .action-btn.btn-sys { color: #f87171; border-color: rgba(248, 113, 113, 0.25); }
+    .action-btn.btn-ooc { color: #94a3b8; border-color: rgba(148, 163, 184, 0.25); }
+
+    /* Textarea do Chat Log */
+    textarea.lation-textarea {
+      width: 100%;
+      height: 145px;
+      background: var(--surface-deep);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      color: var(--content-heading);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.65;
+      padding: 10px 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    textarea.lation-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 10px var(--accent-dim);
+    }
+
+    /* Filtros e Efeitos */
+    .effects-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .effect-btn {
+      padding: 6px 11px;
+      border-radius: 5px;
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      color: var(--content-muted);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .effect-btn:hover {
+      border-color: var(--line-hover);
+      color: var(--content);
+    }
+
+    .effect-btn.active {
+      background: var(--btn-green-bg);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      box-shadow: 0 0 12px var(--accent-dim);
+    }
+
+    /* Botões Principais de Exportação / Ação */
+    .main-actions-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .lation-btn {
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+    }
+
+    .lation-btn.primary {
+      background: var(--btn-green-bg);
+      border: 1px solid var(--accent);
+      color: var(--btn-green-text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(16, 185, 129, 0.2);
+      flex: 2.2;
+    }
+
+    .lation-btn.primary:hover:not(:disabled) {
+      background: var(--btn-green-hover);
+      border-color: var(--accent-bright);
+      color: #ffffff;
+      box-shadow: 0 0 20px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
+    .lation-btn.primary:disabled {
+      background: var(--surface-deep);
+      border-color: var(--line);
+      color: var(--content-muted);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .lation-btn.ghost-danger {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--error);
+      flex: 1;
+    }
+
+    .lation-btn.ghost-danger:hover {
+      background: var(--btn-err-bg);
+      border-color: var(--error);
+      color: #ffffff;
+    }
+
+    /* Legenda */
+    .legend-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 10.5px;
+      color: var(--content-secondary);
+    }
+
+    .legend-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      min-width: 24px;
+      text-align: center;
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+    }
+
+    /* ============================================================
+       PREVIEW WORKSPACE (CANVAS)
+       ============================================================ */
+    .preview-column {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .preview-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px;
+    }
+
+    .preview-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--content-secondary);
+    }
+
+    .preview-meta .drag-hint {
+      color: var(--accent-soft);
+      font-weight: 600;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+    }
+
+    .preview-res {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent-bright);
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .canvas-viewport {
+      position: relative;
+      width: 100%;
+      background: var(--surface-deep);
+      border-radius: var(--radius);
+      border: 1px solid var(--line-strong);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 480px;
+    }
+
+    .canvas-viewport canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .canvas-viewport canvas.dragging {
+      cursor: grabbing;
+    }
+
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--content-muted);
+      pointer-events: none;
+    }
+
+    .empty-state svg {
+      width: 44px;
+      height: 44px;
+      stroke: var(--line-strong);
+    }
+
+    .empty-state span {
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    /* Footer */
+    footer.app-footer {
+      width: 100%;
+      padding: 16px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--content-muted);
+      border-top: 1px solid var(--line);
+      margin-top: auto;
+    }
+
+    /* Toggle Switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .toggle-switch input {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .toggle-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--content-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER OFICIAL HAZE STUDIOS -->
+  <header class="lation-header">
+    <div class="brand-group">
+      <img src="./11_logo_transparent_1200x400.png" alt="Haze Studios Logo" class="brand-logo-img" onerror="this.style.display='none'">
+      <div class="brand-titles">
+        <div class="brand-title-main">
+          HAZE <span class="emerald-tag">STUDIOS</span>
+        </div>
+        <div class="brand-sub">
+          RP CHAT LOG STUDIO
+        </div>
+      </div>
+    </div>
+
+    <div class="header-badges">
+      <div class="badge-chip emerald">
+        Haze Chatlog 1.0
+      </div>
+    </div>
+  </header>
+
+  <!-- CORPO PRINCIPAL -->
+  <main class="app-container">
+
+    <!-- COLUNA LATERAL DE CONTROLES -->
+    <div class="sidebar">
+
+      <!-- MODO: UMA IMAGEM OU LOTE -->
+      <div class="tabs-nav">
+        <button class="tab-btn active" id="tab-single-btn" onclick="setTab('single')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          Foto Individual
+        </button>
+        <button class="tab-btn" id="tab-batch-btn" onclick="setTab('batch')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          Lote (ZIP)
+        </button>
+      </div>
+
+      <!-- CARD 1: FOTO DE CENA -->
+      <div class="lation-card" id="card-image-single">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Fundo da Cena</span>
+          <span class="card-val" id="img-dim-val">1280×720</span>
+        </div>
+
+        <input type="file" id="input-single-file" accept="image/*" style="display:none" onchange="handleSingleUpload(this.files[0])">
+        <div class="dropzone" id="single-dropzone" onclick="document.getElementById('input-single-file').click()">
+          <div id="dropzone-empty-content">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <div class="dropzone-text">Clique ou arraste uma foto</div>
+            <div class="dropzone-sub">PNG, JPG ou WEBP (Resolução original)</div>
+          </div>
+          <div id="dropzone-preview-box" class="dropzone-preview" style="display:none">
+            <img id="preview-thumb-img" src="" alt="Thumbnail">
+            <div class="dropzone-overlay-change">TROCAR IMAGEM</div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="card-label" style="font-size:9px;">Escurecimento da Cena</span>
+            <span class="card-val" id="overlay-val">0%</span>
+          </div>
+          <input type="range" id="slider-overlay" min="0" max="85" value="0" oninput="updateOverlay(this.value)">
+        </div>
+      </div>
+
+      <!-- CARD 1.1: FOTOS EM LOTE (BATCH) -->
+      <div class="lation-card" id="card-image-batch" style="display:none">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Fotos em Lote</span>
+          <span class="card-val" id="batch-count-val">0 Fotos</span>
+        </div>
+
+        <input type="file" id="input-batch-files" accept="image/*" multiple style="display:none" onchange="handleBatchUpload(this.files)">
+        <div class="dropzone" id="batch-dropzone" onclick="document.getElementById('input-batch-files').click()">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <div class="dropzone-text">+ Adicionar Fotos de RP</div>
+          <div class="dropzone-sub">Selecione vários prints de uma vez</div>
+        </div>
+
+        <div class="batch-grid" id="batch-grid-container"></div>
+
+        <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="card-label" style="font-size:9px;">Escurecimento Global</span>
+            <span class="card-val" id="overlay-batch-val">0%</span>
+          </div>
+          <input type="range" id="slider-overlay-batch" min="0" max="85" value="0" oninput="updateOverlay(this.value)">
+        </div>
+      </div>
+
+      <!-- CARD 2: PERSONAGENS E ATALHOS -->
+      <div class="lation-card">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Personagens Haze</span>
+          <span class="card-val" id="active-char-name">—</span>
+        </div>
+
+        <div class="char-input-row">
+          <input type="text" class="lation-input" id="char-name-input" placeholder="Novo Personagem (ex: Mateo Mendoza)" onkeydown="if(event.key==='Enter') addCharacter()">
+          <button class="lation-btn primary" style="flex:none; padding:7px 12px; font-size:10px;" onclick="addCharacter()">+ ADD</button>
+        </div>
+
+        <div class="char-chips-container" id="char-chips-list"></div>
+
+        <div style="border-top:1px solid var(--line); padding-top:8px;">
+          <div class="card-label" style="font-size:9px; margin-bottom:6px;">Inserir Linha Rápida:</div>
+          <div class="rp-actions-grid">
+            <button class="action-btn" onclick="insertAtCursor(getActiveCharSpeechPrefix())">💬 FALA</button>
+            <button class="action-btn btn-me" onclick="insertAtCursor(getActiveCharActionPrefix())">★ /ME</button>
+            <button class="action-btn btn-do" onclick="insertAtCursor('* ')">◈ /DO</button>
+            <button class="action-btn btn-item" onclick="insertAtCursor('$ ')">$ ITEM</button>
+            <button class="action-btn btn-cel" onclick="insertAtCursor('# ')"># CEL</button>
+            <button class="action-btn btn-sys" onclick="insertAtCursor('! ')">! SIS</button>
+            <button class="action-btn btn-ooc" onclick="insertAtCursor('(( ')">(( OOC</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 3: TEXTO DO CHAT LOG -->
+      <div class="lation-card">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Conteúdo do Chat Log</span>
+          <span class="card-val" id="line-count-val">0 linhas</span>
+        </div>
+        <textarea class="lation-textarea" id="chat-text-input" placeholder="Cole seu chat log ou use os atalhos acima..." oninput="onTextInputChange()"></textarea>
+      </div>
+
+      <!-- CARD 4: TIPOGRAFIA & LAYOUT -->
+      <div class="lation-card">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Estilo & Tipografia</span>
+        </div>
+
+        <!-- Tamanho da Fonte -->
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="card-label" style="font-size:9px;">Tamanho da Fonte</span>
+            <span class="card-val" id="font-size-val">13px</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="action-btn" style="padding:4px 8px; font-weight:700;" onclick="adjustFontSize(-1)">−</button>
+            <input type="range" id="slider-font-size" min="8" max="32" value="13" oninput="updateFontSize(+this.value)">
+            <button class="action-btn" style="padding:4px 8px; font-weight:700;" onclick="adjustFontSize(1)">+</button>
+          </div>
+        </div>
+
+        <!-- Largura do Bloco -->
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="card-label" style="font-size:9px;">Largura do Bloco</span>
+            <span class="card-val" id="maxw-val">55%</span>
+          </div>
+          <input type="range" id="slider-maxw" min="15" max="95" value="55" oninput="updateMaxW(+this.value)">
+        </div>
+
+        <!-- Fundo do Texto -->
+        <div style="border-top:1px solid var(--line); padding-top:8px; display:flex; flex-direction:column; gap:8px;">
+          <div class="toggle-row">
+            <span class="card-label" style="font-size:9px;">Fundo Semitransparente</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="check-bg-enabled" checked onchange="updateBgEnabled(this.checked)">
+              <span class="toggle-label" style="color:var(--accent-bright)">ATIVO</span>
+            </label>
+          </div>
+
+          <div id="bg-options-row" style="display:flex; gap:10px; align-items:center;">
+            <input type="color" id="input-bg-color" value="#000000" style="width:34px; height:24px; border:none; background:none; cursor:pointer;" oninput="updateBgColor(this.value)">
+            <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
+              <div style="display:flex; justify-content:space-between;">
+                <span class="card-label" style="font-size:8.5px;">Opacidade</span>
+                <span class="card-val" id="bg-opacity-val">85%</span>
+              </div>
+              <input type="range" id="slider-bg-opacity" min="5" max="100" value="85" oninput="updateBgOpacity(+this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 5: FILTROS & EFEITOS -->
+      <div class="lation-card">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Efeitos Fotográficos</span>
+        </div>
+        <div class="effects-grid">
+          <button class="effect-btn" id="fx-grain" onclick="toggleEffect('grain')">Granulado</button>
+          <button class="effect-btn" id="fx-vignette" onclick="toggleEffect('vignette')">Vinheta</button>
+          <button class="effect-btn" id="fx-lightleak" onclick="toggleEffect('lightleak')">Light Leak</button>
+          <button class="effect-btn" id="fx-brush" onclick="toggleEffect('brush')">Contraste</button>
+          <button class="effect-btn" id="fx-vintage" onclick="toggleEffect('vintage')">Vintage</button>
+          <button class="effect-btn" id="fx-bw" onclick="toggleEffect('bw')">P&amp;B</button>
+        </div>
+      </div>
+
+      <!-- BOTÕES DE EXPORTAÇÃO E LIMPEZA -->
+      <div class="main-actions-row">
+        <button class="lation-btn ghost-danger" onclick="clearAllData()">Limpar</button>
+        <button class="lation-btn primary" id="btn-export" onclick="triggerExport()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span id="btn-export-text">Exportar PNG</span>
+        </button>
+      </div>
+
+      <!-- CARD 6: LEGENDA DE CORES RP -->
+      <div class="lation-card">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Padrão de Cores RP</span>
+        </div>
+        <div class="legend-list">
+          <div class="legend-item"><span class="legend-badge" style="color:#cc99ff; border-color:#cc99ff44;">*</span> /me e /do — Ações e Ambiente</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#ffffff; border-color:#ffffff44;">—</span> Fala Normal / Gritando</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">!</span> Sistema / Notificação / Transação</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">#</span> Chamada ou Mensagem Celular</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#aaaaaa; border-color:#aaaaaa44;">—</span> Diz (baixo)</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#888888; border-color:#88888844;">—</span> Diz (sussurrando)</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#94a3b8; border-color:#94a3b844;">((</span> Fora do Personagem (OOC)</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ÁREA DE PREVIEW INTERATIVO -->
+    <div class="preview-column">
+      <div class="preview-header-bar">
+        <div class="preview-meta">
+          <span style="color:var(--accent-bright);">◆</span>
+          <span>PREVIEW INTERATIVO</span>
+          <span class="drag-hint">✦ Clique e arraste o texto para posicionar</span>
+        </div>
+        <div class="preview-res" id="canvas-res-chip">1280 × 720 px</div>
+      </div>
+
+      <div class="canvas-viewport" id="canvas-viewport-container">
+        <canvas id="preview-canvas"></canvas>
+        <div class="empty-state" id="canvas-empty-state" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <span>Carregue uma imagem ou digite um texto para visualizar</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="app-footer">
+    HAZE STUDIOS RP · CHAT LOG STUDIO
+  </footer>
+
+  <!-- SCRIPT PRINCIPAL DA APLICAÇÃO (VANILLA JS MODERNO, LEVE E ULTRA RÁPIDO) -->
+  <script>
+    // Paleta de cores para os personagens
+    const CHAR_COLORS = [
+      "#10b981", "#6afe87", "#38bdf8", "#f5c500", "#cc99ff",
+      "#fb7185", "#fb923c", "#2dd4bf", "#a78bfa", "#e879f9"
+    ];
+
+    const CHAT_COLORS = {
+      me: "#cc99ff",
+      ame: "#cc99ff",
+      white: "#ffffff",
+      yellow: "#f5c500",
+      green: "#6afe87",
+      death: "#f87171",
+      grey: "#aaaaaa",
+      darkgrey: "#888888",
+      lightgrey: "#cccccc",
+      ooc: "#94a3b8",
+      blue: "#7dd3fc"
+    };
+
+    const DEFAULT_TEXT = `* Mateo Mendoza encosta o Granger preto rente ao galpão, mantendo a lanterna baixa.
+Mateo Mendoza diz (normal): Desliga os rádios e vigia os acessos, Ramon. Essa carga não pode vazar.
+* Ramon Mendoza desce do passageiro, ajeitando o coldre sob a jaqueta escura.
+! Você recebeu uma maleta de metal lacrada de Ramon Mendoza.
+Ramon Mendoza diz (baixo): Tá tudo conferido. Os documentos e o pagamento tão aqui dentro.
+* Mateo Mendoza passa a mão pela barba, concordando com um leve aceno de cabeça.
+Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avançar pro ponto B.`;
+
+    // Escala de renderização (Super Sampling 2x)
+    const RENDER_SCALE = 2;
+
+    // Estado da Aplicação
+    const state = {
+      tab: 'single', // 'single' ou 'batch'
+      input: DEFAULT_TEXT,
+      chars: [
+        { id: 1, name: "Mateo Mendoza", color: CHAR_COLORS[0] },
+        { id: 2, name: "Ramon Mendoza", color: CHAR_COLORS[1] }
+      ],
+      activeCharId: 1,
+      singleImg: null,
+      singleEl: null,
+      singleSize: { w: 1280, h: 720 },
+      singleName: "chatlog_haze.png",
+      batchImgs: [],
+      batchSel: 0,
+      textX: 2.5,  // porcentagem 0..100
+      textY: 72,   // porcentagem 0..100
+      overlay: 0,
+      fontSize: 13,
+      maxWpct: 55,
+      bgEnabled: true,
+      bgColor: "#000000",
+      bgOpacity: 85,
+      effects: {
+        grain: false,
+        vignette: false,
+        lightleak: false,
+        brush: false,
+        vintage: false,
+        bw: false
+      },
+      exporting: false
+    };
+
+    // Parser de Linhas de GTA RP
+    function parseLine(line) {
+      const t = line.trimStart();
+      const low = t.toLowerCase();
+      if (!t) return { type: "empty", content: "" };
+      if (t[0] === "*") return { type: "me", content: line };
+      if (t[0] === ">") return { type: "ame", content: line };
+      if (t[0] === "$") return { type: "yellow", content: line };
+      if (t[0] === "!") return { type: "yellow", content: line.slice(1).trimStart() };
+      if (t.startsWith("((")) return { type: "ooc", content: line };
+      if (/\bdiz\b\s*\(\s*celular\s*\)/.test(low)) return { type: "yellow", content: line };
+      if (/\bdiz\b\s*\(\s*(?:sussurrando|sussurando)\s*\)/.test(low)) return { type: "darkgrey", content: line };
+      if (/\bdiz\b\s*\(\s*baixo\s*\)/.test(low)) return { type: "grey", content: line };
+      if (/\bdiz\b\s*\(\s*gritando\s*\)/.test(low)) return { type: "white", content: line };
+      if (t[0] === "#") return { type: "yellow", content: line.slice(1).trimStart() };
+      return { type: "white", content: line };
+    }
+
+    // Quebra de texto inteligente
+    function wrapText(ctx, text, maxWidth) {
+      const words = text.split(' ');
+      const result = [];
+      let line = '';
+      for (let i = 0; i < words.length; i++) {
+        const test = line ? (line + ' ' + words[i]) : words[i];
+        if (ctx.measureText(test).width > maxWidth && line) {
+          result.push(line);
+          line = words[i];
+        } else {
+          line = test;
+        }
+      }
+      if (line) result.push(line);
+      if (!result.length) result.push('');
+      return result;
+    }
+
+    // Efeitos Fotográficos no Canvas
+    function generateNoiseCanvas(w, h, alpha = 70) {
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      const id = ctx.createImageData(w, h);
+      for (let i = 0; i < id.data.length; i += 4) {
+        const v = Math.random() * 255;
+        id.data[i] = v; id.data[i+1] = v; id.data[i+2] = v; id.data[i+3] = alpha;
+      }
+      ctx.putImageData(id, 0, 0);
+      return c;
+    }
+
+    function applyCanvasFilter(canvas, filter) {
+      const tmp = document.createElement("canvas");
+      tmp.width = canvas.width; tmp.height = canvas.height;
+      tmp.getContext("2d").drawImage(canvas, 0, 0);
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.filter = filter;
+      ctx.drawImage(tmp, 0, 0);
+      ctx.filter = "none";
+    }
+
+    function applyCanvasEffects(canvas, effects) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width, h = canvas.height;
+      const filters = [];
+      if (effects.bw) filters.push("grayscale(1)");
+      if (effects.vintage) filters.push("sepia(0.7) saturate(1.3) contrast(1.05)");
+      if (effects.brush) filters.push("contrast(1.25) saturate(1.2)");
+      if (filters.length) applyCanvasFilter(canvas, filters.join(" "));
+
+      if (effects.lightleak) {
+        const grad = ctx.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, "rgba(255,140,60,0.40)");
+        grad.addColorStop(0.45, "rgba(255,200,120,0.18)");
+        grad.addColorStop(1, "rgba(255,80,40,0)");
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+      }
+
+      if (effects.vignette) {
+        const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.max(w,h)*0.7);
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(0.7, "rgba(0,0,0,0.25)");
+        grad.addColorStop(1, "rgba(0,0,0,0.75)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      if (effects.grain) {
+        const noise = generateNoiseCanvas(Math.min(w, 512), Math.min(h, 512), 70);
+        ctx.save();
+        ctx.globalCompositeOperation = "overlay";
+        ctx.fillStyle = ctx.createPattern(noise, "repeat");
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+      }
+    }
+
+    // Desenho de Chat no Canvas (Nativo e pixel-perfect)
+    function drawChatOnCanvas(ctx, lines, x, y, fontSize, bgEnabled, bgColor, bgOpacity, maxW, shadowPx) {
+      const padX = Math.max(2, Math.round(fontSize * 0.35));
+      const padY = Math.max(1, Math.round(fontSize * 0.15));
+      const lineHeight = Math.round(fontSize * 1.55);
+
+      ctx.font = `bold ${fontSize}px Arial, Helvetica, sans-serif`;
+      ctx.textBaseline = 'top';
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+
+      let bg = null;
+      if (bgEnabled) {
+        const r = parseInt(bgColor.slice(1, 3), 16),
+              g = parseInt(bgColor.slice(3, 5), 16),
+              b = parseInt(bgColor.slice(5, 7), 16);
+        bg = `rgba(${r},${g},${b},${bgOpacity / 100})`;
+      }
+
+      let cursorY = y;
+      const maxTextWidth = Math.max(20, maxW - 2 * padX);
+
+      for (const line of lines) {
+        if (line.type === 'empty') {
+          cursorY += lineHeight;
+          continue;
+        }
+        const color = CHAT_COLORS[line.type] || '#ffffff';
+        const wrapped = wrapText(ctx, line.content, maxTextWidth);
+
+        for (const wLine of wrapped) {
+          const tw = Math.ceil(ctx.measureText(wLine).width);
+          if (bg) {
+            ctx.fillStyle = bg;
+            ctx.fillRect(x, cursorY, tw + 2 * padX, lineHeight);
+          }
+
+          const tx = x + padX;
+          const ty = cursorY + padY;
+
+          const outlineMultiplier = bgEnabled ? 2 : 5;
+          ctx.lineWidth = shadowPx * outlineMultiplier;
+          ctx.strokeStyle = '#000';
+          ctx.strokeText(wLine, tx, ty);
+
+          ctx.fillStyle = color;
+          ctx.fillText(wLine, tx, ty);
+
+          cursorY += lineHeight;
+        }
+      }
+    }
+
+    // Renderização do Preview
+    function renderPreview() {
+      const canvas = document.getElementById("preview-canvas");
+      const emptyState = document.getElementById("canvas-empty-state");
+      if (!canvas) return;
+
+      const activeSize = (state.tab === 'single') 
+        ? state.singleSize 
+        : (state.batchImgs[state.batchSel] ? { w: state.batchImgs[state.batchSel].w, h: state.batchImgs[state.batchSel].h } : { w: 1280, h: 720 });
+
+      const SS = RENDER_SCALE;
+      const W = activeSize.w * SS;
+      const H = activeSize.h * SS;
+
+      if (canvas.width !== W) canvas.width = W;
+      if (canvas.height !== H) canvas.height = H;
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, W, H);
+
+      let imgEl = null;
+      if (state.tab === 'single' && state.singleEl) {
+        imgEl = state.singleEl;
+      } else if (state.tab === 'batch' && state.batchImgs[state.batchSel]?.el) {
+        imgEl = state.batchImgs[state.batchSel].el;
+      }
+
+      if (imgEl) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(imgEl, 0, 0, W, H);
+      } else {
+        ctx.fillStyle = "#16171b";
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      applyCanvasEffects(canvas, state.effects);
+
+      if (imgEl && state.overlay > 0) {
+        ctx.fillStyle = `rgba(16, 23, 33, ${state.overlay / 100})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      if (state.input.trim()) {
+        const lines = state.input.split("\n").map(parseLine);
+        const exportMaxWpx = Math.round(activeSize.w * (state.maxWpct / 100));
+        const tX = (state.textX / 100) * W;
+        const tY = (state.textY / 100) * H;
+        drawChatOnCanvas(ctx, lines, tX, tY, state.fontSize * SS, state.bgEnabled, state.bgColor, state.bgOpacity, exportMaxWpx * SS, SS);
+        emptyState.style.display = "none";
+      } else if (!imgEl) {
+        emptyState.style.display = "flex";
+      } else {
+        emptyState.style.display = "none";
+      }
+
+      document.getElementById("canvas-res-chip").textContent = `${activeSize.w} × ${activeSize.h} px`;
+    }
+
+    // Drag and Drop do Texto sobre o Canvas
+    let isDragging = false;
+    let dragStart = { mx: 0, my: 0, tx: 0, ty: 0 };
+    const canvas = document.getElementById("preview-canvas");
+
+    canvas.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      isDragging = true;
+      canvas.classList.add("dragging");
+      dragStart = {
+        mx: e.clientX,
+        my: e.clientY,
+        tx: state.textX,
+        ty: state.textY
+      };
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const dx = ((e.clientX - dragStart.mx) / rect.width) * 100;
+      const dy = ((e.clientY - dragStart.my) / rect.height) * 100;
+
+      state.textX = Math.min(95, Math.max(0, dragStart.tx + dx));
+      state.textY = Math.min(95, Math.max(0, dragStart.ty + dy));
+      renderPreview();
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        canvas.classList.remove("dragging");
+      }
+    });
+
+    // Mudança de Tabs
+    function setTab(tab) {
+      state.tab = tab;
+      document.getElementById("tab-single-btn").classList.toggle("active", tab === 'single');
+      document.getElementById("tab-batch-btn").classList.toggle("active", tab === 'batch');
+      document.getElementById("card-image-single").style.display = tab === 'single' ? "flex" : "none";
+      document.getElementById("card-image-batch").style.display = tab === 'batch' ? "flex" : "none";
+      document.getElementById("btn-export-text").textContent = tab === 'single' ? "Exportar PNG" : `Exportar ZIP (${state.batchImgs.length})`;
+      renderPreview();
+    }
+
+    // Carregamento de Imagem
+    function loadImageFile(file, cb) {
+      if (!file || !file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const src = e.target.result;
+        const img = new Image();
+        img.onload = () => {
+          cb({
+            src,
+            el: img,
+            w: img.naturalWidth,
+            h: img.naturalHeight,
+            name: file.name
+          });
+        };
+        img.src = src;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleSingleUpload(file) {
+      if (!file) return;
+      loadImageFile(file, (data) => {
+        state.singleImg = data.src;
+        state.singleEl = data.el;
+        state.singleSize = { w: data.w, h: data.h };
+        state.singleName = data.name.replace(/\.[^/.]+$/, "") + "_haze_chatlog.png";
+
+        document.getElementById("dropzone-empty-content").style.display = "none";
+        document.getElementById("dropzone-preview-box").style.display = "block";
+        document.getElementById("preview-thumb-img").src = data.src;
+        document.getElementById("img-dim-val").textContent = `${data.w}×${data.h}`;
+        renderPreview();
+      });
+    }
+
+    function handleBatchUpload(files) {
+      if (!files || !files.length) return;
+      Array.from(files).forEach(file => {
+        loadImageFile(file, (data) => {
+          state.batchImgs.push({ id: Date.now() + Math.random(), ...data });
+          updateBatchUI();
+          renderPreview();
+        });
+      });
+    }
+
+    function updateBatchUI() {
+      const grid = document.getElementById("batch-grid-container");
+      grid.innerHTML = "";
+      state.batchImgs.forEach((img, idx) => {
+        const div = document.createElement("div");
+        div.className = `batch-thumb ${state.batchSel === idx ? "active" : ""}`;
+        div.onclick = () => {
+          state.batchSel = idx;
+          updateBatchUI();
+          renderPreview();
+        };
+
+        const image = document.createElement("img");
+        image.src = img.src;
+
+        const rm = document.createElement("button");
+        rm.className = "rm-btn";
+        rm.textContent = "✕";
+        rm.onclick = (e) => {
+          e.stopPropagation();
+          state.batchImgs.splice(idx, 1);
+          if (state.batchSel >= state.batchImgs.length && state.batchSel > 0) {
+            state.batchSel = state.batchImgs.length - 1;
+          }
+          updateBatchUI();
+          renderPreview();
+        };
+
+        div.appendChild(image);
+        div.appendChild(rm);
+        grid.appendChild(div);
+      });
+
+      document.getElementById("batch-count-val").textContent = `${state.batchImgs.length} Fotos`;
+      document.getElementById("btn-export-text").textContent = `Exportar ZIP (${state.batchImgs.length})`;
+    }
+
+    // Personagens
+    function renderCharChips() {
+      const container = document.getElementById("char-chips-list");
+      container.innerHTML = "";
+      state.chars.forEach(c => {
+        const chip = document.createElement("div");
+        chip.className = `char-chip ${state.activeCharId === c.id ? "active" : ""}`;
+        chip.onclick = () => {
+          state.activeCharId = c.id;
+          renderCharChips();
+          updateActiveCharDisplay();
+        };
+
+        const dot = document.createElement("div");
+        dot.className = "char-color-dot";
+        dot.style.background = c.color;
+
+        const name = document.createElement("span");
+        name.textContent = c.name;
+
+        const del = document.createElement("button");
+        del.className = "del-char";
+        del.textContent = "✕";
+        del.onclick = (e) => {
+          e.stopPropagation();
+          state.chars = state.chars.filter(x => x.id !== c.id);
+          if (state.activeCharId === c.id) {
+            state.activeCharId = state.chars[0]?.id || null;
+          }
+          renderCharChips();
+          updateActiveCharDisplay();
+        };
+
+        chip.appendChild(dot);
+        chip.appendChild(name);
+        chip.appendChild(del);
+        container.appendChild(chip);
+      });
+      updateActiveCharDisplay();
+    }
+
+    function updateActiveCharDisplay() {
+      const active = state.chars.find(c => c.id === state.activeCharId);
+      const label = document.getElementById("active-char-name");
+      if (active) {
+        label.textContent = active.name;
+        label.style.color = active.color;
+      } else {
+        label.textContent = "—";
+        label.style.color = "var(--content-muted)";
+      }
+    }
+
+    function addCharacter() {
+      const input = document.getElementById("char-name-input");
+      const name = input.value.trim();
+      if (!name) return;
+      const id = Date.now();
+      const color = CHAR_COLORS[state.chars.length % CHAR_COLORS.length];
+      state.chars.push({ id, name, color });
+      state.activeCharId = id;
+      input.value = "";
+      renderCharChips();
+    }
+
+    function getActiveChar() {
+      return state.chars.find(c => c.id === state.activeCharId);
+    }
+
+    function getActiveCharSpeechPrefix() {
+      const c = getActiveChar();
+      return c ? `${c.name} diz (normal): ` : "";
+    }
+
+    function getActiveCharActionPrefix() {
+      const c = getActiveChar();
+      return c ? `* ${c.name} ` : "* ";
+    }
+
+    // Inserção no Textarea
+    function insertAtCursor(prefix) {
+      const ta = document.getElementById("chat-text-input");
+      const s = ta.selectionStart;
+      const lineStart = state.input.lastIndexOf("\n", s - 1) + 1;
+      const before = state.input.slice(0, lineStart);
+      const after = state.input.slice(lineStart);
+      const needNL = lineStart > 0 && state.input[lineStart - 1] !== "\n";
+      const ins = (needNL ? "\n" : "") + prefix;
+      state.input = before + ins + after;
+      ta.value = state.input;
+      renderPreview();
+      setTimeout(() => {
+        ta.focus();
+        const p = lineStart + (needNL ? 1 : 0) + prefix.length;
+        ta.setSelectionRange(p, p);
+      }, 0);
+    }
+
+    function onTextInputChange() {
+      const ta = document.getElementById("chat-text-input");
+      state.input = ta.value;
+      const lines = state.input.split("\n").filter(l => l.trim().length > 0);
+      document.getElementById("line-count-val").textContent = `${lines.length} linhas`;
+      renderPreview();
+    }
+
+    // Controles de Estilo
+    function updateOverlay(val) {
+      state.overlay = +val;
+      document.getElementById("overlay-val").textContent = `${val}%`;
+      document.getElementById("overlay-batch-val").textContent = `${val}%`;
+      renderPreview();
+    }
+
+    function updateFontSize(val) {
+      state.fontSize = Math.min(32, Math.max(8, val));
+      document.getElementById("slider-font-size").value = state.fontSize;
+      document.getElementById("font-size-val").textContent = `${state.fontSize}px`;
+      renderPreview();
+    }
+
+    function adjustFontSize(delta) {
+      updateFontSize(state.fontSize + delta);
+    }
+
+    function updateMaxW(val) {
+      state.maxWpct = val;
+      document.getElementById("maxw-val").textContent = `${val}%`;
+      renderPreview();
+    }
+
+    function updateBgEnabled(val) {
+      state.bgEnabled = val;
+      document.getElementById("bg-options-row").style.display = val ? "flex" : "none";
+      renderPreview();
+    }
+
+    function updateBgColor(val) {
+      state.bgColor = val;
+      renderPreview();
+    }
+
+    function updateBgOpacity(val) {
+      state.bgOpacity = val;
+      document.getElementById("bg-opacity-val").textContent = `${val}%`;
+      renderPreview();
+    }
+
+    function toggleEffect(key) {
+      state.effects[key] = !state.effects[key];
+      const btn = document.getElementById(`fx-${key}`);
+      if (btn) btn.classList.toggle("active", state.effects[key]);
+      renderPreview();
+    }
+
+    function clearAllData() {
+      state.input = "";
+      document.getElementById("chat-text-input").value = "";
+      document.getElementById("line-count-val").textContent = "0 linhas";
+      renderPreview();
+    }
+
+    // EXPORTAÇÃO
+    async function doExportRender(imgEl, w, h, filename) {
+      const SS = RENDER_SCALE;
+      const W = w * SS, H = h * SS;
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      if (imgEl) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(imgEl, 0, 0, W, H);
+      } else {
+        ctx.fillStyle = "#16171b";
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      applyCanvasEffects(canvas, state.effects);
+
+      if (imgEl && state.overlay > 0) {
+        ctx.fillStyle = `rgba(16, 23, 33, ${state.overlay / 100})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      if (state.input.trim()) {
+        const lines = state.input.split("\n").map(parseLine);
+        const exportMaxW = Math.round((state.maxWpct / 100) * W);
+        const tX = (state.textX / 100) * W;
+        const tY = (state.textY / 100) * H;
+        drawChatOnCanvas(ctx, lines, tX, tY, state.fontSize * SS, state.bgEnabled, state.bgColor, state.bgOpacity, exportMaxW, SS);
+      }
+
+      return new Promise(res => canvas.toBlob(res, "image/png"));
+    }
+
+    async function triggerExport() {
+      if (state.exporting) return;
+      const btnText = document.getElementById("btn-export-text");
+
+      if (state.tab === 'single') {
+        state.exporting = true;
+        btnText.textContent = "⏳ Gerando PNG...";
+        try {
+          const blob = await doExportRender(state.singleEl, state.singleSize.w, state.singleSize.h, state.singleName);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = state.singleName;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          console.error(err);
+          alert("Erro ao exportar PNG.");
+        } finally {
+          state.exporting = false;
+          btnText.textContent = "Exportar PNG";
+        }
+      } else {
+        if (!state.batchImgs.length) {
+          alert("Adicione pelo menos uma imagem para exportar em lote!");
+          return;
+        }
+        state.exporting = true;
+        const zip = new JSZip();
+
+        for (let i = 0; i < state.batchImgs.length; i++) {
+          const img = state.batchImgs[i];
+          btnText.textContent = `⏳ ${Math.round(((i + 1) / state.batchImgs.length) * 100)}%`;
+          const blob = await doExportRender(img.el, img.w, img.h, img.name);
+          zip.file(img.name.replace(/\.[^/.]+$/, "") + "_haze_chatlog.png", blob);
+        }
+
+        btnText.textContent = "⏳ Compactando ZIP...";
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "haze_chatlogs_batch.zip";
+        a.click();
+        URL.revokeObjectURL(url);
+
+        state.exporting = false;
+        btnText.textContent = `Exportar ZIP (${state.batchImgs.length})`;
+      }
+    }
+
+    // Suporte a Drag and Drop direto de arquivos do Windows
+    const dropzone = document.getElementById("single-dropzone");
+    const batchDropzone = document.getElementById("batch-dropzone");
+    const canvasContainer = document.getElementById("canvas-viewport-container");
+
+    [dropzone, batchDropzone, canvasContainer].forEach(el => {
+      if (!el) return;
+      el.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (el === dropzone || el === batchDropzone) el.classList.add("dragover");
+      });
+      el.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        if (el === dropzone || el === batchDropzone) el.classList.remove("dragover");
+      });
+      el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        if (el === dropzone || el === batchDropzone) el.classList.remove("dragover");
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+          if (state.tab === 'single') {
+            handleSingleUpload(e.dataTransfer.files[0]);
+          } else {
+            handleBatchUpload(e.dataTransfer.files);
+          }
+        }
+      });
+    });
+
+    // Inicialização da Aplicação
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("chat-text-input").value = state.input;
+      renderCharChips();
+      onTextInputChange();
+      renderPreview();
+    });
+  </script>
+</body>
+</html>

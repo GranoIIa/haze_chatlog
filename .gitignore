@@ -1,0 +1,23 @@
+# Arquivos de mídia e vídeos pesados
+*.mp4
+*.gif
+01_*
+03_*
+06_*
+07_*
+08_*
+09_*
+10_*
+11_gif_*
+12_*
+13_*
+*.jpg
+
+# Ferramenta anterior de referência
+Chicago Tools RP — Chat Log Creator.html
+Chicago Tools RP — Chat Log Creator_files/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
