@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Haze Studios — Chat Log Creator</title>
   
-  <!-- Google Fonts: Inter & JetBrains Mono (Lation Emerald Standard) -->
+  <!-- Google Fonts: Inter, JetBrains Mono & Montserrat (Lation Emerald Standard) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
   
   <link rel="icon" type="image/png" href="./02_avatar_512x512.png">
   
@@ -21,6 +21,12 @@
   </script>
 
   <style>
+    @font-face {
+      font-family: 'Chalet London';
+      src: local('Chalet London 1960'), local('ChaletLondon1960'), local('Chalet-London-1960'), local('Chalet London'), local('ChaletLondon');
+      font-weight: normal;
+      font-style: normal;
+    }
     /* ============================================================
        LATION MODERN UI — EMERALD EDITION DESIGN SYSTEM (ROOT TOKENS)
        ============================================================ */
@@ -662,7 +668,7 @@
       border: 1px solid var(--accent);
       color: var(--btn-green-text);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(16, 185, 129, 0.2);
-      flex: 2.2;
+      flex: 1.8;
     }
 
     .lation-btn.primary:hover:not(:disabled) {
@@ -682,17 +688,125 @@
       transform: none;
     }
 
+    .lation-btn.secondary {
+      background: var(--surface-deep);
+      border: 1px solid var(--line-strong);
+      color: var(--content);
+      flex: 1.4;
+    }
+
+    .lation-btn.secondary:hover:not(:disabled) {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      box-shadow: 0 0 12px var(--accent-dim);
+      transform: translateY(-1px);
+    }
+
     .lation-btn.ghost-danger {
       background: transparent;
       border: 1px solid rgba(239, 68, 68, 0.3);
       color: var(--error);
-      flex: 1;
+      flex: 0.8;
     }
 
     .lation-btn.ghost-danger:hover {
       background: var(--btn-err-bg);
       border-color: var(--error);
       color: #ffffff;
+    }
+
+    /* Seletor de Fontes Customizado */
+    select.lation-select {
+      width: 100%;
+      background: var(--surface-deep);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      color: var(--content-heading);
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 7px 10px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    select.lation-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 10px var(--accent-dim);
+    }
+
+    select.lation-select option {
+      background: var(--surface);
+      color: var(--content);
+      padding: 6px;
+    }
+
+    /* Presets de Câmera RP */
+    .camera-presets-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .preset-btn {
+      padding: 6px 8px;
+      border-radius: 5px;
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      color: var(--content-secondary);
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      justify-content: center;
+    }
+
+    .preset-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .preset-btn.active {
+      background: var(--btn-green-bg);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      box-shadow: 0 0 12px var(--accent-dim);
+    }
+
+    /* Notificação Toast Flutuante */
+    .toast-notification {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface-band);
+      border: 1px solid var(--accent);
+      color: var(--accent-bright);
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 16px var(--accent-dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+
+    .toast-notification.show {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     /* Legenda */
@@ -908,7 +1022,7 @@
           <div id="dropzone-empty-content">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
             <div class="dropzone-text">Clique ou arraste uma foto</div>
-            <div class="dropzone-sub">PNG, JPG ou WEBP (Resolução original)</div>
+            <div class="dropzone-sub">PNG, JPG, WEBP ou Cole com Ctrl + V</div>
           </div>
           <div id="dropzone-preview-box" class="dropzone-preview" style="display:none">
             <img id="preview-thumb-img" src="" alt="Thumbnail">
@@ -936,7 +1050,7 @@
         <div class="dropzone" id="batch-dropzone" onclick="document.getElementById('input-batch-files').click()">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
           <div class="dropzone-text">+ Adicionar Fotos de RP</div>
-          <div class="dropzone-sub">Selecione vários prints de uma vez</div>
+          <div class="dropzone-sub">Selecione vários prints ou cole com Ctrl + V</div>
         </div>
 
         <div class="batch-grid" id="batch-grid-container"></div>
@@ -965,15 +1079,18 @@
         <div class="char-chips-container" id="char-chips-list"></div>
 
         <div style="border-top:1px solid var(--line); padding-top:8px;">
-          <div class="card-label" style="font-size:9px; margin-bottom:6px;">Inserir Linha Rápida:</div>
+          <div class="card-label" style="font-size:9px; margin-bottom:6px;">Inserir Linha Rápida (Tom de Voz &amp; RP):</div>
           <div class="rp-actions-grid">
-            <button class="action-btn" onclick="insertAtCursor(getActiveCharSpeechPrefix())">💬 FALA</button>
-            <button class="action-btn btn-me" onclick="insertAtCursor(getActiveCharActionPrefix())">★ /ME</button>
-            <button class="action-btn btn-do" onclick="insertAtCursor('* ')">◈ /DO</button>
-            <button class="action-btn btn-item" onclick="insertAtCursor('$ ')">$ ITEM</button>
-            <button class="action-btn btn-cel" onclick="insertAtCursor('# ')"># CEL</button>
-            <button class="action-btn btn-sys" onclick="insertAtCursor('! ')">! SIS</button>
-            <button class="action-btn btn-ooc" onclick="insertAtCursor('(( ')">(( OOC</button>
+            <button class="action-btn" title="Fala normal" onclick="insertAtCursor(getActiveCharSpeechPrefix('normal'))">💬 FALA</button>
+            <button class="action-btn" style="color:#888888; border-color:rgba(136,136,136,0.35);" title="Sussurrando (diz sussurrando)" onclick="insertAtCursor(getActiveCharSpeechPrefix('sussurrando'))">🤫 SUSSURRO</button>
+            <button class="action-btn" style="color:#ffffff; border-color:rgba(255,255,255,0.45); font-weight:800;" title="Gritando (diz gritando)" onclick="insertAtCursor(getActiveCharSpeechPrefix('gritando'))">📢 GRITO</button>
+            <button class="action-btn" style="color:#aaaaaa; border-color:rgba(170,170,170,0.35);" title="Baixo (diz baixo)" onclick="insertAtCursor(getActiveCharSpeechPrefix('baixo'))">🔉 BAIXO</button>
+            <button class="action-btn btn-me" title="Ação do personagem" onclick="insertAtCursor(getActiveCharActionPrefix())">★ /ME</button>
+            <button class="action-btn btn-do" title="Ação do ambiente" onclick="insertAtCursor('* ')">◈ /DO</button>
+            <button class="action-btn btn-item" title="Item ou dinheiro" onclick="insertAtCursor('$ ')">$ ITEM</button>
+            <button class="action-btn btn-cel" title="Mensagem ou ligação" onclick="insertAtCursor('# ')"># CEL</button>
+            <button class="action-btn btn-sys" title="Notificação do sistema" onclick="insertAtCursor('! ')">! SIS</button>
+            <button class="action-btn btn-ooc" title="Chat fora do personagem" onclick="insertAtCursor('(( ')">(( OOC</button>
           </div>
         </div>
       </div>
@@ -993,8 +1110,24 @@
           <span class="card-label"><span class="dot">◆</span> Estilo & Tipografia</span>
         </div>
 
-        <!-- Tamanho da Fonte -->
+        <!-- Seletor de Fonte Oficial de GTA V -->
         <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="card-label" style="font-size:9px;">Fonte Oficial</span>
+            <span class="card-val" id="font-family-badge">Arial Padrão</span>
+          </div>
+          <select class="lation-select" id="select-font-family" onchange="updateFontFamily(this.value)">
+            <option value="Arial, Helvetica, sans-serif" selected>Arial (Padrão SA-MP / GTA V)</option>
+            <option value="'Chalet London', Arial, sans-serif">Chalet London 1960 (Oficial GTA V)</option>
+            <option value="'Montserrat', sans-serif">Montserrat (RP Moderno)</option>
+            <option value="'Inter', sans-serif">Inter (Lation Emerald UI)</option>
+            <option value="'JetBrains Mono', monospace">JetBrains Mono (Rádio &amp; Terminal)</option>
+            <option value="'Georgia', serif">Georgia (Jurídico &amp; Documentos)</option>
+          </select>
+        </div>
+
+        <!-- Tamanho da Fonte -->
+        <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
           <div style="display:flex; justify-content:space-between;">
             <span class="card-label" style="font-size:9px;">Tamanho da Fonte</span>
             <span class="card-val" id="font-size-val">13px</span>
@@ -1038,26 +1171,53 @@
         </div>
       </div>
 
-      <!-- CARD 5: FILTROS & EFEITOS -->
+      <!-- CARD 5: FILTROS & PRESETS DE CÂMERA DE RP -->
       <div class="lation-card">
         <div class="card-head">
-          <span class="card-label"><span class="dot">◆</span> Efeitos Fotográficos</span>
+          <span class="card-label"><span class="dot">◆</span> Câmera RP &amp; Efeitos</span>
+          <span class="card-val" id="active-preset-badge">Padrão</span>
         </div>
-        <div class="effects-grid">
-          <button class="effect-btn" id="fx-grain" onclick="toggleEffect('grain')">Granulado</button>
-          <button class="effect-btn" id="fx-vignette" onclick="toggleEffect('vignette')">Vinheta</button>
-          <button class="effect-btn" id="fx-lightleak" onclick="toggleEffect('lightleak')">Light Leak</button>
-          <button class="effect-btn" id="fx-brush" onclick="toggleEffect('brush')">Contraste</button>
-          <button class="effect-btn" id="fx-vintage" onclick="toggleEffect('vintage')">Vintage</button>
-          <button class="effect-btn" id="fx-bw" onclick="toggleEffect('bw')">P&amp;B</button>
+
+        <div style="margin-bottom:6px;">
+          <span class="card-label" style="font-size:9px; margin-bottom:4px; display:block;">Presets de Câmera de RP:</span>
+          <div class="camera-presets-grid">
+            <button class="preset-btn active" data-preset="none" onclick="setCameraPreset('none')">
+              <span>● Padrão</span>
+            </button>
+            <button class="preset-btn" data-preset="bodycam" onclick="setCameraPreset('bodycam')">
+              <span>📹 Bodycam</span>
+            </button>
+            <button class="preset-btn" data-preset="cctv" onclick="setCameraPreset('cctv')">
+              <span>📼 CCTV</span>
+            </button>
+            <button class="preset-btn" data-preset="noir" onclick="setCameraPreset('noir')">
+              <span>🎬 Noite Fria</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--line); padding-top:6px;">
+          <span class="card-label" style="font-size:9px; margin-bottom:4px; display:block;">Filtros Manuais:</span>
+          <div class="effects-grid">
+            <button class="effect-btn" id="fx-grain" onclick="toggleEffect('grain')">Granulado</button>
+            <button class="effect-btn" id="fx-vignette" onclick="toggleEffect('vignette')">Vinheta</button>
+            <button class="effect-btn" id="fx-lightleak" onclick="toggleEffect('lightleak')">Light Leak</button>
+            <button class="effect-btn" id="fx-brush" onclick="toggleEffect('brush')">Contraste</button>
+            <button class="effect-btn" id="fx-vintage" onclick="toggleEffect('vintage')">Vintage</button>
+            <button class="effect-btn" id="fx-bw" onclick="toggleEffect('bw')">P&amp;B</button>
+          </div>
         </div>
       </div>
 
-      <!-- BOTÕES DE EXPORTAÇÃO E LIMPEZA -->
+      <!-- BOTÕES DE EXPORTAÇÃO, CÓPIA E LIMPEZA -->
       <div class="main-actions-row">
-        <button class="lation-btn ghost-danger" onclick="clearAllData()">Limpar</button>
-        <button class="lation-btn primary" id="btn-export" onclick="triggerExport()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <button class="lation-btn ghost-danger" onclick="clearAllData()" title="Limpar texto">Limpar</button>
+        <button class="lation-btn secondary" id="btn-copy-img" onclick="copyImageToClipboard()" title="Copiar imagem renderizada para a área de transferência">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          <span id="btn-copy-text">Copiar</span>
+        </button>
+        <button class="lation-btn primary" id="btn-export" onclick="triggerExport()" title="Exportar imagem em alta resolução">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           <span id="btn-export-text">Exportar PNG</span>
         </button>
       </div>
@@ -1070,10 +1230,10 @@
         <div class="legend-list">
           <div class="legend-item"><span class="legend-badge" style="color:#cc99ff; border-color:#cc99ff44;">*</span> /me e /do — Ações e Ambiente</div>
           <div class="legend-item"><span class="legend-badge" style="color:#ffffff; border-color:#ffffff44;">—</span> Fala Normal / Gritando</div>
-          <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">!</span> Sistema / Notificação / Transação</div>
-          <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">#</span> Chamada ou Mensagem Celular</div>
           <div class="legend-item"><span class="legend-badge" style="color:#aaaaaa; border-color:#aaaaaa44;">—</span> Diz (baixo)</div>
           <div class="legend-item"><span class="legend-badge" style="color:#888888; border-color:#88888844;">—</span> Diz (sussurrando)</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">!</span> Sistema / Notificação / Transação</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">#</span> Chamada ou Mensagem Celular</div>
           <div class="legend-item"><span class="legend-badge" style="color:#94a3b8; border-color:#94a3b844;">((</span> Fora do Personagem (OOC)</div>
         </div>
       </div>
@@ -1106,6 +1266,12 @@
   <footer class="app-footer">
     HAZE STUDIOS RP · CHAT LOG STUDIO
   </footer>
+
+  <!-- NOTIFICAÇÃO TOAST FLUTUANTE -->
+  <div id="toast-msg" class="toast-notification">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <span id="toast-text">Notificação</span>
+  </div>
 
   <!-- SCRIPT PRINCIPAL DA APLICAÇÃO (VANILLA JS MODERNO, LEVE E ULTRA RÁPIDO) -->
   <script>
@@ -1159,10 +1325,12 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       textY: 72,   // porcentagem 0..100
       overlay: 0,
       fontSize: 13,
+      fontFamily: "Arial, Helvetica, sans-serif",
       maxWpct: 55,
       bgEnabled: true,
       bgColor: "#000000",
       bgOpacity: 85,
+      cameraPreset: "none",
       effects: {
         grain: false,
         vignette: false,
@@ -1188,6 +1356,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       if (/\bdiz\b\s*\(\s*(?:sussurrando|sussurando)\s*\)/.test(low)) return { type: "darkgrey", content: line };
       if (/\bdiz\b\s*\(\s*baixo\s*\)/.test(low)) return { type: "grey", content: line };
       if (/\bdiz\b\s*\(\s*gritando\s*\)/.test(low)) return { type: "white", content: line };
+      if (/\bdiz\b\s*\(\s*normal\s*\)/.test(low)) return { type: "white", content: line };
       if (t[0] === "#") return { type: "yellow", content: line.slice(1).trimStart() };
       return { type: "white", content: line };
     }
@@ -1276,13 +1445,88 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       }
     }
 
+    // Presets de Câmera RP (Axon Bodycam, CCTV, Cinema Noir)
+    function drawCameraOverlay(ctx, w, h, preset) {
+      if (!preset || preset === 'none') return;
+      
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+      ctx.save();
+
+      if (preset === 'bodycam') {
+        // Axon Body 3 HUD
+        const fontSize = Math.max(11, Math.round(w * 0.015));
+        ctx.font = `bold ${fontSize}px "JetBrains Mono", monospace`;
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "rgba(0,0,0,0.85)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        const padX = Math.round(w * 0.025);
+        const padY = Math.round(h * 0.035);
+
+        // Top-left: Department & Officer
+        const officer = (getActiveChar() ? getActiveChar().name : "M. MENDOZA").toUpperCase();
+        ctx.textAlign = "left";
+        ctx.fillText(`AXON BODY 3 · ${dateStr} ${timeStr}`, padX, padY);
+        ctx.fillText(`DEPT: POLICE / SHERIFF · OFC ${officer}`, padX, padY + fontSize + 4);
+
+        // Top-right: Blinking Red REC
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#ff3b30";
+        ctx.fillText("● REC", w - padX, padY);
+
+      } else if (preset === 'cctv') {
+        // Câmera de Vigilância / CCTV
+        const fontSize = Math.max(11, Math.round(w * 0.014));
+        ctx.font = `bold ${fontSize}px "JetBrains Mono", monospace`;
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "#6afe87";
+        ctx.shadowColor = "rgba(0,0,0,0.9)";
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        const padX = Math.round(w * 0.025);
+        const padY = Math.round(h * 0.035);
+
+        ctx.textAlign = "left";
+        ctx.fillText(`CAM 03 [SURVEILLANCE HQ]`, padX, padY);
+        ctx.textAlign = "right";
+        ctx.fillText(`PAL 25FPS · 1080P`, w - padX, padY);
+
+        ctx.textAlign = "left";
+        ctx.fillText(`${dateStr} ${timeStr} · LIVE`, padX, h - padY - fontSize);
+
+        // Scanlines analógicas
+        ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+        for (let y = 0; y < h; y += 4) {
+          ctx.fillRect(0, y, w, 2);
+        }
+
+      } else if (preset === 'noir') {
+        // Tom azulado frio cinematográfico
+        ctx.globalCompositeOperation = "color-burn";
+        ctx.fillStyle = "rgba(10, 25, 45, 0.22)";
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      ctx.restore();
+    }
+
     // Desenho de Chat no Canvas (Nativo e pixel-perfect)
     function drawChatOnCanvas(ctx, lines, x, y, fontSize, bgEnabled, bgColor, bgOpacity, maxW, shadowPx) {
       const padX = Math.max(2, Math.round(fontSize * 0.35));
       const padY = Math.max(1, Math.round(fontSize * 0.15));
       const lineHeight = Math.round(fontSize * 1.55);
 
-      ctx.font = `bold ${fontSize}px Arial, Helvetica, sans-serif`;
+      const fontFam = state.fontFamily || "Arial, Helvetica, sans-serif";
+      ctx.font = `bold ${fontSize}px ${fontFam}`;
       ctx.textBaseline = 'top';
       ctx.lineJoin = 'round';
       ctx.miterLimit = 2;
@@ -1372,6 +1616,9 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         ctx.fillRect(0, 0, W, H);
       }
 
+      // Overlay de Câmera RP
+      drawCameraOverlay(ctx, W, H, state.cameraPreset);
+
       if (state.input.trim()) {
         const lines = state.input.split("\n").map(parseLine);
         const exportMaxWpx = Math.round(activeSize.w * (state.maxWpct / 100));
@@ -1420,8 +1667,23 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       if (isDragging) {
         isDragging = false;
         canvas.classList.remove("dragging");
+        saveToStorage();
       }
     });
+
+    // Notificação Toast Flutuante
+    let toastTimer = null;
+    function showToast(text) {
+      const toast = document.getElementById("toast-msg");
+      const toastText = document.getElementById("toast-text");
+      if (!toast || !toastText) return;
+      toastText.textContent = text;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2600);
+    }
 
     // Mudança de Tabs
     function setTab(tab) {
@@ -1530,6 +1792,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
           state.activeCharId = c.id;
           renderCharChips();
           updateActiveCharDisplay();
+          saveToStorage();
         };
 
         const dot = document.createElement("div");
@@ -1550,6 +1813,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
           }
           renderCharChips();
           updateActiveCharDisplay();
+          saveToStorage();
         };
 
         chip.appendChild(dot);
@@ -1582,15 +1846,21 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       state.activeCharId = id;
       input.value = "";
       renderCharChips();
+      saveToStorage();
     }
 
     function getActiveChar() {
       return state.chars.find(c => c.id === state.activeCharId);
     }
 
-    function getActiveCharSpeechPrefix() {
+    // Tom de voz e Ação
+    function getActiveCharSpeechPrefix(tone = 'normal') {
       const c = getActiveChar();
-      return c ? `${c.name} diz (normal): ` : "";
+      const name = c ? c.name : "Personagem";
+      if (tone === 'sussurrando') return `${name} diz (sussurrando): `;
+      if (tone === 'gritando') return `${name} diz (gritando): `;
+      if (tone === 'baixo') return `${name} diz (baixo): `;
+      return `${name} diz (normal): `;
     }
 
     function getActiveCharActionPrefix() {
@@ -1609,7 +1879,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       const ins = (needNL ? "\n" : "") + prefix;
       state.input = before + ins + after;
       ta.value = state.input;
-      renderPreview();
+      onTextInputChange();
       setTimeout(() => {
         ta.focus();
         const p = lineStart + (needNL ? 1 : 0) + prefix.length;
@@ -1622,14 +1892,23 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       state.input = ta.value;
       const lines = state.input.split("\n").filter(l => l.trim().length > 0);
       document.getElementById("line-count-val").textContent = `${lines.length} linhas`;
+      saveToStorage();
       renderPreview();
     }
 
-    // Controles de Estilo
-    function updateOverlay(val) {
-      state.overlay = +val;
-      document.getElementById("overlay-val").textContent = `${val}%`;
-      document.getElementById("overlay-batch-val").textContent = `${val}%`;
+    // Controles de Tipografia & Estilo
+    function updateFontFamily(val) {
+      state.fontFamily = val;
+      const badge = document.getElementById("font-family-badge");
+      if (badge) {
+        if (val.includes("Chalet")) badge.textContent = "Chalet London";
+        else if (val.includes("Montserrat")) badge.textContent = "Montserrat";
+        else if (val.includes("Inter")) badge.textContent = "Inter";
+        else if (val.includes("Mono")) badge.textContent = "JetBrains Mono";
+        else if (val.includes("Georgia")) badge.textContent = "Georgia";
+        else badge.textContent = "Arial Padrão";
+      }
+      saveToStorage();
       renderPreview();
     }
 
@@ -1637,6 +1916,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       state.fontSize = Math.min(32, Math.max(8, val));
       document.getElementById("slider-font-size").value = state.fontSize;
       document.getElementById("font-size-val").textContent = `${state.fontSize}px`;
+      saveToStorage();
       renderPreview();
     }
 
@@ -1647,23 +1927,81 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
     function updateMaxW(val) {
       state.maxWpct = val;
       document.getElementById("maxw-val").textContent = `${val}%`;
+      saveToStorage();
       renderPreview();
     }
 
     function updateBgEnabled(val) {
       state.bgEnabled = val;
       document.getElementById("bg-options-row").style.display = val ? "flex" : "none";
+      saveToStorage();
       renderPreview();
     }
 
     function updateBgColor(val) {
       state.bgColor = val;
+      saveToStorage();
       renderPreview();
     }
 
     function updateBgOpacity(val) {
       state.bgOpacity = val;
       document.getElementById("bg-opacity-val").textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateOverlay(val) {
+      state.overlay = +val;
+      document.getElementById("overlay-val").textContent = `${val}%`;
+      document.getElementById("overlay-batch-val").textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    // Presets de Câmera RP
+    function setCameraPreset(preset) {
+      state.cameraPreset = preset;
+      document.querySelectorAll(".preset-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.preset === preset);
+      });
+      const badge = document.getElementById("active-preset-badge");
+      if (badge) {
+        if (preset === 'bodycam') badge.textContent = "Bodycam";
+        else if (preset === 'cctv') badge.textContent = "CCTV";
+        else if (preset === 'noir') badge.textContent = "Noite Fria";
+        else badge.textContent = "Padrão";
+      }
+
+      if (preset === 'noir') {
+        state.effects.vintage = false;
+        state.effects.bw = false;
+        state.effects.brush = true;
+        state.effects.vignette = true;
+        state.effects.grain = true;
+        state.effects.lightleak = false;
+      } else if (preset === 'cctv') {
+        state.effects.vintage = false;
+        state.effects.bw = true;
+        state.effects.brush = true;
+        state.effects.vignette = true;
+        state.effects.grain = true;
+        state.effects.lightleak = false;
+      } else if (preset === 'bodycam') {
+        state.effects.vintage = false;
+        state.effects.bw = false;
+        state.effects.brush = true;
+        state.effects.vignette = false;
+        state.effects.grain = false;
+        state.effects.lightleak = false;
+      }
+
+      Object.keys(state.effects).forEach(key => {
+        const btn = document.getElementById(`fx-${key}`);
+        if (btn) btn.classList.toggle("active", !!state.effects[key]);
+      });
+
+      saveToStorage();
       renderPreview();
     }
 
@@ -1671,6 +2009,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       state.effects[key] = !state.effects[key];
       const btn = document.getElementById(`fx-${key}`);
       if (btn) btn.classList.toggle("active", state.effects[key]);
+      saveToStorage();
       renderPreview();
     }
 
@@ -1678,6 +2017,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       state.input = "";
       document.getElementById("chat-text-input").value = "";
       document.getElementById("line-count-val").textContent = "0 linhas";
+      saveToStorage();
       renderPreview();
     }
 
@@ -1705,6 +2045,9 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         ctx.fillRect(0, 0, W, H);
       }
 
+      // Overlay de Câmera RP (Bodycam, CCTV, Noir)
+      drawCameraOverlay(ctx, W, H, state.cameraPreset);
+
       if (state.input.trim()) {
         const lines = state.input.split("\n").map(parseLine);
         const exportMaxW = Math.round((state.maxWpct / 100) * W);
@@ -1714,6 +2057,51 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       }
 
       return new Promise(res => canvas.toBlob(res, "image/png"));
+    }
+
+    // Copiar Imagem para Área de Transferência
+    async function copyImageToClipboard() {
+      if (state.exporting) return;
+      const textSpan = document.getElementById("btn-copy-text");
+      const originalText = textSpan ? textSpan.textContent : "Copiar";
+
+      if (textSpan) textSpan.textContent = "Copiando...";
+      state.exporting = true;
+
+      try {
+        const activeSize = (state.tab === 'single') 
+          ? state.singleSize 
+          : (state.batchImgs[state.batchSel] ? { w: state.batchImgs[state.batchSel].w, h: state.batchImgs[state.batchSel].h } : { w: 1280, h: 720 });
+        
+        let imgEl = null;
+        if (state.tab === 'single' && state.singleEl) {
+          imgEl = state.singleEl;
+        } else if (state.tab === 'batch' && state.batchImgs[state.batchSel]?.el) {
+          imgEl = state.batchImgs[state.batchSel].el;
+        }
+
+        const blob = await doExportRender(imgEl, activeSize.w, activeSize.h, "copy.png");
+
+        if (!navigator.clipboard || !window.ClipboardItem) {
+          throw new Error("Clipboard API não suportada.");
+        }
+
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob })
+        ]);
+
+        showToast("✓ Imagem copiada para a área de transferência!");
+        if (textSpan) textSpan.textContent = "✓ Copiado!";
+        setTimeout(() => {
+          if (textSpan) textSpan.textContent = originalText;
+        }, 2200);
+      } catch (err) {
+        console.warn("Falha ao copiar direto:", err);
+        showToast("⚠️ Não foi possível copiar direto. Use 'Exportar PNG'.");
+        if (textSpan) textSpan.textContent = originalText;
+      } finally {
+        state.exporting = false;
+      }
     }
 
     async function triggerExport() {
@@ -1731,6 +2119,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
           a.download = state.singleName;
           a.click();
           URL.revokeObjectURL(url);
+          showToast("✓ PNG exportado com sucesso!");
         } catch (err) {
           console.error(err);
           alert("Erro ao exportar PNG.");
@@ -1761,11 +2150,147 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         a.download = "haze_chatlogs_batch.zip";
         a.click();
         URL.revokeObjectURL(url);
+        showToast("✓ Arquivo ZIP baixado!");
 
         state.exporting = false;
         btnText.textContent = `Exportar ZIP (${state.batchImgs.length})`;
       }
     }
+
+    // Persistência em Memória Local (localStorage)
+    function saveToStorage() {
+      try {
+        const data = {
+          chars: state.chars,
+          activeCharId: state.activeCharId,
+          input: state.input,
+          fontSize: state.fontSize,
+          fontFamily: state.fontFamily,
+          maxWpct: state.maxWpct,
+          bgEnabled: state.bgEnabled,
+          bgColor: state.bgColor,
+          bgOpacity: state.bgOpacity,
+          effects: state.effects,
+          cameraPreset: state.cameraPreset,
+          overlay: state.overlay,
+          textX: state.textX,
+          textY: state.textY
+        };
+        localStorage.setItem('haze_chatlog_storage', JSON.stringify(data));
+      } catch (e) {
+        console.warn("Falha ao salvar no localStorage:", e);
+      }
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem('haze_chatlog_storage');
+        if (!raw) return;
+        const data = JSON.parse(raw);
+
+        if (Array.isArray(data.chars) && data.chars.length > 0) {
+          state.chars = data.chars;
+          state.activeCharId = data.activeCharId || data.chars[0].id;
+        }
+        if (typeof data.input === 'string') state.input = data.input;
+        if (typeof data.fontSize === 'number') state.fontSize = data.fontSize;
+        if (typeof data.fontFamily === 'string') state.fontFamily = data.fontFamily;
+        if (typeof data.maxWpct === 'number') state.maxWpct = data.maxWpct;
+        if (typeof data.bgEnabled === 'boolean') state.bgEnabled = data.bgEnabled;
+        if (typeof data.bgColor === 'string') state.bgColor = data.bgColor;
+        if (typeof data.bgOpacity === 'number') state.bgOpacity = data.bgOpacity;
+        if (typeof data.overlay === 'number') state.overlay = data.overlay;
+        if (typeof data.textX === 'number') state.textX = data.textX;
+        if (typeof data.textY === 'number') state.textY = data.textY;
+        if (data.effects && typeof data.effects === 'object') {
+          state.effects = { ...state.effects, ...data.effects };
+        }
+        if (typeof data.cameraPreset === 'string') state.cameraPreset = data.cameraPreset;
+
+        // Sincronizar UI
+        const sliderFont = document.getElementById("slider-font-size");
+        if (sliderFont) sliderFont.value = state.fontSize;
+        const fontVal = document.getElementById("font-size-val");
+        if (fontVal) fontVal.textContent = `${state.fontSize}px`;
+
+        const selectFont = document.getElementById("select-font-family");
+        if (selectFont) selectFont.value = state.fontFamily;
+        const fontBadge = document.getElementById("font-family-badge");
+        if (fontBadge) {
+          if (state.fontFamily.includes("Chalet")) fontBadge.textContent = "Chalet London";
+          else if (state.fontFamily.includes("Montserrat")) fontBadge.textContent = "Montserrat";
+          else if (state.fontFamily.includes("Inter")) fontBadge.textContent = "Inter";
+          else if (state.fontFamily.includes("Mono")) fontBadge.textContent = "JetBrains Mono";
+          else if (state.fontFamily.includes("Georgia")) fontBadge.textContent = "Georgia";
+          else fontBadge.textContent = "Arial Padrão";
+        }
+
+        const sliderMaxW = document.getElementById("slider-maxw");
+        if (sliderMaxW) sliderMaxW.value = state.maxWpct;
+        const maxwVal = document.getElementById("maxw-val");
+        if (maxwVal) maxwVal.textContent = `${state.maxWpct}%`;
+
+        const checkBg = document.getElementById("check-bg-enabled");
+        if (checkBg) checkBg.checked = state.bgEnabled;
+        const bgOptions = document.getElementById("bg-options-row");
+        if (bgOptions) bgOptions.style.display = state.bgEnabled ? "flex" : "none";
+        const inputBg = document.getElementById("input-bg-color");
+        if (inputBg) inputBg.value = state.bgColor;
+        const sliderBgOp = document.getElementById("slider-bg-opacity");
+        if (sliderBgOp) sliderBgOp.value = state.bgOpacity;
+        const bgOpVal = document.getElementById("bg-opacity-val");
+        if (bgOpVal) bgOpVal.textContent = `${state.bgOpacity}%`;
+
+        const sliderOverlay = document.getElementById("slider-overlay");
+        if (sliderOverlay) sliderOverlay.value = state.overlay;
+        const overlayVal = document.getElementById("overlay-val");
+        if (overlayVal) overlayVal.textContent = `${state.overlay}%`;
+        const sliderOverlayBatch = document.getElementById("slider-overlay-batch");
+        if (sliderOverlayBatch) sliderOverlayBatch.value = state.overlay;
+        const overlayBatchVal = document.getElementById("overlay-batch-val");
+        if (overlayBatchVal) overlayBatchVal.textContent = `${state.overlay}%`;
+
+        Object.keys(state.effects).forEach(key => {
+          const btn = document.getElementById(`fx-${key}`);
+          if (btn) btn.classList.toggle("active", !!state.effects[key]);
+        });
+
+        document.querySelectorAll(".preset-btn").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.preset === state.cameraPreset);
+        });
+        const presetBadge = document.getElementById("active-preset-badge");
+        if (presetBadge) {
+          if (state.cameraPreset === 'bodycam') presetBadge.textContent = "Bodycam";
+          else if (state.cameraPreset === 'cctv') presetBadge.textContent = "CCTV";
+          else if (state.cameraPreset === 'noir') presetBadge.textContent = "Noite Fria";
+          else presetBadge.textContent = "Padrão";
+        }
+      } catch (e) {
+        console.warn("Erro ao restaurar do localStorage:", e);
+      }
+    }
+
+    // Colar Imagens com Ctrl + V diretamente na tela
+    window.addEventListener("paste", (e) => {
+      if (e.clipboardData && e.clipboardData.items) {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf("image") !== -1) {
+            e.preventDefault();
+            const file = items[i].getAsFile();
+            if (file) {
+              if (state.tab === 'single') {
+                handleSingleUpload(file);
+              } else {
+                handleBatchUpload([file]);
+              }
+              showToast("📷 Imagem colada da área de transferência!");
+            }
+            return;
+          }
+        }
+      }
+    });
 
     // Suporte a Drag and Drop direto de arquivos do Windows
     const dropzone = document.getElementById("single-dropzone");
@@ -1797,6 +2322,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
 
     // Inicialização da Aplicação
     window.addEventListener("DOMContentLoaded", () => {
+      loadFromStorage();
       document.getElementById("chat-text-input").value = state.input;
       renderCharChips();
       onTextInputChange();
