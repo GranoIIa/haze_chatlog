@@ -1377,6 +1377,25 @@
           </div>
         </div>
 
+        <!-- Espaçamento entre Letras (Letter Spacing) -->
+        <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="card-label" style="font-size:9px;">Espaçamento entre Letras</span>
+            <span class="card-val" id="letter-spacing-val">0.0px</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="action-btn" style="padding:4px 8px; font-weight:700;" onclick="adjustLetterSpacing(-0.5)">−</button>
+            <input type="range" id="slider-letter-spacing" min="-1" max="10" step="0.5" value="0" oninput="updateLetterSpacing(+this.value)">
+            <button class="action-btn" style="padding:4px 8px; font-weight:700;" onclick="adjustLetterSpacing(0.5)">+</button>
+          </div>
+          <div style="display:flex; gap:4px; margin-top:2px;">
+            <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="updateLetterSpacing(0)">Padrão (0px)</button>
+            <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="updateLetterSpacing(1)">+1px</button>
+            <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="updateLetterSpacing(2)">+2px</button>
+            <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="updateLetterSpacing(3)">+3px</button>
+          </div>
+        </div>
+
         <!-- Largura do Bloco -->
         <div style="display:flex; flex-direction:column; gap:4px;">
           <div style="display:flex; justify-content:space-between;">
@@ -1622,6 +1641,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       textY: 72,   // porcentagem 0..100
       overlay: 0,
       fontSize: 13,
+      letterSpacing: 0, // espaçamento entre letras (px)
       fontFamily: "Arial, Helvetica, sans-serif",
       maxWpct: 55,
       bgEnabled: true,
@@ -2114,6 +2134,12 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
 
       const fontFam = state.fontFamily || "Arial, Helvetica, sans-serif";
       ctx.font = `bold ${fontSize}px ${fontFam}`;
+      const lSpacingPx = (state.letterSpacing ?? 0) * RENDER_SCALE;
+      try {
+        ctx.letterSpacing = `${lSpacingPx}px`;
+      } catch (e) {
+        // Fallback silencioso
+      }
       ctx.textBaseline = 'top';
       ctx.lineJoin = 'round';
       ctx.miterLimit = 2;
@@ -3132,6 +3158,20 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       updateFontSize(state.fontSize + delta);
     }
 
+    function updateLetterSpacing(val) {
+      state.letterSpacing = Math.min(10, Math.max(-2, Math.round(val * 10) / 10));
+      const slider = document.getElementById("slider-letter-spacing");
+      if (slider) slider.value = state.letterSpacing;
+      const valBadge = document.getElementById("letter-spacing-val");
+      if (valBadge) valBadge.textContent = `${state.letterSpacing.toFixed(1)}px`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function adjustLetterSpacing(delta) {
+      updateLetterSpacing((state.letterSpacing || 0) + delta);
+    }
+
     function updateMaxW(val) {
       state.maxWpct = val;
       document.getElementById("maxw-val").textContent = `${val}%`;
@@ -3372,6 +3412,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
           chars: state.chars,
           activeCharId: state.activeCharId,
           fontSize: state.fontSize,
+          letterSpacing: state.letterSpacing,
           fontFamily: state.fontFamily,
           maxWpct: state.maxWpct,
           bgEnabled: state.bgEnabled,
@@ -3402,6 +3443,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         if (Array.isArray(data.chars) && data.chars.length) state.chars = data.chars;
         if (data.activeCharId) state.activeCharId = data.activeCharId;
         if (typeof data.fontSize === 'number') state.fontSize = data.fontSize;
+        if (typeof data.letterSpacing === 'number') state.letterSpacing = data.letterSpacing;
         if (typeof data.fontFamily === 'string') state.fontFamily = data.fontFamily;
         if (typeof data.maxWpct === 'number') state.maxWpct = data.maxWpct;
         if (typeof data.bgEnabled === 'boolean') state.bgEnabled = data.bgEnabled;
@@ -3430,6 +3472,11 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         if (sliderFont) sliderFont.value = state.fontSize;
         const fontVal = document.getElementById("font-size-val");
         if (fontVal) fontVal.textContent = `${state.fontSize}px`;
+
+        const sliderLS = document.getElementById("slider-letter-spacing");
+        if (sliderLS) sliderLS.value = state.letterSpacing || 0;
+        const valBadgeLS = document.getElementById("letter-spacing-val");
+        if (valBadgeLS) valBadgeLS.textContent = `${(state.letterSpacing || 0).toFixed(1)}px`;
 
         const selectFont = document.getElementById("select-font-family");
         if (selectFont) selectFont.value = state.fontFamily;
