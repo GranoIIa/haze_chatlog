@@ -1282,7 +1282,7 @@
         </button>
 
         <div style="font-size:8.5px; color:var(--content-muted); display:flex; align-items:center; gap:4px; padding:2px 4px; background:var(--surface-deep); border-radius:4px; border:1px solid var(--line);">
-          <span>💡</span> <span>Arraste no canvas p/ mover, puxe o canto ↘ ou use o scroll do mouse p/ redimensionar.</span>
+          <span>💡</span> <span>Arraste no canvas p/ mover, puxe o canto ↘ p/ redimensionar ou a haste superior ↻ p/ girar.</span>
         </div>
 
         <div class="layers-list" id="layers-list-container">
@@ -1793,7 +1793,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       ctx.restore();
     }
 
-    // Helper de Dimensões e Posições Virtuais da Camada
+    // Helper de Dimensões, Posições e Rotação Virtuais da Camada
     function getLayerBounds(layer, W, H) {
       if (!layer || !layer.el) return null;
       const scale = Math.max(0.05, (layer.scale ?? 100) / 100);
@@ -1803,10 +1803,27 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       const lH = natH * scale * (W / 1920);
       const lX = (layer.x / 100) * W;
       const lY = (layer.y / 100) * H;
-      return { lX, lY, lW, lH, scale, natW, natH };
+      const rotation = layer.rotation || 0; // em graus (-180 a 180)
+      const rad = (rotation * Math.PI) / 180;
+      const cx = lX + lW / 2;
+      const cy = lY + lH / 2;
+      return { lX, lY, lW, lH, scale, natW, natH, rotation, rad, cx, cy };
     }
 
-    // Desenho das Camadas Adicionais / Overlays
+    // Transforma coordenadas virtuais para o espaço local rotacionado da camada
+    function getLayerLocalPos(layer, virtX, virtY, W, H) {
+      const b = getLayerBounds(layer, W, H);
+      if (!b) return null;
+      const dx = virtX - b.cx;
+      const dy = virtY - b.cy;
+      const cos = Math.cos(-b.rad);
+      const sin = Math.sin(-b.rad);
+      const localX = dx * cos - dy * sin;
+      const localY = dx * sin + dy * cos;
+      return { localX, localY, b };
+    }
+
+    // Desenho das Camadas Adicionais / Overlays (com suporte a Rotação, Redimensionamento e Movimento)
     function drawOverlayLayers(ctx, W, H, isPreview) {
       if (!state.layers || !state.layers.length) return;
       state.layers.forEach(layer => {
@@ -1819,17 +1836,21 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(layer.el, b.lX, b.lY, b.lW, b.lH);
-        ctx.restore();
 
-        // Se for modo preview e a camada estiver selecionada, desenha contorno, alças e badge informativo
+        // Aplica translação para o centro da imagem e aplica rotação
+        ctx.translate(b.cx, b.cy);
+        if (b.rotation) {
+          ctx.rotate(b.rad);
+        }
+        ctx.drawImage(layer.el, -b.lW / 2, -b.lH / 2, b.lW, b.lH);
+
+        // Se for modo preview e a camada estiver selecionada, desenha contorno, alça de redimensionar e alça de rotação
         if (isPreview && state.activeLayerId === layer.id) {
-          ctx.save();
           // Moldura tracejada Emerald
           ctx.strokeStyle = "#00FF88";
           ctx.lineWidth = Math.max(2, 2.5 * (W / 1280));
           ctx.setLineDash([8 * (W / 1280), 6 * (W / 1280)]);
-          ctx.strokeRect(b.lX, b.lY, b.lW, b.lH);
+          ctx.strokeRect(-b.lW / 2, -b.lH / 2, b.lW, b.lH);
 
           // Cantos estéticos
           const handleSize = Math.max(7, 9 * (W / 1280));
@@ -1838,19 +1859,19 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
           ctx.strokeStyle = "#16171b";
           ctx.lineWidth = 1.5;
           // NW
-          ctx.fillRect(b.lX - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
-          ctx.strokeRect(b.lX - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
+          ctx.fillRect(-b.lW / 2 - handleSize/2, -b.lH / 2 - handleSize/2, handleSize, handleSize);
+          ctx.strokeRect(-b.lW / 2 - handleSize/2, -b.lH / 2 - handleSize/2, handleSize, handleSize);
           // NE
-          ctx.fillRect(b.lX + b.lW - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
-          ctx.strokeRect(b.lX + b.lW - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
+          ctx.fillRect(b.lW / 2 - handleSize/2, -b.lH / 2 - handleSize/2, handleSize, handleSize);
+          ctx.strokeRect(b.lW / 2 - handleSize/2, -b.lH / 2 - handleSize/2, handleSize, handleSize);
           // SW
-          ctx.fillRect(b.lX - handleSize/2, b.lY + b.lH - handleSize/2, handleSize, handleSize);
-          ctx.strokeRect(b.lX - handleSize/2, b.lY + b.lH - handleSize/2, handleSize, handleSize);
+          ctx.fillRect(-b.lW / 2 - handleSize/2, b.lH / 2 - handleSize/2, handleSize, handleSize);
+          ctx.strokeRect(-b.lW / 2 - handleSize/2, b.lH / 2 - handleSize/2, handleSize, handleSize);
 
           // Alça interativa principal de REDIMENSIONAMENTO no canto SE (inferior direito)
           const seRadius = Math.max(9, 13 * (W / 1280));
           ctx.beginPath();
-          ctx.arc(b.lX + b.lW, b.lY + b.lH, seRadius, 0, Math.PI * 2);
+          ctx.arc(b.lW / 2, b.lH / 2, seRadius, 0, Math.PI * 2);
           ctx.fillStyle = "#00FF88";
           ctx.fill();
           ctx.strokeStyle = "#16171b";
@@ -1859,23 +1880,52 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
 
           // Ponto interno na alça SE
           ctx.beginPath();
-          ctx.arc(b.lX + b.lW, b.lY + b.lH, seRadius * 0.4, 0, Math.PI * 2);
+          ctx.arc(b.lW / 2, b.lH / 2, seRadius * 0.4, 0, Math.PI * 2);
           ctx.fillStyle = "#16171b";
           ctx.fill();
 
-          // Badge flutuante acima da camada: Nome + Escala
-          const badgeText = `📑 ${layer.name} • ${Math.round(layer.scale)}% [Mover / Arraste ↘ Redimensionar]`;
+          // ALÇA INTERATIVA DE ROTAÇÃO (Haste superior + Círculo estilo Figma/Canva)
+          const rotDist = Math.max(22, 28 * (W / 1280));
+          const rotRadius = Math.max(9, 13 * (W / 1280));
+          
+          // Haste conectando topo à alça de giro
+          ctx.beginPath();
+          ctx.moveTo(0, -b.lH / 2);
+          ctx.lineTo(0, -b.lH / 2 - rotDist);
+          ctx.strokeStyle = "#00FF88";
+          ctx.lineWidth = Math.max(1.5, 2 * (W / 1280));
+          ctx.stroke();
+
+          // Círculo da alça de giro (azul celeste destacado)
+          ctx.beginPath();
+          ctx.arc(0, -b.lH / 2 - rotDist, rotRadius, 0, Math.PI * 2);
+          ctx.fillStyle = "#38bdf8";
+          ctx.fill();
+          ctx.strokeStyle = "#16171b";
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // Símbolo de rotação ↻
+          ctx.font = `bold ${Math.round(rotRadius * 1.25)}px sans-serif`;
+          ctx.fillStyle = "#16171b";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("↻", 0, -b.lH / 2 - rotDist + 1);
+
+          // Badge flutuante acima da alça de rotação: Nome + Escala + Ângulo
+          const rotDeg = Math.round(b.rotation) % 360;
+          const badgeText = `📑 ${layer.name} • ${Math.round(layer.scale)}% • ${rotDeg}° [Arraste ↻ p/ Girar]`;
           const fontSize = Math.max(10, 12 * (W / 1280));
           ctx.font = `600 ${fontSize}px Inter, sans-serif`;
           const textMetrics = ctx.measureText(badgeText);
           const padX = 8 * (W / 1280), padY = 4 * (W / 1280);
           const badgeW = textMetrics.width + padX * 2;
           const badgeH = fontSize + padY * 2;
-          const badgeX = Math.max(4, Math.min(W - badgeW - 4, b.lX));
-          const badgeY = b.lY - badgeH - 6 >= 4 ? b.lY - badgeH - 6 : b.lY + 6;
+          const badgeX = -badgeW / 2;
+          const badgeY = -b.lH / 2 - rotDist - rotRadius - badgeH - 4;
 
           ctx.fillStyle = "rgba(22, 23, 27, 0.92)";
-          ctx.strokeStyle = "#00FF88";
+          ctx.strokeStyle = "#38bdf8";
           ctx.lineWidth = 1.2;
           ctx.beginPath();
           if (ctx.roundRect) {
@@ -1886,12 +1936,13 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = "#00FF88";
+          ctx.fillStyle = "#38bdf8";
+          ctx.textAlign = "left";
           ctx.textBaseline = "middle";
           ctx.fillText(badgeText, badgeX + padX, badgeY + badgeH / 2);
-
-          ctx.restore();
         }
+
+        ctx.restore();
       });
     }
 
@@ -2293,8 +2344,8 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
 
     // Drag and Drop do Mouse sobre o Canvas (Texto, Enquadramento da Foto ou Camadas)
     let isDragging = false;
-    let dragMode = 'chat'; // 'chat', 'image_pan', 'layer_move', 'layer_resize'
-    let dragStart = { mx: 0, my: 0, valX: 0, valY: 0, initScale: 100, lX: 0, lY: 0, natW: 200 };
+    let dragMode = 'chat'; // 'chat', 'image_pan', 'layer_move', 'layer_resize', 'layer_rotate'
+    let dragStart = { mx: 0, my: 0, valX: 0, valY: 0, initScale: 100, lX: 0, lY: 0, natW: 200, cx: 0, cy: 0, startAngle: 0, initRotation: 0, b: null };
     const canvas = document.getElementById("preview-canvas");
 
     function getCanvasCoordinates(e) {
@@ -2315,14 +2366,34 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       const coords = getCanvasCoordinates(e);
       const activeSize = coords.activeSize;
 
-      // 1. Checa se clicou na alça de redimensionamento da camada ativa
+      // 1. Checa se clicou nas alças da camada ativa (Rotação ou Redimensionamento)
       const activeL = state.layers.find(l => l.id === state.activeLayerId);
       if (activeL) {
-        const b = getLayerBounds(activeL, activeSize.w, activeSize.h);
-        if (b) {
+        const localPos = getLayerLocalPos(activeL, coords.virtX, coords.virtY, activeSize.w, activeSize.h);
+        if (localPos) {
+          const b = localPos.b;
+          const rotDist = Math.max(22, 28 * (activeSize.w / 1280));
+          const rotRadius = Math.max(9, 13 * (activeSize.w / 1280));
           const handleTolerance = Math.max(16, 22 * (activeSize.w / 1280));
-          const dist = Math.hypot(coords.virtX - (b.lX + b.lW), coords.virtY - (b.lY + b.lH));
-          if (dist <= handleTolerance) {
+
+          // A) Alça de Rotação (Haste superior em x=0, y= -b.lH/2 - rotDist)
+          const distRot = Math.hypot(localPos.localX, localPos.localY - (-b.lH / 2 - rotDist));
+          if (distRot <= rotRadius + 8) {
+            dragMode = 'layer_rotate';
+            dragStart = {
+              cx: b.cx,
+              cy: b.cy,
+              startAngle: Math.atan2(coords.virtY - b.cy, coords.virtX - b.cx) * (180 / Math.PI),
+              initRotation: activeL.rotation || 0
+            };
+            isDragging = true;
+            canvas.classList.add("dragging");
+            return;
+          }
+
+          // B) Alça de Redimensionamento (Canto SE em x= b.lW/2, y= b.lH/2)
+          const distResize = Math.hypot(localPos.localX - b.lW / 2, localPos.localY - b.lH / 2);
+          if (distResize <= handleTolerance) {
             dragMode = 'layer_resize';
             dragStart = {
               mx: e.clientX,
@@ -2330,7 +2401,10 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
               initScale: activeL.scale ?? 100,
               lX: b.lX,
               lY: b.lY,
-              natW: b.natW
+              natW: b.natW,
+              cx: b.cx,
+              cy: b.cy,
+              b: b
             };
             isDragging = true;
             canvas.classList.add("dragging");
@@ -2339,15 +2413,18 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         }
       }
 
-      // 2. Checa se clicou sobre alguma camada de imagem (da mais alta para a mais baixa)
+      // 2. Checa se clicou sobre o corpo de alguma camada (da mais alta para a mais baixa)
       let hitLayer = null;
       for (let i = state.layers.length - 1; i >= 0; i--) {
         const lyr = state.layers[i];
-        const b = getLayerBounds(lyr, activeSize.w, activeSize.h);
-        if (b && coords.virtX >= b.lX && coords.virtX <= b.lX + b.lW &&
-                 coords.virtY >= b.lY && coords.virtY <= b.lY + b.lH) {
-          hitLayer = lyr;
-          break;
+        const localPos = getLayerLocalPos(lyr, coords.virtX, coords.virtY, activeSize.w, activeSize.h);
+        if (localPos) {
+          const b = localPos.b;
+          if (localPos.localX >= -b.lW / 2 && localPos.localX <= b.lW / 2 &&
+              localPos.localY >= -b.lH / 2 && localPos.localY <= b.lH / 2) {
+            hitLayer = lyr;
+            break;
+          }
         }
       }
 
@@ -2396,13 +2473,23 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         let cursorSet = false;
 
         if (activeL) {
-          const b = getLayerBounds(activeL, activeSize.w, activeSize.h);
-          if (b) {
+          const localPos = getLayerLocalPos(activeL, coords.virtX, coords.virtY, activeSize.w, activeSize.h);
+          if (localPos) {
+            const b = localPos.b;
+            const rotDist = Math.max(22, 28 * (activeSize.w / 1280));
+            const rotRadius = Math.max(9, 13 * (activeSize.w / 1280));
             const handleTolerance = Math.max(16, 22 * (activeSize.w / 1280));
-            const dist = Math.hypot(coords.virtX - (b.lX + b.lW), coords.virtY - (b.lY + b.lH));
-            if (dist <= handleTolerance) {
-              canvas.style.cursor = "nwse-resize";
+
+            const distRot = Math.hypot(localPos.localX, localPos.localY - (-b.lH / 2 - rotDist));
+            if (distRot <= rotRadius + 8) {
+              canvas.style.cursor = "grab";
               cursorSet = true;
+            } else {
+              const distResize = Math.hypot(localPos.localX - b.lW / 2, localPos.localY - b.lH / 2);
+              if (distResize <= handleTolerance) {
+                canvas.style.cursor = "nwse-resize";
+                cursorSet = true;
+              }
             }
           }
         }
@@ -2411,11 +2498,14 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
           let overLayer = false;
           for (let i = state.layers.length - 1; i >= 0; i--) {
             const lyr = state.layers[i];
-            const b = getLayerBounds(lyr, activeSize.w, activeSize.h);
-            if (b && coords.virtX >= b.lX && coords.virtX <= b.lX + b.lW &&
-                     coords.virtY >= b.lY && coords.virtY <= b.lY + b.lH) {
-              overLayer = true;
-              break;
+            const localPos = getLayerLocalPos(lyr, coords.virtX, coords.virtY, activeSize.w, activeSize.h);
+            if (localPos) {
+              const b = localPos.b;
+              if (localPos.localX >= -b.lW / 2 && localPos.localX <= b.lW / 2 &&
+                  localPos.localY >= -b.lH / 2 && localPos.localY <= b.lH / 2) {
+                overLayer = true;
+                break;
+              }
             }
           }
           if (overLayer) {
@@ -2437,12 +2527,28 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       const dx = ((e.clientX - dragStart.mx) / rect.width) * 100;
       const dy = ((e.clientY - dragStart.my) / rect.height) * 100;
 
-      if (dragMode === 'layer_resize') {
+      if (dragMode === 'layer_rotate') {
         const activeL = state.layers.find(l => l.id === state.activeLayerId);
         if (activeL && dragStart) {
-          const currentVirtX = ((e.clientX - rect.left) / rect.width) * activeSize.w;
-          const newWidth = Math.max(25, currentVirtX - dragStart.lX);
-          const newScale = Math.round((newWidth / (dragStart.natW * (activeSize.w / 1920))) * 100);
+          const currentAngle = Math.atan2(coords.virtY - dragStart.cy, coords.virtX - dragStart.cx) * (180 / Math.PI);
+          let deltaAngle = currentAngle - dragStart.startAngle;
+          let newRot = Math.round(dragStart.initRotation + deltaAngle);
+          while (newRot > 180) newRot -= 360;
+          while (newRot < -180) newRot += 360;
+          if (e.shiftKey) {
+            newRot = Math.round(newRot / 15) * 15;
+          }
+          activeL.rotation = newRot;
+          updateLayersUI();
+          renderPreview();
+        }
+      } else if (dragMode === 'layer_resize') {
+        const activeL = state.layers.find(l => l.id === state.activeLayerId);
+        if (activeL && dragStart && dragStart.b) {
+          const distCenter = Math.hypot(coords.virtX - dragStart.cx, coords.virtY - dragStart.cy);
+          const initDist = Math.hypot(dragStart.b.lW / 2, dragStart.b.lH / 2);
+          const scaleFactor = distCenter / Math.max(10, initDist);
+          const newScale = Math.round(dragStart.initScale * scaleFactor);
           activeL.scale = Math.max(5, Math.min(500, newScale));
           updateLayersUI();
           renderPreview();
@@ -2651,6 +2757,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
           x: 20,
           y: 20,
           scale: 60,
+          rotation: 0,
           opacity: 100
         };
         state.layers.push(newLayer);
@@ -2660,7 +2767,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         document.getElementById("drag-target-pan").classList.remove("active");
         document.getElementById("drag-target-layer").classList.add("active");
         updateLayersUI();
-        showToast("📑 Camada adicionada! Arraste no canvas para mover ou use o canto ↘ para redimensionar.");
+        showToast("📑 Camada adicionada! Arraste no canvas p/ mover, use o canto ↘ p/ redimensionar ou a haste ↻ p/ girar.");
         renderPreview();
       });
     }
@@ -2729,6 +2836,27 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
             </div>
           </div>
 
+          <!-- Controles de Rotação (Girar) -->
+          <div style="background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:6px; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:8.5px; font-weight:700; color:var(--content-heading);">↻ Girar / Rotação:</span>
+              <span class="card-val" style="font-size:9px; color:#38bdf8; font-weight:700;">${Math.round(layer.rotation || 0)}°</span>
+            </div>
+            <div style="display:flex; gap:4px; align-items:center;">
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerRotation(${layer.id}, -15)">-15°</button>
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerRotation(${layer.id}, -5)">-5°</button>
+              <input type="range" min="-180" max="180" step="1" value="${Math.round(layer.rotation || 0)}" style="flex:1;" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'rotation', +this.value)">
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerRotation(${layer.id}, 5)">+5°</button>
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerRotation(${layer.id}, 15)">+15°</button>
+            </div>
+            <div style="display:flex; gap:4px; margin-top:1px;">
+              <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); updateLayerProp(${layer.id}, 'rotation', 0)">0° (Padrão)</button>
+              <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerRotation(${layer.id}, -90)">↺ -90°</button>
+              <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerRotation(${layer.id}, 90)">↻ +90°</button>
+              <button class="action-btn" style="flex:1; padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerRotation(${layer.id}, 180)">180°</button>
+            </div>
+          </div>
+
           <!-- Controles de Posição (Mover) -->
           <div style="background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:6px; display:flex; flex-direction:column; gap:4px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -2776,6 +2904,18 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       const l = state.layers.find(x => x.id === id);
       if (l) {
         l.scale = Math.max(5, Math.min(500, (l.scale ?? 100) + delta));
+        updateLayersUI();
+        renderPreview();
+      }
+    }
+
+    function adjustLayerRotation(id, delta) {
+      const l = state.layers.find(x => x.id === id);
+      if (l) {
+        let newRot = Math.round((l.rotation || 0) + delta);
+        while (newRot > 180) newRot -= 360;
+        while (newRot < -180) newRot += 360;
+        l.rotation = newRot;
         updateLayersUI();
         renderPreview();
       }
