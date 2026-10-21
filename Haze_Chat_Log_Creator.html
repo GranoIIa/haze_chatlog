@@ -1498,7 +1498,7 @@
           <div class="legend-item"><span class="legend-badge" style="color:#ffffff; border-color:#ffffff44;">—</span> Fala Normal / Gritando</div>
           <div class="legend-item"><span class="legend-badge" style="color:#aaaaaa; border-color:#aaaaaa44;">—</span> Diz (baixo)</div>
           <div class="legend-item"><span class="legend-badge" style="color:#888888; border-color:#88888844;">—</span> Diz (sussurrando)</div>
-          <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">!</span> Sistema / Notificação / Transação</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#6afe87; border-color:#6afe8744;">!</span> Sistema / Notificação / Transação</div>
           <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">#</span> Chamada ou Mensagem Celular</div>
           <div class="legend-item"><span class="legend-badge" style="color:#94a3b8; border-color:#94a3b844;">((</span> Fora do Personagem (OOC)</div>
           <div class="legend-item"><span class="legend-badge" style="color:#ffb703; border-color:#ffb70344;">||</span> Trecho Censurado (Mosaico Pixelado)</div>
@@ -1557,6 +1557,7 @@
       white: "#ffffff",
       yellow: "#f5c500",
       green: "#6afe87",
+      system: "#6afe87",
       death: "#f87171",
       grey: "#aaaaaa",
       darkgrey: "#888888",
@@ -1656,7 +1657,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       if (t[0] === "*") return { type: "me", content: line };
       if (t[0] === ">") return { type: "ame", content: line };
       if (t[0] === "$") return { type: "yellow", content: line };
-      if (t[0] === "!") return { type: "yellow", content: line.slice(1).trimStart() };
+      if (t[0] === "!") return { type: "system", content: line.slice(1).trimStart() };
       if (t.startsWith("((")) return { type: "ooc", content: line };
       if (/\bdiz\b\s*\(\s*(?:celular|telefone)\s*\)/.test(low)) return { type: "yellow", content: line };
       if (/\bdiz\b\s*\(\s*(?:sussurrando|sussurando)\s*\)/.test(low)) return { type: "darkgrey", content: line };
