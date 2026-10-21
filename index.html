@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Haze Studios — Chat Log Creator</title>
+  <title>Haze Studios — Chat Log Creator (Emerald Edition)</title>
   
   <!-- Google Fonts: Inter, JetBrains Mono & Montserrat (Lation Emerald Standard) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -152,83 +152,69 @@
     .brand-group {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
     }
 
     .brand-logo-img {
       height: 38px;
       width: auto;
       object-fit: contain;
-      filter: drop-shadow(0 0 8px var(--accent-glow));
     }
 
     .brand-titles {
       display: flex;
       flex-direction: column;
-      gap: 2px;
     }
 
     .brand-title-main {
       font-size: 15px;
       font-weight: 800;
       letter-spacing: 2px;
-      color: #ffffff;
       text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .brand-title-main span.emerald-tag {
-      color: var(--accent-bright);
-      font-weight: 900;
-    }
-
-    .brand-sub {
-      font-family: var(--font-mono);
-      font-size: 8.5px;
-      letter-spacing: 3px;
-      color: var(--content-secondary);
-      text-transform: uppercase;
+      color: var(--content-heading);
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .brand-sub::before {
-      content: '';
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 8px var(--accent);
+    .brand-title-main .emerald-tag {
+      color: var(--accent-bright);
+      text-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .brand-sub {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      color: var(--content-muted);
+      text-transform: uppercase;
     }
 
     .header-badges {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .badge-chip {
-      background: var(--surface-deep);
-      border: 1px solid var(--line-strong);
-      border-radius: 20px;
-      padding: 4px 12px;
       font-family: var(--font-mono);
       font-size: 10px;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+      border: 1px solid var(--line-strong);
+      background: var(--surface-deep);
       color: var(--content-secondary);
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .badge-chip.emerald {
       border-color: var(--accent);
       color: var(--accent-bright);
       background: var(--accent-dim);
+      box-shadow: 0 0 12px var(--accent-dim);
     }
 
     /* ============================================================
@@ -236,15 +222,15 @@
        ============================================================ */
     main.app-container {
       width: 100%;
-      max-width: 1320px;
-      padding: 24px;
+      max-width: 1720px;
+      padding: 24px 32px 40px;
       display: grid;
-      grid-template-columns: 340px 1fr;
-      gap: 24px;
-      flex: 1;
+      grid-template-columns: 460px 1fr;
+      gap: 28px;
+      align-items: start;
     }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1280px) {
       main.app-container {
         grid-template-columns: 1fr;
       }
@@ -253,20 +239,61 @@
     .sidebar {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
-    /* Cards Lation com Destaque Vertical */
+    /* Tabs (Foto Individual vs Lote) */
+    .tabs-nav {
+      display: flex;
+      background: var(--surface-band);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      color: var(--content-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--content-heading);
+      background: var(--surface-hover);
+    }
+
+    .tab-btn.active {
+      background: var(--surface);
+      color: var(--accent-bright);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+      border: 1px solid var(--accent);
+    }
+
+    /* Cards no padrão Lation Modern UI */
     .lation-card {
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--panel-shadow);
-      box-shadow: inset 3px 0 0 var(--accent), var(--panel-shadow);
       padding: 14px 16px;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      position: relative;
       transition: border-color 0.15s ease;
     }
 
@@ -278,92 +305,51 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--line);
+      gap: 10px;
       padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
     }
 
     .card-label {
-      font-family: var(--font-sans);
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: var(--content-secondary);
+      color: var(--content-heading);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .card-label .dot {
-      color: var(--accent-bright);
-      font-size: 8px;
+      color: var(--accent);
+      font-size: 12px;
     }
 
     .card-val {
       font-family: var(--font-mono);
       font-size: 10px;
-      font-weight: 600;
       color: var(--accent-bright);
-    }
-
-    /* Tabs de Modo (Uma Imagem vs Lote) */
-    .tabs-nav {
-      display: flex;
       background: var(--surface-deep);
       border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      padding: 3px;
-      gap: 4px;
-    }
-
-    .tab-btn {
-      flex: 1;
-      background: transparent;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 5px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--content-muted);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .tab-btn:hover:not(.active) {
-      color: var(--content);
-      background: var(--surface-hover);
-    }
-
-    .tab-btn.active {
-      background: var(--btn-green-bg);
-      color: var(--accent-bright);
-      border: 1px solid var(--accent);
-      box-shadow: 0 0 12px var(--accent-dim);
+      padding: 2px 6px;
+      border-radius: 4px;
     }
 
     /* Dropzone de Upload */
     .dropzone {
-      border: 1.5px dashed var(--line-strong);
       background: var(--surface-deep);
+      border: 1.5px dashed var(--line-strong);
       border-radius: var(--radius-sm);
-      min-height: 70px;
+      padding: 18px 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 6px;
       cursor: pointer;
-      padding: 12px;
-      text-align: center;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
+      text-align: center;
     }
 
     .dropzone:hover, .dropzone.dragover {
@@ -373,70 +359,75 @@
     }
 
     .dropzone-text {
-      font-size: 11px;
+      font-size: 11.5px;
       font-weight: 600;
-      color: var(--content-secondary);
+      color: var(--content-heading);
     }
 
     .dropzone-sub {
-      font-size: 9px;
+      font-size: 9.5px;
       color: var(--content-muted);
       font-family: var(--font-mono);
     }
 
     .dropzone-preview {
-      position: relative;
       width: 100%;
+      height: 90px;
       border-radius: 4px;
       overflow: hidden;
+      position: relative;
     }
 
     .dropzone-preview img {
       width: 100%;
-      max-height: 95px;
+      height: 100%;
       object-fit: cover;
-      display: block;
-      border-radius: 4px;
     }
 
     .dropzone-overlay-change {
       position: absolute;
       inset: 0;
-      background: rgba(16, 23, 33, 0.85);
+      background: rgba(0,0,0,0.65);
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0;
-      transition: opacity 0.2s ease;
+      color: var(--accent-bright);
       font-size: 10px;
       font-weight: 700;
-      color: var(--accent-bright);
       letter-spacing: 1.5px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
     }
 
     .dropzone-preview:hover .dropzone-overlay-change {
       opacity: 1;
     }
 
-    /* Grade de Imagens em Lote */
+    /* Grid de Imagens em Lote */
     .batch-grid {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
       gap: 6px;
-      max-height: 130px;
+      max-height: 140px;
       overflow-y: auto;
-      padding-right: 4px;
+      padding: 4px;
+      background: var(--surface-deep);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
     }
 
     .batch-thumb {
-      position: relative;
-      width: 62px;
-      height: 44px;
+      height: 52px;
       border-radius: 4px;
       overflow: hidden;
-      border: 1.5px solid transparent;
+      border: 1px solid var(--line);
       cursor: pointer;
-      transition: border-color 0.15s ease;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .batch-thumb:hover {
+      border-color: var(--accent);
     }
 
     .batch-thumb.active {
@@ -448,48 +439,45 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      display: block;
     }
 
     .batch-thumb .rm-btn {
       position: absolute;
       top: 2px;
       right: 2px;
-      background: var(--error);
-      color: #ffffff;
+      background: rgba(239, 68, 68, 0.85);
       border: none;
-      width: 16px;
-      height: 16px;
+      color: white;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
-      font-size: 9px;
-      display: flex;
+      font-size: 8px;
+      cursor: pointer;
+      display: none;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.15s ease;
     }
 
     .batch-thumb:hover .rm-btn {
-      opacity: 1;
+      display: flex;
     }
 
-    /* Personagens e Chips */
+    /* Chips de Personagens */
     .char-input-row {
       display: flex;
       gap: 8px;
     }
 
     .lation-input {
+      flex: 1;
       background: var(--surface-deep);
       border: 1px solid var(--line-strong);
       border-radius: var(--radius-sm);
       color: var(--content-heading);
-      padding: 7px 10px;
       font-family: var(--font-sans);
       font-size: 11px;
+      padding: 7px 10px;
       outline: none;
-      flex: 1;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
@@ -502,148 +490,265 @@
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      max-height: 90px;
+      max-height: 80px;
       overflow-y: auto;
+      padding: 2px;
     }
 
     .char-chip {
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 3px 10px 3px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--content);
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px 4px 8px;
-      border-radius: 20px;
       cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      background: var(--surface-deep);
-      border: 1px solid var(--line-strong);
       transition: all 0.15s ease;
-      color: var(--content);
+    }
+
+    .char-chip:hover {
+      background: var(--surface-hover);
+      border-color: var(--line-strong);
     }
 
     .char-chip.active {
       border-color: var(--accent);
       background: var(--accent-dim);
+      color: var(--accent-bright);
       box-shadow: 0 0 10px var(--accent-dim);
     }
 
     .char-color-dot {
-      width: 7px;
-      height: 7px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
-      flex-shrink: 0;
+      border: 1.5px solid var(--surface);
     }
 
     .char-chip .del-char {
-      background: transparent;
-      border: none;
       color: var(--content-muted);
       cursor: pointer;
-      font-size: 10px;
-      display: inline-flex;
-      align-items: center;
-      padding-left: 2px;
-      transition: color 0.15s ease;
+      margin-left: 2px;
+      font-size: 9px;
+      border: none;
+      background: none;
     }
 
     .char-chip .del-char:hover {
       color: var(--error);
     }
 
-    /* Botões de Ação Rápida de RP */
+    /* Botões Rápidos de Ações RP */
     .rp-actions-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
     }
 
     .action-btn {
-      padding: 5px 9px;
-      border-radius: 5px;
+      padding: 6px 4px;
+      border-radius: 4px;
       background: var(--surface-deep);
       border: 1px solid var(--line);
       color: var(--content-secondary);
+      font-size: 9px;
+      font-weight: 700;
       font-family: var(--font-mono);
-      font-size: 9.5px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .action-btn:hover {
       background: var(--surface-hover);
       border-color: var(--accent);
-      color: #ffffff;
-      box-shadow: 0 0 10px var(--accent-dim);
+      color: var(--accent-bright);
+      box-shadow: 0 0 8px var(--accent-dim);
     }
 
-    .action-btn.btn-me { color: #cc99ff; border-color: rgba(204, 153, 255, 0.25); }
-    .action-btn.btn-do { color: #b17df8; border-color: rgba(177, 125, 248, 0.25); }
-    .action-btn.btn-item { color: #f5c500; border-color: rgba(245, 197, 0, 0.25); }
+    .action-btn.btn-me { color: #cc99ff; border-color: rgba(204, 153, 255, 0.35); }
+    .action-btn.btn-do { color: #cc99ff; border-color: rgba(204, 153, 255, 0.25); }
+    .action-btn.btn-item { color: #f5c500; border-color: rgba(245, 197, 0, 0.35); }
     .action-btn.btn-cel { color: #f5c500; border-color: rgba(245, 197, 0, 0.25); }
-    .action-btn.btn-sys { color: #f87171; border-color: rgba(248, 113, 113, 0.25); }
-    .action-btn.btn-ooc { color: #94a3b8; border-color: rgba(148, 163, 184, 0.25); }
+    .action-btn.btn-sys { color: #6afe87; border-color: rgba(106, 254, 135, 0.35); }
+    .action-btn.btn-ooc { color: #94a3b8; border-color: rgba(148, 163, 184, 0.35); }
+    .action-btn.btn-censor {
+      color: #ffb703;
+      border-color: rgba(255, 183, 3, 0.5);
+      background: rgba(255, 183, 3, 0.08);
+      font-weight: 800;
+    }
+    .action-btn.btn-censor:hover {
+      background: rgba(255, 183, 3, 0.2);
+      border-color: #ffb703;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(255, 183, 3, 0.4);
+    }
 
-    /* Textarea do Chat Log */
-    textarea.lation-textarea {
+    /* Textarea de Chat Log */
+    .lation-textarea {
       width: 100%;
-      height: 145px;
+      height: 140px;
       background: var(--surface-deep);
       border: 1px solid var(--line-strong);
       border-radius: var(--radius-sm);
       color: var(--content-heading);
       font-family: var(--font-mono);
       font-size: 11px;
-      line-height: 1.65;
-      padding: 10px 12px;
-      resize: vertical;
+      line-height: 1.5;
+      padding: 10px;
       outline: none;
+      resize: vertical;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
-    textarea.lation-textarea:focus {
+    .lation-textarea:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent), 0 0 10px var(--accent-dim);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--accent-dim);
     }
 
-    /* Filtros e Efeitos */
-    .effects-grid {
+    /* Grid de Presets de Resolução & Câmera */
+    .chips-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+
+    .chip-btn {
+      padding: 6px 4px;
+      border-radius: 4px;
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      color: var(--content-secondary);
+      font-size: 9.5px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.12s ease;
+      text-align: center;
+    }
+
+    .chip-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .chip-btn.active {
+      background: var(--btn-green-bg);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      box-shadow: 0 0 10px var(--accent-dim);
+    }
+
+    /* Camadas & Overlays */
+    .layers-list {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 2px;
+    }
+
+    .layer-card {
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color 0.15s ease;
+    }
+
+    .layer-card.active-layer {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-dim);
+    }
+
+    .layer-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .layer-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .layer-thumb-mini {
+      width: 28px;
+      height: 28px;
+      border-radius: 3px;
+      object-fit: cover;
+      border: 1px solid var(--line-strong);
+    }
+
+    .layer-name-txt {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--content-heading);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 170px;
+    }
+
+    .layer-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Efeitos Fotográficos */
+    .effects-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 6px;
     }
 
     .effect-btn {
-      padding: 6px 11px;
-      border-radius: 5px;
+      padding: 6px;
+      border-radius: 4px;
       background: var(--surface-deep);
       border: 1px solid var(--line);
-      color: var(--content-muted);
-      font-size: 9.5px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
+      color: var(--content-secondary);
+      font-size: 10px;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.15s ease;
+      text-align: center;
     }
 
     .effect-btn:hover {
-      border-color: var(--line-hover);
-      color: var(--content);
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: #ffffff;
     }
 
     .effect-btn.active {
       background: var(--btn-green-bg);
       border-color: var(--accent);
       color: var(--accent-bright);
-      box-shadow: 0 0 12px var(--accent-dim);
+      box-shadow: 0 0 10px var(--accent-dim);
     }
 
-    /* Botões Principais de Exportação / Ação */
+    /* Botões Principais de Ação */
     .main-actions-row {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       margin-top: 4px;
     }
 
@@ -716,7 +821,7 @@
       color: #ffffff;
     }
 
-    /* Seletor de Fontes Customizado */
+    /* Seletor Customizado */
     select.lation-select {
       width: 100%;
       background: var(--surface-deep);
@@ -746,24 +851,24 @@
     /* Presets de Câmera RP */
     .camera-presets-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 6px;
     }
 
     .preset-btn {
-      padding: 6px 8px;
+      padding: 6px 4px;
       border-radius: 5px;
       background: var(--surface-deep);
       border: 1px solid var(--line);
       color: var(--content-secondary);
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
       font-family: var(--font-mono);
       cursor: pointer;
       transition: all 0.15s ease;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       justify-content: center;
     }
 
@@ -851,24 +956,45 @@
       justify-content: space-between;
       gap: 12px;
       padding: 0 4px;
+      flex-wrap: wrap;
     }
 
-    .preview-meta {
+    .drag-target-nav {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--content-secondary);
+      background: var(--surface-band);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 4px;
     }
 
-    .preview-meta .drag-hint {
-      color: var(--accent-soft);
-      font-weight: 600;
+    .drag-btn {
+      padding: 5px 10px;
+      border-radius: 4px;
+      background: transparent;
+      border: none;
+      color: var(--content-secondary);
+      font-size: 10px;
+      font-weight: 700;
       font-family: var(--font-mono);
-      font-size: 9.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .drag-btn:hover {
+      background: var(--surface-hover);
+      color: #ffffff;
+    }
+
+    .drag-btn.active {
+      background: var(--surface-deep);
+      color: var(--accent-bright);
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 10px var(--accent-dim);
     }
 
     .preview-res {
@@ -877,8 +1003,9 @@
       color: var(--accent-bright);
       background: var(--surface-deep);
       border: 1px solid var(--line);
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 4px;
+      font-weight: 700;
     }
 
     .canvas-viewport {
@@ -892,7 +1019,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 480px;
+      min-height: 520px;
     }
 
     .canvas-viewport canvas {
@@ -980,14 +1107,14 @@
           HAZE <span class="emerald-tag">STUDIOS</span>
         </div>
         <div class="brand-sub">
-          RP CHAT LOG STUDIO
+          RP CHAT LOG STUDIO · EMERALD PRO
         </div>
       </div>
     </div>
 
     <div class="header-badges">
       <div class="badge-chip emerald">
-        Haze Chatlog 1.0
+        Haze Chatlog 2.0 Pro
       </div>
     </div>
   </header>
@@ -1064,6 +1191,103 @@
         </div>
       </div>
 
+      <!-- CARD NOVO: RESOLUÇÃO & ENQUADRAMENTO DA IMAGEM -->
+      <div class="lation-card">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Resolução &amp; Adaptação</span>
+          <span class="card-val" id="active-res-badge">Original</span>
+        </div>
+
+        <!-- Presets Rápidos de Resolução -->
+        <div>
+          <span class="card-label" style="font-size:9px; margin-bottom:5px; display:block;">Resolução de Exportação:</span>
+          <div class="chips-grid">
+            <button class="chip-btn active" data-res="original" onclick="setResolutionPreset('original')">Original</button>
+            <button class="chip-btn" data-res="1080p" onclick="setResolutionPreset('1080p')">1920×1080</button>
+            <button class="chip-btn" data-res="1440p" onclick="setResolutionPreset('1440p')">2560×1440</button>
+            <button class="chip-btn" data-res="4k" onclick="setResolutionPreset('4k')">4K UHD</button>
+            <button class="chip-btn" data-res="720p" onclick="setResolutionPreset('720p')">1280×720</button>
+            <button class="chip-btn" data-res="1080x1080" onclick="setResolutionPreset('1080x1080')">1:1 Square</button>
+            <button class="chip-btn" data-res="1080x1350" onclick="setResolutionPreset('1080x1350')">4:5 Feed</button>
+            <button class="chip-btn" data-res="custom" onclick="setResolutionPreset('custom')">Personalizado</button>
+          </div>
+        </div>
+
+        <!-- Inputs Customizados (se ativo) -->
+        <div id="custom-res-box" style="display:none; gap:6px; align-items:center;">
+          <input type="number" id="custom-res-w" class="lation-input" placeholder="Largura (px)" value="1920" style="padding:5px 8px; font-size:10px;">
+          <span style="color:var(--content-muted); font-size:11px;">×</span>
+          <input type="number" id="custom-res-h" class="lation-input" placeholder="Altura (px)" value="1080" style="padding:5px 8px; font-size:10px;">
+          <button class="lation-btn primary" style="padding:6px 10px; font-size:9.5px; flex:none;" onclick="applyCustomResolution()">Aplicar</button>
+        </div>
+
+        <!-- Modo de Adaptação / Enquadramento -->
+        <div style="border-top:1px solid var(--line); padding-top:6px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span class="card-label" style="font-size:9px;">Modo de Adaptação da Foto:</span>
+            <span class="card-val" id="fit-mode-badge">Cover (Preencher)</span>
+          </div>
+          <div class="chips-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <button class="chip-btn active" data-fit="cover" onclick="setFitMode('cover')" title="Preenche a tela sem barras pretas, cortando as sobras centrais">Cover</button>
+            <button class="chip-btn" data-fit="contain" onclick="setFitMode('contain')" title="Exibe a imagem inteira sem cortes, mantendo bordas pretas">Contain</button>
+            <button class="chip-btn" data-fit="stretch" onclick="setFitMode('stretch')" title="Estica a foto para a nova resolução">Esticar</button>
+          </div>
+        </div>
+
+        <!-- Ajuste Manual de Posição da Foto Base (Pan X, Pan Y e Zoom) -->
+        <div style="border-top:1px solid var(--line); padding-top:6px; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-label" style="font-size:9px;">Mover Foto na Resolução Nova</span>
+            <button class="action-btn" style="padding:3px 8px; font-size:8.5px;" onclick="resetImagePan()" title="Centralizar e resetar posição da foto">↺ Centralizar</button>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span class="card-label" style="font-size:8.5px;">Pan X (Horizontal)</span>
+                <span class="card-val" id="pan-x-val">0%</span>
+              </div>
+              <input type="range" id="slider-pan-x" min="-100" max="100" value="0" oninput="updateImagePanX(+this.value)">
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span class="card-label" style="font-size:8.5px;">Pan Y (Vertical)</span>
+                <span class="card-val" id="pan-y-val">0%</span>
+              </div>
+              <input type="range" id="slider-pan-y" min="-100" max="100" value="0" oninput="updateImagePanY(+this.value)">
+            </div>
+          </div>
+
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+              <span class="card-label" style="font-size:8.5px;">Zoom da Foto</span>
+              <span class="card-val" id="pan-zoom-val">100%</span>
+            </div>
+            <input type="range" id="slider-pan-zoom" min="50" max="250" value="100" oninput="updateImageZoom(+this.value)">
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD NOVO: CAMADAS DE IMAGEM / OVERLAYS ESTILO CANVAS -->
+      <div class="lation-card">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Camadas &amp; Overlays (2ª Imagem)</span>
+          <span class="card-val" id="layers-count-badge">0 Camadas</span>
+        </div>
+
+        <input type="file" id="input-layer-file" accept="image/*" style="display:none" onchange="handleLayerUpload(this.files[0])">
+        <button class="lation-btn secondary" style="width:100%;" onclick="document.getElementById('input-layer-file').click()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          + Adicionar Camada de Imagem
+        </button>
+
+        <div class="layers-list" id="layers-list-container">
+          <div style="font-size:10px; color:var(--content-muted); text-align:center; padding:10px 0;">
+            Nenhuma camada adicionada. Você pode sobrepor logos, molduras, marcas d'água ou fotos secundárias.
+          </div>
+        </div>
+      </div>
+
       <!-- CARD 2: PERSONAGENS E ATALHOS -->
       <div class="lation-card">
         <div class="card-head">
@@ -1091,6 +1315,7 @@
             <button class="action-btn btn-cel" title="Mensagem ou ligação" onclick="insertAtCursor('# ')"># CEL</button>
             <button class="action-btn btn-sys" title="Notificação do sistema" onclick="insertAtCursor('! ')">! SIS</button>
             <button class="action-btn btn-ooc" title="Chat fora do personagem" onclick="insertAtCursor('(( ')">(( OOC</button>
+            <button class="action-btn btn-censor" style="grid-column: span 5;" title="Censurar trecho selecionado com ||palavra|| (Mosaico Pixelado como na print)" onclick="insertCensorAtCursor()">⬛ CENSURAR PARTE DO CHAT (||...||)</button>
           </div>
         </div>
       </div>
@@ -1101,13 +1326,22 @@
           <span class="card-label"><span class="dot">◆</span> Conteúdo do Chat Log</span>
           <span class="card-val" id="line-count-val">0 linhas</span>
         </div>
-        <textarea class="lation-textarea" id="chat-text-input" placeholder="Cole seu chat log ou use os atalhos acima..." oninput="onTextInputChange()"></textarea>
+        <textarea class="lation-textarea" id="chat-text-input" placeholder="Cole seu chat log ou use os atalhos acima. Use ||palavra|| para censurar com mosaico pixelado!" oninput="onTextInputChange()"></textarea>
+
+        <!-- Seletor de Estilo de Censura -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line); padding-top:6px;">
+          <span class="card-label" style="font-size:9px;">Estilo de Censura:</span>
+          <select class="lation-select" id="select-censor-style" style="width:160px; padding:4px 8px; font-size:10px;" onchange="updateCensorStyle(this.value)">
+            <option value="pixelate" selected>Mosaico Pixelado</option>
+            <option value="solid">Tarja Preta Sólida</option>
+          </select>
+        </div>
       </div>
 
       <!-- CARD 4: TIPOGRAFIA & LAYOUT -->
       <div class="lation-card">
         <div class="card-head">
-          <span class="card-label"><span class="dot">◆</span> Estilo & Tipografia</span>
+          <span class="card-label"><span class="dot">◆</span> Estilo &amp; Tipografia</span>
         </div>
 
         <!-- Seletor de Fonte Oficial de GTA V -->
@@ -1191,9 +1425,37 @@
               <span>📼 CCTV</span>
             </button>
             <button class="preset-btn" data-preset="noir" onclick="setCameraPreset('noir')">
-              <span>🎬 Noite Fria</span>
+              <span>🎬 Noir</span>
             </button>
           </div>
+        </div>
+
+        <!-- PAINEL CUSTOMIZADO PARA BODYCAM -->
+        <div id="bodycam-custom-fields" style="display:none; flex-direction:column; gap:6px; background:var(--surface-deep); padding:8px; border-radius:var(--radius-sm); border:1px solid var(--line);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-label" style="font-size:8.5px; color:var(--accent-bright);">⚙️ Personalizar Body Cam</span>
+            <button class="action-btn" style="padding:2px 6px; font-size:8px;" onclick="setNowBodycam()">⏱️ Agora</button>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+            <input type="text" class="lation-input" id="input-bodycam-date" placeholder="Data (YYYY-MM-DD)" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
+            <input type="text" class="lation-input" id="input-bodycam-time" placeholder="Hora (HH:MM:SS)" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
+          </div>
+          <input type="text" class="lation-input" id="input-bodycam-dept" placeholder="Departamento (ex: POLICE / SHERIFF)" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
+          <input type="text" class="lation-input" id="input-bodycam-officer" placeholder="Oficial (ex: OFC M. MENDOZA #4812)" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
+        </div>
+
+        <!-- PAINEL CUSTOMIZADO PARA CCTV -->
+        <div id="cctv-custom-fields" style="display:none; flex-direction:column; gap:6px; background:var(--surface-deep); padding:8px; border-radius:var(--radius-sm); border:1px solid var(--line);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-label" style="font-size:8.5px; color:var(--accent-bright);">⚙️ Personalizar Câmera CCTV</span>
+            <button class="action-btn" style="padding:2px 6px; font-size:8px;" onclick="setNowCctv()">⏱️ Agora</button>
+          </div>
+          <input type="text" class="lation-input" id="input-cctv-camname" placeholder="Nome da Câmera (ex: CAM 03 [SURVEILLANCE HQ])" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+            <input type="text" class="lation-input" id="input-cctv-date" placeholder="Data (YYYY-MM-DD)" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
+            <input type="text" class="lation-input" id="input-cctv-time" placeholder="Hora (HH:MM:SS)" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
+          </div>
+          <input type="text" class="lation-input" id="input-cctv-location" placeholder="Local / Especificações (ex: PAL 25FPS · 1080P · LIVE)" style="font-size:10px; padding:4px 6px;" oninput="updateCameraCustom()">
         </div>
 
         <div style="border-top:1px solid var(--line); padding-top:6px;">
@@ -1235,6 +1497,7 @@
           <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">!</span> Sistema / Notificação / Transação</div>
           <div class="legend-item"><span class="legend-badge" style="color:#f5c500; border-color:#f5c50044;">#</span> Chamada ou Mensagem Celular</div>
           <div class="legend-item"><span class="legend-badge" style="color:#94a3b8; border-color:#94a3b844;">((</span> Fora do Personagem (OOC)</div>
+          <div class="legend-item"><span class="legend-badge" style="color:#ffb703; border-color:#ffb70344;">||</span> Trecho Censurado (Mosaico Pixelado)</div>
         </div>
       </div>
 
@@ -1243,11 +1506,14 @@
     <!-- ÁREA DE PREVIEW INTERATIVO -->
     <div class="preview-column">
       <div class="preview-header-bar">
-        <div class="preview-meta">
-          <span style="color:var(--accent-bright);">◆</span>
-          <span>PREVIEW INTERATIVO</span>
-          <span class="drag-hint">✦ Clique e arraste o texto para posicionar</span>
+        <!-- SELETOR DE ALVO DO ARRASTO COM O MOUSE -->
+        <div class="drag-target-nav">
+          <span style="font-size:9.5px; font-weight:700; color:var(--content-muted); padding-left:4px;">🎯 MOUSE:</span>
+          <button class="drag-btn active" id="drag-target-chat" onclick="setDragTarget('chat')">💬 Texto Chat</button>
+          <button class="drag-btn" id="drag-target-pan" onclick="setDragTarget('image_pan')">🖼️ Enquadrar Foto</button>
+          <button class="drag-btn" id="drag-target-layer" onclick="setDragTarget('layer')">📑 Camada 2</button>
         </div>
+
         <div class="preview-res" id="canvas-res-chip">1280 × 720 px</div>
       </div>
 
@@ -1264,7 +1530,7 @@
 
   <!-- FOOTER -->
   <footer class="app-footer">
-    HAZE STUDIOS RP · CHAT LOG STUDIO
+    HAZE STUDIOS RP · CHAT LOG STUDIO · EMERALD PRO
   </footer>
 
   <!-- NOTIFICAÇÃO TOAST FLUTUANTE -->
@@ -1299,9 +1565,9 @@
 Mateo Mendoza diz (normal): Desliga os rádios e vigia os acessos, Ramon. Essa carga não pode vazar.
 * Ramon Mendoza desce do passageiro, ajeitando o coldre sob a jaqueta escura.
 ! Você recebeu uma maleta de metal lacrada de Ramon Mendoza.
-Ramon Mendoza diz (baixo): Tá tudo conferido. Os documentos e o pagamento tão aqui dentro.
+Ramon Mendoza diz (baixo): Tá tudo conferido. Os ||documentos sigilosos|| e o pagamento tão aqui dentro.
 * Mateo Mendoza passa a mão pela barba, concordando com um leve aceno de cabeça.
-Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avançar pro ponto B.`;
+Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
 
     // Escala de renderização (Super Sampling 2x)
     const RENDER_SCALE = 2;
@@ -1321,6 +1587,29 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       singleName: "chatlog_haze.png",
       batchImgs: [],
       batchSel: 0,
+      
+      // Resolução & Adaptação
+      resolution: {
+        preset: "original", // 'original', '1080p', '1440p', '4k', '720p', '1080x1080', '1080x1350', 'custom'
+        w: 1920,
+        h: 1080,
+        fitMode: "cover" // 'cover', 'contain', 'stretch'
+      },
+      imagePan: {
+        x: 0,   // -100% a +100%
+        y: 0,   // -100% a +100%
+        zoom: 100 // 50% a 250%
+      },
+
+      // Sistema de Camadas (Overlays / 2ª Imagem)
+      layers: [],
+      activeLayerId: null,
+      dragTarget: 'chat', // 'chat', 'image_pan', 'layer'
+
+      // Censura
+      censorStyle: 'pixelate', // 'pixelate' ou 'solid'
+
+      // Posição do texto
       textX: 2.5,  // porcentagem 0..100
       textY: 72,   // porcentagem 0..100
       overlay: 0,
@@ -1330,7 +1619,20 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       bgEnabled: true,
       bgColor: "#000000",
       bgOpacity: 85,
+      
+      // Presets de Câmera RP & Customização
       cameraPreset: "none",
+      cameraCustom: {
+        bodycamDate: "",
+        bodycamTime: "",
+        bodycamDept: "POLICE / SHERIFF",
+        bodycamOfficer: "",
+        cctvCamName: "CAM 03 [SURVEILLANCE HQ]",
+        cctvDate: "",
+        cctvTime: "",
+        cctvLocation: "PAL 25FPS · 1080P · LIVE"
+      },
+
       effects: {
         grain: false,
         vignette: false,
@@ -1352,7 +1654,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       if (t[0] === "$") return { type: "yellow", content: line };
       if (t[0] === "!") return { type: "yellow", content: line.slice(1).trimStart() };
       if (t.startsWith("((")) return { type: "ooc", content: line };
-      if (/\bdiz\b\s*\(\s*celular\s*\)/.test(low)) return { type: "yellow", content: line };
+      if (/\bdiz\b\s*\(\s*(?:celular|telefone)\s*\)/.test(low)) return { type: "yellow", content: line };
       if (/\bdiz\b\s*\(\s*(?:sussurrando|sussurando)\s*\)/.test(low)) return { type: "darkgrey", content: line };
       if (/\bdiz\b\s*\(\s*baixo\s*\)/.test(low)) return { type: "grey", content: line };
       if (/\bdiz\b\s*\(\s*gritando\s*\)/.test(low)) return { type: "white", content: line };
@@ -1361,14 +1663,38 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       return { type: "white", content: line };
     }
 
-    // Quebra de texto inteligente
+    // Fatiamento de segmentos para censura (||palavra||, [censor]...[/censor] ou █)
+    function splitCensoredSegments(line) {
+      const segments = [];
+      const regex = /(?:\|\|(.*?)\|\||\[(?:censor|censura)\](.*?)\[\/(?:censor|censura)\]|(█+))/gi;
+      let lastIndex = 0;
+      let match;
+
+      while ((match = regex.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+          segments.push({ text: line.substring(lastIndex, match.index), isCensored: false });
+        }
+        const textVal = match[1] !== undefined ? match[1] : (match[2] !== undefined ? match[2] : match[3]);
+        segments.push({ text: textVal || "   ", isCensored: true });
+        lastIndex = regex.lastIndex;
+      }
+
+      if (lastIndex < line.length) {
+        segments.push({ text: line.substring(lastIndex), isCensored: false });
+      }
+
+      return segments.length ? segments : [{ text: line, isCensored: false }];
+    }
+
+    // Quebra de texto inteligente preservando tokens
     function wrapText(ctx, text, maxWidth) {
       const words = text.split(' ');
       const result = [];
       let line = '';
       for (let i = 0; i < words.length; i++) {
         const test = line ? (line + ' ' + words[i]) : words[i];
-        if (ctx.measureText(test).width > maxWidth && line) {
+        const cleanTest = test.replace(/\|\|/g, "").replace(/\[\/?(?:censor|censura)\]/gi, "");
+        if (ctx.measureText(cleanTest).width > maxWidth && line) {
           result.push(line);
           line = words[i];
         } else {
@@ -1378,6 +1704,98 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       if (line) result.push(line);
       if (!result.length) result.push('');
       return result;
+    }
+
+    // Cálculo da dimensão ativa do Canvas
+    function getActiveCanvasSize() {
+      let baseW = 1280, baseH = 720;
+      if (state.tab === 'single' && state.singleEl) {
+        baseW = state.singleEl.naturalWidth || state.singleSize.w || 1280;
+        baseH = state.singleEl.naturalHeight || state.singleSize.h || 720;
+      } else if (state.tab === 'batch' && state.batchImgs[state.batchSel]?.el) {
+        baseW = state.batchImgs[state.batchSel].el.naturalWidth || 1280;
+        baseH = state.batchImgs[state.batchSel].el.naturalHeight || 720;
+      }
+
+      if (state.resolution.preset === 'original') return { w: baseW, h: baseH };
+      if (state.resolution.preset === '1080p') return { w: 1920, h: 1080 };
+      if (state.resolution.preset === '1440p') return { w: 2560, h: 1440 };
+      if (state.resolution.preset === '4k') return { w: 3840, h: 2160 };
+      if (state.resolution.preset === '720p') return { w: 1280, h: 720 };
+      if (state.resolution.preset === '1080x1080') return { w: 1080, h: 1080 };
+      if (state.resolution.preset === '1080x1350') return { w: 1080, h: 1350 };
+      if (state.resolution.preset === 'custom') {
+        return { w: Math.max(200, state.resolution.w || 1920), h: Math.max(200, state.resolution.h || 1080) };
+      }
+      return { w: baseW, h: baseH };
+    }
+
+    // Desenho adaptativo da Imagem Base (Cover, Contain, Stretch com Pan X/Y e Zoom)
+    function drawAdaptedImage(ctx, imgEl, W, H, fitMode, panX, panY, zoomPct) {
+      if (!imgEl) return;
+      const imgW = imgEl.naturalWidth || imgEl.width || 1280;
+      const imgH = imgEl.naturalHeight || imgEl.height || 720;
+      const zoom = Math.max(0.2, (zoomPct || 100) / 100);
+
+      let drawW, drawH, drawX, drawY;
+
+      if (fitMode === 'cover') {
+        const scale = Math.max(W / imgW, H / imgH) * zoom;
+        drawW = imgW * scale;
+        drawH = imgH * scale;
+        drawX = (W - drawW) / 2 + (panX / 100) * W;
+        drawY = (H - drawH) / 2 + (panY / 100) * H;
+      } else if (fitMode === 'contain') {
+        const scale = Math.min(W / imgW, H / imgH) * zoom;
+        drawW = imgW * scale;
+        drawH = imgH * scale;
+        drawX = (W - drawW) / 2 + (panX / 100) * W;
+        drawY = (H - drawH) / 2 + (panY / 100) * H;
+      } else { // stretch
+        drawW = W * zoom;
+        drawH = H * zoom;
+        drawX = (panX / 100) * W;
+        drawY = (panY / 100) * H;
+      }
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(imgEl, drawX, drawY, drawW, drawH);
+      ctx.restore();
+    }
+
+    // Desenho das Camadas Adicionais / Overlays
+    function drawOverlayLayers(ctx, W, H, isPreview) {
+      if (!state.layers || !state.layers.length) return;
+      state.layers.forEach(layer => {
+        if (!layer.el) return;
+        ctx.save();
+        const opacity = (layer.opacity ?? 100) / 100;
+        ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+
+        const scale = Math.max(0.05, (layer.scale ?? 100) / 100);
+        // Dimensões proporcionais
+        const natW = layer.w || layer.el.naturalWidth || 200;
+        const natH = layer.h || layer.el.naturalHeight || 200;
+        const lW = natW * scale * (W / 1920);
+        const lH = natH * scale * (W / 1920);
+        const lX = (layer.x / 100) * W;
+        const lY = (layer.y / 100) * H;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(layer.el, lX, lY, lW, lH);
+
+        // Se for a camada selecionada e estiver no modo 'layer' do mouse, destaca contorno
+        if (isPreview && state.activeLayerId === layer.id && state.dragTarget === 'layer') {
+          ctx.strokeStyle = "#00FF88";
+          ctx.lineWidth = 3;
+          ctx.setLineDash([8, 6]);
+          ctx.strokeRect(lX, lY, lW, lH);
+        }
+        ctx.restore();
+      });
     }
 
     // Efeitos Fotográficos no Canvas
@@ -1445,14 +1863,14 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       }
     }
 
-    // Presets de Câmera RP (Axon Bodycam, CCTV, Cinema Noir)
+    // Renderização dos Presets de Câmera RP (com campos customizáveis de data, hora e local)
     function drawCameraOverlay(ctx, w, h, preset) {
       if (!preset || preset === 'none') return;
       
       const now = new Date();
       const pad = (n) => String(n).padStart(2, '0');
-      const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      const defaultDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const defaultTime = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
       ctx.save();
 
@@ -1470,11 +1888,15 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         const padX = Math.round(w * 0.025);
         const padY = Math.round(h * 0.035);
 
+        const cDate = state.cameraCustom.bodycamDate || defaultDate;
+        const cTime = state.cameraCustom.bodycamTime || defaultTime;
+        const cDept = (state.cameraCustom.bodycamDept || "POLICE / SHERIFF").toUpperCase();
+        const cOfficer = (state.cameraCustom.bodycamOfficer || (getActiveChar() ? getActiveChar().name : "M. MENDOZA")).toUpperCase();
+
         // Top-left: Department & Officer
-        const officer = (getActiveChar() ? getActiveChar().name : "M. MENDOZA").toUpperCase();
         ctx.textAlign = "left";
-        ctx.fillText(`AXON BODY 3 · ${dateStr} ${timeStr}`, padX, padY);
-        ctx.fillText(`DEPT: POLICE / SHERIFF · OFC ${officer}`, padX, padY + fontSize + 4);
+        ctx.fillText(`AXON BODY 3 · ${cDate} ${cTime}`, padX, padY);
+        ctx.fillText(`DEPT: ${cDept} · OFC ${cOfficer}`, padX, padY + fontSize + 4);
 
         // Top-right: Blinking Red REC
         ctx.textAlign = "right";
@@ -1495,13 +1917,18 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         const padX = Math.round(w * 0.025);
         const padY = Math.round(h * 0.035);
 
-        ctx.textAlign = "left";
-        ctx.fillText(`CAM 03 [SURVEILLANCE HQ]`, padX, padY);
-        ctx.textAlign = "right";
-        ctx.fillText(`PAL 25FPS · 1080P`, w - padX, padY);
+        const cCam = (state.cameraCustom.cctvCamName || "CAM 03 [SURVEILLANCE HQ]").toUpperCase();
+        const cDate = state.cameraCustom.cctvDate || defaultDate;
+        const cTime = state.cameraCustom.cctvTime || defaultTime;
+        const cLoc = (state.cameraCustom.cctvLocation || "PAL 25FPS · 1080P · LIVE").toUpperCase();
 
         ctx.textAlign = "left";
-        ctx.fillText(`${dateStr} ${timeStr} · LIVE`, padX, h - padY - fontSize);
+        ctx.fillText(cCam, padX, padY);
+        ctx.textAlign = "right";
+        ctx.fillText(cLoc, w - padX, padY);
+
+        ctx.textAlign = "left";
+        ctx.fillText(`${cDate} ${cTime} · LIVE`, padX, h - padY - fontSize);
 
         // Scanlines analógicas
         ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
@@ -1519,7 +1946,77 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       ctx.restore();
     }
 
-    // Desenho de Chat no Canvas (Nativo e pixel-perfect)
+    // Desenho do Efeito de Censura Mosaico Pixelado (idêntico à print do usuário)
+    function drawCensoredBlock(ctx, x, y, width, fontSize, baseColor, shadowPx) {
+      if (width <= 0) return;
+      const h = Math.round(fontSize * 1.05);
+      const blockW = Math.max(width, 14);
+      const blockY = y - Math.round(fontSize * 0.05);
+
+      ctx.save();
+      
+      if (state.censorStyle === 'solid') {
+        // Tarja sólida clássica
+        ctx.fillStyle = "#000000";
+        ctx.strokeStyle = "#1a1a1a";
+        ctx.lineWidth = 1;
+        ctx.fillRect(x, blockY, blockW, h);
+        ctx.strokeRect(x, blockY, blockW, h);
+        ctx.restore();
+        return;
+      }
+
+      // Estilo Mosaico Pixelado (Exatamente como na print enviada!)
+      // Sombra externa
+      ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+      ctx.fillRect(x - 1, blockY - 1, blockW + 2, h + 2);
+
+      // Tamanho de cada pixel do mosaico
+      const pxSize = Math.max(3, Math.round(fontSize * 0.22));
+      const cols = Math.ceil(blockW / pxSize);
+      const rows = Math.ceil(h / pxSize);
+
+      // Conversão da cor base
+      let r = 245, g = 197, b = 0;
+      if (baseColor && baseColor.startsWith("#")) {
+        r = parseInt(baseColor.slice(1, 3), 16) || 245;
+        g = parseInt(baseColor.slice(3, 5), 16) || 197;
+        b = parseInt(baseColor.slice(5, 7), 16) || 0;
+      }
+
+      for (let rIdx = 0; rIdx < rows; rIdx++) {
+        for (let cIdx = 0; cIdx < cols; cIdx++) {
+          const bx = x + cIdx * pxSize;
+          const by = blockY + rIdx * pxSize;
+          const bw = Math.min(pxSize, (x + blockW) - bx);
+          const bh = Math.min(pxSize, (blockY + h) - by);
+
+          if (bw <= 0 || bh <= 0) continue;
+
+          // Pseudo-random determinístico para os pixels não oscilarem durante renderização
+          const seed = Math.sin(cIdx * 12.9898 + rIdx * 78.233 + x * 0.05) * 43758.5453;
+          const rand = seed - Math.floor(seed);
+          
+          // Variação de brilho entre 0.35x e 1.15x
+          const mult = 0.35 + rand * 0.8;
+          const pr = Math.min(255, Math.max(0, Math.round(r * mult)));
+          const pg = Math.min(255, Math.max(0, Math.round(g * mult)));
+          const pb = Math.min(255, Math.max(0, Math.round(b * mult)));
+
+          ctx.fillStyle = `rgb(${pr},${pg},${pb})`;
+          ctx.fillRect(bx, by, bw, bh);
+
+          // Micro borda entre os pixels do mosaico
+          ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+          ctx.fillRect(bx, by, bw, 1);
+          ctx.fillRect(bx, by, 1, bh);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // Desenho de Chat no Canvas (com suporte a censura ||palavra|| e outlines)
     function drawChatOnCanvas(ctx, lines, x, y, fontSize, bgEnabled, bgColor, bgOpacity, maxW, shadowPx) {
       const padX = Math.max(2, Math.round(fontSize * 0.35));
       const padY = Math.max(1, Math.round(fontSize * 0.15));
@@ -1551,7 +2048,8 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         const wrapped = wrapText(ctx, line.content, maxTextWidth);
 
         for (const wLine of wrapped) {
-          const tw = Math.ceil(ctx.measureText(wLine).width);
+          const cleanLine = wLine.replace(/\|\|/g, "").replace(/\[\/?(?:censor|censura)\]/gi, "");
+          const tw = Math.ceil(ctx.measureText(cleanLine).width);
           if (bg) {
             ctx.fillStyle = bg;
             ctx.fillRect(x, cursorY, tw + 2 * padX, lineHeight);
@@ -1560,29 +2058,87 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
           const tx = x + padX;
           const ty = cursorY + padY;
 
-          const outlineMultiplier = bgEnabled ? 2 : 5;
-          ctx.lineWidth = shadowPx * outlineMultiplier;
-          ctx.strokeStyle = '#000';
-          ctx.strokeText(wLine, tx, ty);
+          // Se a linha tiver trecho censurado (||...||, [censor] ou █)
+          if (wLine.includes("||") || /\[\/?(?:censor|censura)\]/i.test(wLine) || wLine.includes("█")) {
+            const segments = splitCensoredSegments(wLine);
+            let curX = tx;
 
-          ctx.fillStyle = color;
-          ctx.fillText(wLine, tx, ty);
+            for (const seg of segments) {
+              const segW = Math.ceil(ctx.measureText(seg.text).width);
+              if (!seg.isCensored) {
+                const outlineMultiplier = bgEnabled ? 2 : 5;
+                ctx.lineWidth = shadowPx * outlineMultiplier;
+                ctx.strokeStyle = '#000';
+                ctx.strokeText(seg.text, curX, ty);
+
+                ctx.fillStyle = color;
+                ctx.fillText(seg.text, curX, ty);
+              } else {
+                drawCensoredBlock(ctx, curX, ty, segW, fontSize, color, shadowPx);
+              }
+              curX += segW;
+            }
+          } else {
+            // Linha convencional direta
+            const outlineMultiplier = bgEnabled ? 2 : 5;
+            ctx.lineWidth = shadowPx * outlineMultiplier;
+            ctx.strokeStyle = '#000';
+            ctx.strokeText(wLine, tx, ty);
+
+            ctx.fillStyle = color;
+            ctx.fillText(wLine, tx, ty);
+          }
 
           cursorY += lineHeight;
         }
       }
     }
 
-    // Renderização do Preview
+    // Função Unificada de Desenho de Cena (usada no Preview e na Exportação PNG/ZIP)
+    function drawSceneToCanvas(ctx, W, H, baseImgEl, isPreview = false) {
+      ctx.clearRect(0, 0, W, H);
+
+      // 1. Fundo e Imagem Base Adaptada
+      if (baseImgEl) {
+        drawAdaptedImage(ctx, baseImgEl, W, H, state.resolution.fitMode, state.imagePan.x, state.imagePan.y, state.imagePan.zoom);
+      } else {
+        ctx.fillStyle = "#16171b";
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      // 2. Camadas Secundárias de Imagem (Overlays)
+      drawOverlayLayers(ctx, W, H, isPreview);
+
+      // 3. Efeitos Fotográficos Globais
+      applyCanvasEffects(ctx.canvas, state.effects);
+
+      // 4. Escurecimento Global
+      if (baseImgEl && state.overlay > 0) {
+        ctx.fillStyle = `rgba(16, 23, 33, ${state.overlay / 100})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      // 5. Presets de Câmera RP (Bodycam, CCTV, Noir)
+      drawCameraOverlay(ctx, W, H, state.cameraPreset);
+
+      // 6. Chat Log RP com suporte a censura
+      if (state.input.trim()) {
+        const lines = state.input.split("\n").map(parseLine);
+        const activeSize = getActiveCanvasSize();
+        const exportMaxWpx = Math.round(activeSize.w * (state.maxWpct / 100));
+        const tX = (state.textX / 100) * W;
+        const tY = (state.textY / 100) * H;
+        drawChatOnCanvas(ctx, lines, tX, tY, state.fontSize * RENDER_SCALE, state.bgEnabled, state.bgColor, state.bgOpacity, exportMaxWpx * RENDER_SCALE, RENDER_SCALE);
+      }
+    }
+
+    // Renderização do Preview Interativo
     function renderPreview() {
       const canvas = document.getElementById("preview-canvas");
       const emptyState = document.getElementById("canvas-empty-state");
       if (!canvas) return;
 
-      const activeSize = (state.tab === 'single') 
-        ? state.singleSize 
-        : (state.batchImgs[state.batchSel] ? { w: state.batchImgs[state.batchSel].w, h: state.batchImgs[state.batchSel].h } : { w: 1280, h: 720 });
-
+      const activeSize = getActiveCanvasSize();
       const SS = RENDER_SCALE;
       const W = activeSize.w * SS;
       const H = activeSize.h * SS;
@@ -1591,7 +2147,6 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       if (canvas.height !== H) canvas.height = H;
 
       const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, W, H);
 
       let imgEl = null;
       if (state.tab === 'single' && state.singleEl) {
@@ -1600,33 +2155,9 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         imgEl = state.batchImgs[state.batchSel].el;
       }
 
-      if (imgEl) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(imgEl, 0, 0, W, H);
-      } else {
-        ctx.fillStyle = "#16171b";
-        ctx.fillRect(0, 0, W, H);
-      }
+      drawSceneToCanvas(ctx, W, H, imgEl, true);
 
-      applyCanvasEffects(canvas, state.effects);
-
-      if (imgEl && state.overlay > 0) {
-        ctx.fillStyle = `rgba(16, 23, 33, ${state.overlay / 100})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      // Overlay de Câmera RP
-      drawCameraOverlay(ctx, W, H, state.cameraPreset);
-
-      if (state.input.trim()) {
-        const lines = state.input.split("\n").map(parseLine);
-        const exportMaxWpx = Math.round(activeSize.w * (state.maxWpct / 100));
-        const tX = (state.textX / 100) * W;
-        const tY = (state.textY / 100) * H;
-        drawChatOnCanvas(ctx, lines, tX, tY, state.fontSize * SS, state.bgEnabled, state.bgColor, state.bgOpacity, exportMaxWpx * SS, SS);
-        emptyState.style.display = "none";
-      } else if (!imgEl) {
+      if (!imgEl && !state.input.trim() && (!state.layers || !state.layers.length)) {
         emptyState.style.display = "flex";
       } else {
         emptyState.style.display = "none";
@@ -1635,21 +2166,27 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       document.getElementById("canvas-res-chip").textContent = `${activeSize.w} × ${activeSize.h} px`;
     }
 
-    // Drag and Drop do Texto sobre o Canvas
+    // Drag and Drop do Mouse sobre o Canvas (Texto, Enquadramento da Foto ou Camada 2)
     let isDragging = false;
-    let dragStart = { mx: 0, my: 0, tx: 0, ty: 0 };
+    let dragStart = { mx: 0, my: 0, valX: 0, valY: 0 };
     const canvas = document.getElementById("preview-canvas");
 
     canvas.addEventListener("mousedown", (e) => {
       e.preventDefault();
       isDragging = true;
       canvas.classList.add("dragging");
-      dragStart = {
-        mx: e.clientX,
-        my: e.clientY,
-        tx: state.textX,
-        ty: state.textY
-      };
+
+      if (state.dragTarget === 'chat') {
+        dragStart = { mx: e.clientX, my: e.clientY, valX: state.textX, valY: state.textY };
+      } else if (state.dragTarget === 'image_pan') {
+        dragStart = { mx: e.clientX, my: e.clientY, valX: state.imagePan.x, valY: state.imagePan.y };
+      } else if (state.dragTarget === 'layer') {
+        const activeL = state.layers.find(l => l.id === state.activeLayerId) || state.layers[0];
+        if (activeL) {
+          state.activeLayerId = activeL.id;
+          dragStart = { mx: e.clientX, my: e.clientY, valX: activeL.x, valY: activeL.y };
+        }
+      }
     });
 
     window.addEventListener("mousemove", (e) => {
@@ -1658,8 +2195,21 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       const dx = ((e.clientX - dragStart.mx) / rect.width) * 100;
       const dy = ((e.clientY - dragStart.my) / rect.height) * 100;
 
-      state.textX = Math.min(95, Math.max(0, dragStart.tx + dx));
-      state.textY = Math.min(95, Math.max(0, dragStart.ty + dy));
+      if (state.dragTarget === 'chat') {
+        state.textX = Math.min(98, Math.max(0, dragStart.valX + dx));
+        state.textY = Math.min(98, Math.max(0, dragStart.valY + dy));
+      } else if (state.dragTarget === 'image_pan') {
+        state.imagePan.x = Math.min(100, Math.max(-100, Math.round(dragStart.valX + dx * 0.8)));
+        state.imagePan.y = Math.min(100, Math.max(-100, Math.round(dragStart.valY + dy * 0.8)));
+        updateImagePanUI();
+      } else if (state.dragTarget === 'layer') {
+        const activeL = state.layers.find(l => l.id === state.activeLayerId);
+        if (activeL) {
+          activeL.x = Math.min(98, Math.max(0, Math.round(dragStart.valX + dx)));
+          activeL.y = Math.min(98, Math.max(0, Math.round(dragStart.valY + dy)));
+          updateLayersUI();
+        }
+      }
       renderPreview();
     });
 
@@ -1685,7 +2235,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       }, 2600);
     }
 
-    // Mudança de Tabs
+    // Mudança de Tabs (Foto Individual vs Lote)
     function setTab(tab) {
       state.tab = tab;
       document.getElementById("tab-single-btn").classList.toggle("active", tab === 'single');
@@ -1693,6 +2243,279 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       document.getElementById("card-image-single").style.display = tab === 'single' ? "flex" : "none";
       document.getElementById("card-image-batch").style.display = tab === 'batch' ? "flex" : "none";
       document.getElementById("btn-export-text").textContent = tab === 'single' ? "Exportar PNG" : `Exportar ZIP (${state.batchImgs.length})`;
+      renderPreview();
+    }
+
+    // Alvo do Mouse (Chat vs Pan da Foto vs Camada)
+    function setDragTarget(target) {
+      state.dragTarget = target;
+      document.getElementById("drag-target-chat").classList.toggle("active", target === 'chat');
+      document.getElementById("drag-target-pan").classList.toggle("active", target === 'image_pan');
+      document.getElementById("drag-target-layer").classList.toggle("active", target === 'layer');
+      
+      if (target === 'image_pan') {
+        showToast("🖼️ Modo Enquadramento: Clique e arraste a foto base no canvas!");
+      } else if (target === 'layer') {
+        if (!state.layers.length) {
+          showToast("⚠️ Adicione uma camada secundária primeiro!");
+        } else {
+          showToast("📑 Modo Camada: Clique e arraste a 2ª imagem!");
+        }
+      } else {
+        showToast("💬 Modo Chat: Clique e arraste o texto do chatlog!");
+      }
+      renderPreview();
+    }
+
+    // RESOLUÇÃO & ENQUADRAMENTO DA FOTO BASE
+    function setResolutionPreset(preset) {
+      state.resolution.preset = preset;
+      document.querySelectorAll("[data-res]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.res === preset);
+      });
+
+      const customBox = document.getElementById("custom-res-box");
+      if (customBox) customBox.style.display = preset === 'custom' ? "flex" : "none";
+
+      const badge = document.getElementById("active-res-badge");
+      if (badge) {
+        if (preset === '1080p') badge.textContent = "1920×1080 (FHD)";
+        else if (preset === '1440p') badge.textContent = "2560×1440 (2.5K)";
+        else if (preset === '4k') badge.textContent = "3840×2160 (4K)";
+        else if (preset === '720p') badge.textContent = "1280×720 (HD)";
+        else if (preset === '1080x1080') badge.textContent = "1080×1080 (1:1)";
+        else if (preset === '1080x1350') badge.textContent = "1080×1350 (4:5)";
+        else if (preset === 'custom') badge.textContent = "Personalizado";
+        else badge.textContent = "Original da Foto";
+      }
+
+      saveToStorage();
+      renderPreview();
+    }
+
+    function applyCustomResolution() {
+      const w = parseInt(document.getElementById("custom-res-w").value, 10);
+      const h = parseInt(document.getElementById("custom-res-h").value, 10);
+      if (w > 100 && h > 100) {
+        state.resolution.w = w;
+        state.resolution.h = h;
+        showToast(`✓ Resolução customizada: ${w}×${h}px`);
+        saveToStorage();
+        renderPreview();
+      }
+    }
+
+    function setFitMode(mode) {
+      state.resolution.fitMode = mode;
+      document.querySelectorAll("[data-fit]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.fit === mode);
+      });
+      const badge = document.getElementById("fit-mode-badge");
+      if (badge) {
+        badge.textContent = mode === 'cover' ? "Cover (Preencher)" : (mode === 'contain' ? "Contain (Ajustar)" : "Esticar");
+      }
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateImagePanX(val) {
+      state.imagePan.x = val;
+      document.getElementById("pan-x-val").textContent = `${val}%`;
+      renderPreview();
+    }
+
+    function updateImagePanY(val) {
+      state.imagePan.y = val;
+      document.getElementById("pan-y-val").textContent = `${val}%`;
+      renderPreview();
+    }
+
+    function updateImageZoom(val) {
+      state.imagePan.zoom = val;
+      document.getElementById("pan-zoom-val").textContent = `${val}%`;
+      renderPreview();
+    }
+
+    function resetImagePan() {
+      state.imagePan.x = 0;
+      state.imagePan.y = 0;
+      state.imagePan.zoom = 100;
+      updateImagePanUI();
+      saveToStorage();
+      renderPreview();
+      showToast("↺ Enquadramento centralizado!");
+    }
+
+    function updateImagePanUI() {
+      const sliderX = document.getElementById("slider-pan-x");
+      if (sliderX) sliderX.value = state.imagePan.x;
+      const panXVal = document.getElementById("pan-x-val");
+      if (panXVal) panXVal.textContent = `${state.imagePan.x}%`;
+
+      const sliderY = document.getElementById("slider-pan-y");
+      if (sliderY) sliderY.value = state.imagePan.y;
+      const panYVal = document.getElementById("pan-y-val");
+      if (panYVal) panYVal.textContent = `${state.imagePan.y}%`;
+
+      const sliderZ = document.getElementById("slider-pan-zoom");
+      if (sliderZ) sliderZ.value = state.imagePan.zoom;
+      const panZVal = document.getElementById("pan-zoom-val");
+      if (panZVal) panZVal.textContent = `${state.imagePan.zoom}%`;
+    }
+
+    // SISTEMA DE CAMADAS / OVERLAYS (2ª IMAGEM)
+    function handleLayerUpload(file) {
+      if (!file) return;
+      loadImageFile(file, (data) => {
+        const newLayer = {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          src: data.src,
+          el: data.el,
+          w: data.w,
+          h: data.h,
+          x: 20,
+          y: 20,
+          scale: 60,
+          opacity: 100
+        };
+        state.layers.push(newLayer);
+        state.activeLayerId = newLayer.id;
+        updateLayersUI();
+        showToast("📑 Camada de imagem adicionada!");
+        renderPreview();
+      });
+    }
+
+    function updateLayersUI() {
+      const container = document.getElementById("layers-list-container");
+      const badge = document.getElementById("layers-count-badge");
+      if (badge) badge.textContent = `${state.layers.length} Camadas`;
+
+      if (!state.layers.length) {
+        container.innerHTML = `<div style="font-size:10px; color:var(--content-muted); text-align:center; padding:10px 0;">Nenhuma camada adicionada. Você pode sobrepor logos, molduras, marcas d'água ou fotos secundárias.</div>`;
+        return;
+      }
+
+      container.innerHTML = "";
+      state.layers.forEach((layer, idx) => {
+        const isAct = state.activeLayerId === layer.id;
+        const card = document.createElement("div");
+        card.className = `layer-card ${isAct ? "active-layer" : ""}`;
+        card.onclick = () => {
+          state.activeLayerId = layer.id;
+          updateLayersUI();
+          renderPreview();
+        };
+
+        card.innerHTML = `
+          <div class="layer-card-head">
+            <div class="layer-info">
+              <img src="${layer.src}" class="layer-thumb-mini" alt="Layer Thumb">
+              <span class="layer-name-txt">${layer.name}</span>
+            </div>
+            <div class="layer-actions">
+              <button class="action-btn" style="padding:2px 6px; font-size:8px; color:var(--error);" onclick="event.stopPropagation(); removeLayer(${layer.id})">🗑️</button>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:8px; margin-bottom:1px;">
+                <span>Tamanho / Escala</span>
+                <span class="card-val" style="font-size:8px;">${layer.scale}%</span>
+              </div>
+              <input type="range" min="10" max="200" value="${layer.scale}" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'scale', +this.value)">
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:8px; margin-bottom:1px;">
+                <span>Opacidade</span>
+                <span class="card-val" style="font-size:8px;">${layer.opacity}%</span>
+              </div>
+              <input type="range" min="0" max="100" value="${layer.opacity}" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'opacity', +this.value)">
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateLayerProp(id, prop, val) {
+      const l = state.layers.find(x => x.id === id);
+      if (l) {
+        l[prop] = val;
+        renderPreview();
+      }
+    }
+
+    function removeLayer(id) {
+      state.layers = state.layers.filter(x => x.id !== id);
+      if (state.activeLayerId === id) {
+        state.activeLayerId = state.layers[0]?.id || null;
+      }
+      updateLayersUI();
+      renderPreview();
+    }
+
+    // CENSURA DE TEXTO
+    function insertCensorAtCursor() {
+      const ta = document.getElementById("chat-text-input");
+      const s = ta.selectionStart;
+      const e = ta.selectionEnd;
+      if (s !== e) {
+        const sel = ta.value.substring(s, e);
+        const ins = `||${sel}||`;
+        ta.value = ta.value.substring(0, s) + ins + ta.value.substring(e);
+        state.input = ta.value;
+        onTextInputChange();
+        showToast("⬛ Trecho selecionado censurado com sucesso!");
+        ta.focus();
+        ta.setSelectionRange(s, s + ins.length);
+      } else {
+        const ins = "||censurado||";
+        ta.value = ta.value.substring(0, s) + ins + ta.value.substring(e);
+        state.input = ta.value;
+        onTextInputChange();
+        showToast("⬛ Digite o texto dentro de ||...|| para censurar!");
+        ta.focus();
+        ta.setSelectionRange(s + 2, s + 2 + "censurado".length);
+      }
+    }
+
+    function updateCensorStyle(val) {
+      state.censorStyle = val;
+      saveToStorage();
+      renderPreview();
+    }
+
+    // CUSTOMIZAÇÃO DE CÂMERA (BODYCAM E CCTV)
+    function setNowBodycam() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      document.getElementById("input-bodycam-date").value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      document.getElementById("input-bodycam-time").value = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      updateCameraCustom();
+    }
+
+    function setNowCctv() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      document.getElementById("input-cctv-date").value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      document.getElementById("input-cctv-time").value = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      updateCameraCustom();
+    }
+
+    function updateCameraCustom() {
+      state.cameraCustom.bodycamDate = document.getElementById("input-bodycam-date").value.trim();
+      state.cameraCustom.bodycamTime = document.getElementById("input-bodycam-time").value.trim();
+      state.cameraCustom.bodycamDept = document.getElementById("input-bodycam-dept").value.trim() || "POLICE / SHERIFF";
+      state.cameraCustom.bodycamOfficer = document.getElementById("input-bodycam-officer").value.trim();
+
+      state.cameraCustom.cctvCamName = document.getElementById("input-cctv-camname").value.trim() || "CAM 03 [SURVEILLANCE HQ]";
+      state.cameraCustom.cctvDate = document.getElementById("input-cctv-date").value.trim();
+      state.cameraCustom.cctvTime = document.getElementById("input-cctv-time").value.trim();
+      state.cameraCustom.cctvLocation = document.getElementById("input-cctv-location").value.trim() || "PAL 25FPS · 1080P · LIVE";
+
+      saveToStorage();
       renderPreview();
     }
 
@@ -1973,6 +2796,12 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         else badge.textContent = "Padrão";
       }
 
+      // Exibir ou ocultar subpainéis de campos customizados
+      const bodycamFields = document.getElementById("bodycam-custom-fields");
+      const cctvFields = document.getElementById("cctv-custom-fields");
+      if (bodycamFields) bodycamFields.style.display = preset === 'bodycam' ? "flex" : "none";
+      if (cctvFields) cctvFields.style.display = preset === 'cctv' ? "flex" : "none";
+
       if (preset === 'noir') {
         state.effects.vintage = false;
         state.effects.bw = false;
@@ -2022,39 +2851,15 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
     }
 
     // EXPORTAÇÃO
-    async function doExportRender(imgEl, w, h, filename) {
+    async function doExportRender(imgEl, filename) {
+      const activeSize = getActiveCanvasSize();
       const SS = RENDER_SCALE;
-      const W = w * SS, H = h * SS;
+      const W = activeSize.w * SS, H = activeSize.h * SS;
       const canvas = document.createElement("canvas");
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
 
-      if (imgEl) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(imgEl, 0, 0, W, H);
-      } else {
-        ctx.fillStyle = "#16171b";
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      applyCanvasEffects(canvas, state.effects);
-
-      if (imgEl && state.overlay > 0) {
-        ctx.fillStyle = `rgba(16, 23, 33, ${state.overlay / 100})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      // Overlay de Câmera RP (Bodycam, CCTV, Noir)
-      drawCameraOverlay(ctx, W, H, state.cameraPreset);
-
-      if (state.input.trim()) {
-        const lines = state.input.split("\n").map(parseLine);
-        const exportMaxW = Math.round((state.maxWpct / 100) * W);
-        const tX = (state.textX / 100) * W;
-        const tY = (state.textY / 100) * H;
-        drawChatOnCanvas(ctx, lines, tX, tY, state.fontSize * SS, state.bgEnabled, state.bgColor, state.bgOpacity, exportMaxW, SS);
-      }
+      drawSceneToCanvas(ctx, W, H, imgEl, false);
 
       return new Promise(res => canvas.toBlob(res, "image/png"));
     }
@@ -2069,10 +2874,6 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
       state.exporting = true;
 
       try {
-        const activeSize = (state.tab === 'single') 
-          ? state.singleSize 
-          : (state.batchImgs[state.batchSel] ? { w: state.batchImgs[state.batchSel].w, h: state.batchImgs[state.batchSel].h } : { w: 1280, h: 720 });
-        
         let imgEl = null;
         if (state.tab === 'single' && state.singleEl) {
           imgEl = state.singleEl;
@@ -2080,7 +2881,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
           imgEl = state.batchImgs[state.batchSel].el;
         }
 
-        const blob = await doExportRender(imgEl, activeSize.w, activeSize.h, "copy.png");
+        const blob = await doExportRender(imgEl, "copy.png");
 
         if (!navigator.clipboard || !window.ClipboardItem) {
           throw new Error("Clipboard API não suportada.");
@@ -2112,7 +2913,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         state.exporting = true;
         btnText.textContent = "⏳ Gerando PNG...";
         try {
-          const blob = await doExportRender(state.singleEl, state.singleSize.w, state.singleSize.h, state.singleName);
+          const blob = await doExportRender(state.singleEl, state.singleName);
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
@@ -2138,7 +2939,7 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         for (let i = 0; i < state.batchImgs.length; i++) {
           const img = state.batchImgs[i];
           btnText.textContent = `⏳ ${Math.round(((i + 1) / state.batchImgs.length) * 100)}%`;
-          const blob = await doExportRender(img.el, img.w, img.h, img.name);
+          const blob = await doExportRender(img.el, img.name);
           zip.file(img.name.replace(/\.[^/.]+$/, "") + "_haze_chatlog.png", blob);
         }
 
@@ -2150,49 +2951,49 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         a.download = "haze_chatlogs_batch.zip";
         a.click();
         URL.revokeObjectURL(url);
-        showToast("✓ Arquivo ZIP baixado!");
-
+        showToast("✓ Lote ZIP exportado com sucesso!");
         state.exporting = false;
         btnText.textContent = `Exportar ZIP (${state.batchImgs.length})`;
       }
     }
 
-    // Persistência em Memória Local (localStorage)
+    // Persistência no LocalStorage
     function saveToStorage() {
       try {
-        const data = {
+        const toSave = {
+          input: state.input,
           chars: state.chars,
           activeCharId: state.activeCharId,
-          input: state.input,
           fontSize: state.fontSize,
           fontFamily: state.fontFamily,
           maxWpct: state.maxWpct,
           bgEnabled: state.bgEnabled,
           bgColor: state.bgColor,
           bgOpacity: state.bgOpacity,
-          effects: state.effects,
-          cameraPreset: state.cameraPreset,
           overlay: state.overlay,
           textX: state.textX,
-          textY: state.textY
+          textY: state.textY,
+          effects: state.effects,
+          cameraPreset: state.cameraPreset,
+          censorStyle: state.censorStyle,
+          resolution: state.resolution,
+          imagePan: state.imagePan,
+          cameraCustom: state.cameraCustom
         };
-        localStorage.setItem('haze_chatlog_storage', JSON.stringify(data));
+        localStorage.setItem("haze_chatlog_state_v2", JSON.stringify(toSave));
       } catch (e) {
-        console.warn("Falha ao salvar no localStorage:", e);
+        console.warn("Erro ao salvar no localStorage:", e);
       }
     }
 
     function loadFromStorage() {
       try {
-        const raw = localStorage.getItem('haze_chatlog_storage');
+        const raw = localStorage.getItem("haze_chatlog_state_v2");
         if (!raw) return;
         const data = JSON.parse(raw);
-
-        if (Array.isArray(data.chars) && data.chars.length > 0) {
-          state.chars = data.chars;
-          state.activeCharId = data.activeCharId || data.chars[0].id;
-        }
         if (typeof data.input === 'string') state.input = data.input;
+        if (Array.isArray(data.chars) && data.chars.length) state.chars = data.chars;
+        if (data.activeCharId) state.activeCharId = data.activeCharId;
         if (typeof data.fontSize === 'number') state.fontSize = data.fontSize;
         if (typeof data.fontFamily === 'string') state.fontFamily = data.fontFamily;
         if (typeof data.maxWpct === 'number') state.maxWpct = data.maxWpct;
@@ -2202,10 +3003,20 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         if (typeof data.overlay === 'number') state.overlay = data.overlay;
         if (typeof data.textX === 'number') state.textX = data.textX;
         if (typeof data.textY === 'number') state.textY = data.textY;
+        if (typeof data.censorStyle === 'string') state.censorStyle = data.censorStyle;
         if (data.effects && typeof data.effects === 'object') {
           state.effects = { ...state.effects, ...data.effects };
         }
         if (typeof data.cameraPreset === 'string') state.cameraPreset = data.cameraPreset;
+        if (data.resolution && typeof data.resolution === 'object') {
+          state.resolution = { ...state.resolution, ...data.resolution };
+        }
+        if (data.imagePan && typeof data.imagePan === 'object') {
+          state.imagePan = { ...state.imagePan, ...data.imagePan };
+        }
+        if (data.cameraCustom && typeof data.cameraCustom === 'object') {
+          state.cameraCustom = { ...state.cameraCustom, ...data.cameraCustom };
+        }
 
         // Sincronizar UI
         const sliderFont = document.getElementById("slider-font-size");
@@ -2241,6 +3052,9 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
         const bgOpVal = document.getElementById("bg-opacity-val");
         if (bgOpVal) bgOpVal.textContent = `${state.bgOpacity}%`;
 
+        const selectCensor = document.getElementById("select-censor-style");
+        if (selectCensor) selectCensor.value = state.censorStyle;
+
         const sliderOverlay = document.getElementById("slider-overlay");
         if (sliderOverlay) sliderOverlay.value = state.overlay;
         const overlayVal = document.getElementById("overlay-val");
@@ -2265,6 +3079,37 @@ Ramon Mendoza diz (celular): O primeiro lote tá entregue. Manda a equipe avanç
           else if (state.cameraPreset === 'noir') presetBadge.textContent = "Noite Fria";
           else presetBadge.textContent = "Padrão";
         }
+
+        // Subpainéis de câmera
+        const bodycamFields = document.getElementById("bodycam-custom-fields");
+        const cctvFields = document.getElementById("cctv-custom-fields");
+        if (bodycamFields) bodycamFields.style.display = state.cameraPreset === 'bodycam' ? "flex" : "none";
+        if (cctvFields) cctvFields.style.display = state.cameraPreset === 'cctv' ? "flex" : "none";
+
+        if (state.cameraCustom) {
+          const inBcDate = document.getElementById("input-bodycam-date");
+          if (inBcDate) inBcDate.value = state.cameraCustom.bodycamDate || "";
+          const inBcTime = document.getElementById("input-bodycam-time");
+          if (inBcTime) inBcTime.value = state.cameraCustom.bodycamTime || "";
+          const inBcDept = document.getElementById("input-bodycam-dept");
+          if (inBcDept) inBcDept.value = state.cameraCustom.bodycamDept || "POLICE / SHERIFF";
+          const inBcOff = document.getElementById("input-bodycam-officer");
+          if (inBcOff) inBcOff.value = state.cameraCustom.bodycamOfficer || "";
+
+          const inCctvCam = document.getElementById("input-cctv-camname");
+          if (inCctvCam) inCctvCam.value = state.cameraCustom.cctvCamName || "CAM 03 [SURVEILLANCE HQ]";
+          const inCctvDate = document.getElementById("input-cctv-date");
+          if (inCctvDate) inCctvDate.value = state.cameraCustom.cctvDate || "";
+          const inCctvTime = document.getElementById("input-cctv-time");
+          if (inCctvTime) inCctvTime.value = state.cameraCustom.cctvTime || "";
+          const inCctvLoc = document.getElementById("input-cctv-location");
+          if (inCctvLoc) inCctvLoc.value = state.cameraCustom.cctvLocation || "PAL 25FPS · 1080P · LIVE";
+        }
+
+        // Resolução e pan
+        setResolutionPreset(state.resolution.preset || 'original');
+        setFitMode(state.resolution.fitMode || 'cover');
+        updateImagePanUI();
       } catch (e) {
         console.warn("Erro ao restaurar do localStorage:", e);
       }
