@@ -1463,7 +1463,10 @@
         </div>
 
         <div style="border-top:1px solid var(--line); padding-top:6px;">
-          <span class="card-label" style="font-size:9px; margin-bottom:4px; display:block;">Filtros Manuais:</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="card-label" style="font-size:9px;">Filtros Manuais:</span>
+            <button class="action-btn" style="padding:2px 6px; font-size:8px; color:var(--content-muted);" onclick="resetAllEffects(); saveToStorage(); renderPreview();" title="Desativar todos os filtros">✕ Desativar Filtros</button>
+          </div>
           <div class="effects-grid">
             <button class="effect-btn" id="fx-grain" onclick="toggleEffect('grain')">Granulado</button>
             <button class="effect-btn" id="fx-vignette" onclick="toggleEffect('vignette')">Vinheta</button>
@@ -1887,19 +1890,30 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
     }
 
     function applyCanvasFilter(canvas, filter) {
+      if (!filter || filter === "none") return;
       const tmp = document.createElement("canvas");
       tmp.width = canvas.width; tmp.height = canvas.height;
-      tmp.getContext("2d").drawImage(canvas, 0, 0);
+      const tmpCtx = tmp.getContext("2d");
+      tmpCtx.drawImage(canvas, 0, 0);
+
       const ctx = canvas.getContext("2d");
+      ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.filter = filter;
       ctx.drawImage(tmp, 0, 0);
       ctx.filter = "none";
+      ctx.restore();
     }
 
     function applyCanvasEffects(canvas, effects) {
+      if (!effects) return;
       const ctx = canvas.getContext("2d");
       const w = canvas.width, h = canvas.height;
+
+      // Reseta explicitamente propriedades de filtro
+      ctx.filter = "none";
+      ctx.globalCompositeOperation = "source-over";
+
       const filters = [];
       if (effects.bw) filters.push("grayscale(1)");
       if (effects.vintage) filters.push("sepia(0.7) saturate(1.3) contrast(1.05)");
@@ -1907,11 +1921,11 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       if (filters.length) applyCanvasFilter(canvas, filters.join(" "));
 
       if (effects.lightleak) {
+        ctx.save();
         const grad = ctx.createLinearGradient(0, 0, w, h);
         grad.addColorStop(0, "rgba(255,140,60,0.40)");
         grad.addColorStop(0.45, "rgba(255,200,120,0.18)");
         grad.addColorStop(1, "rgba(255,80,40,0)");
-        ctx.save();
         ctx.globalCompositeOperation = "screen";
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
@@ -1919,17 +1933,19 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       }
 
       if (effects.vignette) {
+        ctx.save();
         const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.max(w,h)*0.7);
         grad.addColorStop(0, "rgba(0,0,0,0)");
         grad.addColorStop(0.7, "rgba(0,0,0,0.25)");
         grad.addColorStop(1, "rgba(0,0,0,0.75)");
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
+        ctx.restore();
       }
 
       if (effects.grain) {
-        const noise = generateNoiseCanvas(Math.min(w, 512), Math.min(h, 512), 70);
         ctx.save();
+        const noise = generateNoiseCanvas(Math.min(w, 512), Math.min(h, 512), 70);
         ctx.globalCompositeOperation = "overlay";
         ctx.fillStyle = ctx.createPattern(noise, "repeat");
         ctx.fillRect(0, 0, w, h);
@@ -2170,6 +2186,13 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
 
     // Função Unificada de Desenho de Cena (usada no Preview e na Exportação PNG/ZIP)
     function drawSceneToCanvas(ctx, W, H, baseImgEl, isPreview = false) {
+      ctx.save();
+      ctx.filter = "none";
+      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = "transparent";
+      ctx.setLineDash([]);
       ctx.clearRect(0, 0, W, H);
 
       // 1. Fundo e Imagem Base Adaptada
@@ -2204,6 +2227,8 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         const tY = (state.textY / 100) * H;
         drawChatOnCanvas(ctx, lines, tX, tY, state.fontSize * RENDER_SCALE, state.bgEnabled, state.bgColor, state.bgOpacity, exportMaxWpx * RENDER_SCALE, RENDER_SCALE);
       }
+
+      ctx.restore();
     }
 
     // Renderização do Preview Interativo
@@ -3142,8 +3167,27 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       renderPreview();
     }
 
+    function resetAllEffects() {
+      state.effects.vintage = false;
+      state.effects.bw = false;
+      state.effects.brush = false;
+      state.effects.vignette = false;
+      state.effects.grain = false;
+      state.effects.lightleak = false;
+
+      ["grain", "vignette", "lightleak", "brush", "vintage", "bw"].forEach(key => {
+        const btn = document.getElementById(`fx-${key}`);
+        if (btn) btn.classList.remove("active");
+      });
+    }
+
     // Presets de Câmera RP
     function setCameraPreset(preset) {
+      // Toggle inteligente: se clicar no mesmo preset que já está ativo (exceto none), volta para 'none' (Padrão)
+      if (state.cameraPreset === preset && preset !== 'none') {
+        preset = 'none';
+      }
+
       state.cameraPreset = preset;
       document.querySelectorAll(".preset-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.preset === preset);
@@ -3184,13 +3228,11 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         state.effects.grain = false;
         state.effects.lightleak = false;
       } else {
-        // Preset 'none' / Padrão: desabilita todos os filtros e efeitos fotográficos
-        Object.keys(state.effects).forEach(key => {
-          state.effects[key] = false;
-        });
+        // Preset 'none' / Padrão: desativa TODOS os filtros e efeitos fotográficos
+        resetAllEffects();
       }
 
-      Object.keys(state.effects).forEach(key => {
+      ["grain", "vignette", "lightleak", "brush", "vintage", "bw"].forEach(key => {
         const btn = document.getElementById(`fx-${key}`);
         if (btn) btn.classList.toggle("active", !!state.effects[key]);
       });
