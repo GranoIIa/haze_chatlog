@@ -653,7 +653,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      max-height: 220px;
+      max-height: 380px;
       overflow-y: auto;
       padding: 2px;
     }
@@ -1281,6 +1281,10 @@
           + Adicionar Camada de Imagem
         </button>
 
+        <div style="font-size:8.5px; color:var(--content-muted); display:flex; align-items:center; gap:4px; padding:2px 4px; background:var(--surface-deep); border-radius:4px; border:1px solid var(--line);">
+          <span>💡</span> <span>Arraste no canvas p/ mover, puxe o canto ↘ ou use o scroll do mouse p/ redimensionar.</span>
+        </div>
+
         <div class="layers-list" id="layers-list-container">
           <div style="font-size:10px; color:var(--content-muted); text-align:center; padding:10px 0;">
             Nenhuma camada adicionada. Você pode sobrepor logos, molduras, marcas d'água ou fotos secundárias.
@@ -1511,7 +1515,7 @@
           <span style="font-size:9.5px; font-weight:700; color:var(--content-muted); padding-left:4px;">🎯 MOUSE:</span>
           <button class="drag-btn active" id="drag-target-chat" onclick="setDragTarget('chat')">💬 Texto Chat</button>
           <button class="drag-btn" id="drag-target-pan" onclick="setDragTarget('image_pan')">🖼️ Enquadrar Foto</button>
-          <button class="drag-btn" id="drag-target-layer" onclick="setDragTarget('layer')">📑 Camada 2</button>
+          <button class="drag-btn" id="drag-target-layer" onclick="setDragTarget('layer')" title="Mover e redimensionar camadas de imagens">📑 Mover Camada</button>
         </div>
 
         <div class="preview-res" id="canvas-res-chip">1280 × 720 px</div>
@@ -1765,36 +1769,105 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       ctx.restore();
     }
 
+    // Helper de Dimensões e Posições Virtuais da Camada
+    function getLayerBounds(layer, W, H) {
+      if (!layer || !layer.el) return null;
+      const scale = Math.max(0.05, (layer.scale ?? 100) / 100);
+      const natW = layer.w || layer.el.naturalWidth || 200;
+      const natH = layer.h || layer.el.naturalHeight || 200;
+      const lW = natW * scale * (W / 1920);
+      const lH = natH * scale * (W / 1920);
+      const lX = (layer.x / 100) * W;
+      const lY = (layer.y / 100) * H;
+      return { lX, lY, lW, lH, scale, natW, natH };
+    }
+
     // Desenho das Camadas Adicionais / Overlays
     function drawOverlayLayers(ctx, W, H, isPreview) {
       if (!state.layers || !state.layers.length) return;
       state.layers.forEach(layer => {
         if (!layer.el) return;
+        const b = getLayerBounds(layer, W, H);
+        if (!b) return;
+
         ctx.save();
         const opacity = (layer.opacity ?? 100) / 100;
         ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
-
-        const scale = Math.max(0.05, (layer.scale ?? 100) / 100);
-        // Dimensões proporcionais
-        const natW = layer.w || layer.el.naturalWidth || 200;
-        const natH = layer.h || layer.el.naturalHeight || 200;
-        const lW = natW * scale * (W / 1920);
-        const lH = natH * scale * (W / 1920);
-        const lX = (layer.x / 100) * W;
-        const lY = (layer.y / 100) * H;
-
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(layer.el, lX, lY, lW, lH);
-
-        // Se for a camada selecionada e estiver no modo 'layer' do mouse, destaca contorno
-        if (isPreview && state.activeLayerId === layer.id && state.dragTarget === 'layer') {
-          ctx.strokeStyle = "#00FF88";
-          ctx.lineWidth = 3;
-          ctx.setLineDash([8, 6]);
-          ctx.strokeRect(lX, lY, lW, lH);
-        }
+        ctx.drawImage(layer.el, b.lX, b.lY, b.lW, b.lH);
         ctx.restore();
+
+        // Se for modo preview e a camada estiver selecionada, desenha contorno, alças e badge informativo
+        if (isPreview && state.activeLayerId === layer.id) {
+          ctx.save();
+          // Moldura tracejada Emerald
+          ctx.strokeStyle = "#00FF88";
+          ctx.lineWidth = Math.max(2, 2.5 * (W / 1280));
+          ctx.setLineDash([8 * (W / 1280), 6 * (W / 1280)]);
+          ctx.strokeRect(b.lX, b.lY, b.lW, b.lH);
+
+          // Cantos estéticos
+          const handleSize = Math.max(7, 9 * (W / 1280));
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "#16171b";
+          ctx.lineWidth = 1.5;
+          // NW
+          ctx.fillRect(b.lX - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
+          ctx.strokeRect(b.lX - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
+          // NE
+          ctx.fillRect(b.lX + b.lW - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
+          ctx.strokeRect(b.lX + b.lW - handleSize/2, b.lY - handleSize/2, handleSize, handleSize);
+          // SW
+          ctx.fillRect(b.lX - handleSize/2, b.lY + b.lH - handleSize/2, handleSize, handleSize);
+          ctx.strokeRect(b.lX - handleSize/2, b.lY + b.lH - handleSize/2, handleSize, handleSize);
+
+          // Alça interativa principal de REDIMENSIONAMENTO no canto SE (inferior direito)
+          const seRadius = Math.max(9, 13 * (W / 1280));
+          ctx.beginPath();
+          ctx.arc(b.lX + b.lW, b.lY + b.lH, seRadius, 0, Math.PI * 2);
+          ctx.fillStyle = "#00FF88";
+          ctx.fill();
+          ctx.strokeStyle = "#16171b";
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // Ponto interno na alça SE
+          ctx.beginPath();
+          ctx.arc(b.lX + b.lW, b.lY + b.lH, seRadius * 0.4, 0, Math.PI * 2);
+          ctx.fillStyle = "#16171b";
+          ctx.fill();
+
+          // Badge flutuante acima da camada: Nome + Escala
+          const badgeText = `📑 ${layer.name} • ${Math.round(layer.scale)}% [Mover / Arraste ↘ Redimensionar]`;
+          const fontSize = Math.max(10, 12 * (W / 1280));
+          ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+          const textMetrics = ctx.measureText(badgeText);
+          const padX = 8 * (W / 1280), padY = 4 * (W / 1280);
+          const badgeW = textMetrics.width + padX * 2;
+          const badgeH = fontSize + padY * 2;
+          const badgeX = Math.max(4, Math.min(W - badgeW - 4, b.lX));
+          const badgeY = b.lY - badgeH - 6 >= 4 ? b.lY - badgeH - 6 : b.lY + 6;
+
+          ctx.fillStyle = "rgba(22, 23, 27, 0.92)";
+          ctx.strokeStyle = "#00FF88";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+          } else {
+            ctx.rect(badgeX, badgeY, badgeW, badgeH);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#00FF88";
+          ctx.textBaseline = "middle";
+          ctx.fillText(badgeText, badgeX + padX, badgeY + badgeH / 2);
+
+          ctx.restore();
+        }
       });
     }
 
@@ -2166,51 +2239,180 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       document.getElementById("canvas-res-chip").textContent = `${activeSize.w} × ${activeSize.h} px`;
     }
 
-    // Drag and Drop do Mouse sobre o Canvas (Texto, Enquadramento da Foto ou Camada 2)
+    // Drag and Drop do Mouse sobre o Canvas (Texto, Enquadramento da Foto ou Camadas)
     let isDragging = false;
-    let dragStart = { mx: 0, my: 0, valX: 0, valY: 0 };
+    let dragMode = 'chat'; // 'chat', 'image_pan', 'layer_move', 'layer_resize'
+    let dragStart = { mx: 0, my: 0, valX: 0, valY: 0, initScale: 100, lX: 0, lY: 0, natW: 200 };
     const canvas = document.getElementById("preview-canvas");
+
+    function getCanvasCoordinates(e) {
+      const rect = canvas.getBoundingClientRect();
+      const activeSize = getActiveCanvasSize();
+      const scaleX = activeSize.w / rect.width;
+      const scaleY = activeSize.h / rect.height;
+      return {
+        virtX: (e.clientX - rect.left) * scaleX,
+        virtY: (e.clientY - rect.top) * scaleY,
+        rect: rect,
+        activeSize: activeSize
+      };
+    }
 
     canvas.addEventListener("mousedown", (e) => {
       e.preventDefault();
+      const coords = getCanvasCoordinates(e);
+      const activeSize = coords.activeSize;
+
+      // 1. Checa se clicou na alça de redimensionamento da camada ativa
+      const activeL = state.layers.find(l => l.id === state.activeLayerId);
+      if (activeL) {
+        const b = getLayerBounds(activeL, activeSize.w, activeSize.h);
+        if (b) {
+          const handleTolerance = Math.max(16, 22 * (activeSize.w / 1280));
+          const dist = Math.hypot(coords.virtX - (b.lX + b.lW), coords.virtY - (b.lY + b.lH));
+          if (dist <= handleTolerance) {
+            dragMode = 'layer_resize';
+            dragStart = {
+              mx: e.clientX,
+              my: e.clientY,
+              initScale: activeL.scale ?? 100,
+              lX: b.lX,
+              lY: b.lY,
+              natW: b.natW
+            };
+            isDragging = true;
+            canvas.classList.add("dragging");
+            return;
+          }
+        }
+      }
+
+      // 2. Checa se clicou sobre alguma camada de imagem (da mais alta para a mais baixa)
+      let hitLayer = null;
+      for (let i = state.layers.length - 1; i >= 0; i--) {
+        const lyr = state.layers[i];
+        const b = getLayerBounds(lyr, activeSize.w, activeSize.h);
+        if (b && coords.virtX >= b.lX && coords.virtX <= b.lX + b.lW &&
+                 coords.virtY >= b.lY && coords.virtY <= b.lY + b.lH) {
+          hitLayer = lyr;
+          break;
+        }
+      }
+
+      if (hitLayer) {
+        state.activeLayerId = hitLayer.id;
+        dragMode = 'layer_move';
+        dragStart = { mx: e.clientX, my: e.clientY, valX: hitLayer.x, valY: hitLayer.y };
+        isDragging = true;
+        canvas.classList.add("dragging");
+        updateLayersUI();
+        renderPreview();
+        return;
+      }
+
+      // 3. Se não clicou em camada, segue o dragTarget selecionado
       isDragging = true;
       canvas.classList.add("dragging");
 
       if (state.dragTarget === 'chat') {
+        dragMode = 'chat';
         dragStart = { mx: e.clientX, my: e.clientY, valX: state.textX, valY: state.textY };
       } else if (state.dragTarget === 'image_pan') {
+        dragMode = 'image_pan';
         dragStart = { mx: e.clientX, my: e.clientY, valX: state.imagePan.x, valY: state.imagePan.y };
       } else if (state.dragTarget === 'layer') {
-        const activeL = state.layers.find(l => l.id === state.activeLayerId) || state.layers[0];
-        if (activeL) {
-          state.activeLayerId = activeL.id;
-          dragStart = { mx: e.clientX, my: e.clientY, valX: activeL.x, valY: activeL.y };
+        dragMode = 'layer_move';
+        const fallbackL = state.layers.find(l => l.id === state.activeLayerId) || state.layers[0];
+        if (fallbackL) {
+          state.activeLayerId = fallbackL.id;
+          dragStart = { mx: e.clientX, my: e.clientY, valX: fallbackL.x, valY: fallbackL.y };
+          updateLayersUI();
+        } else {
+          dragMode = 'chat';
+          dragStart = { mx: e.clientX, my: e.clientY, valX: state.textX, valY: state.textY };
         }
       }
     });
 
     window.addEventListener("mousemove", (e) => {
-      if (!isDragging) return;
+      const coords = getCanvasCoordinates(e);
+      const activeSize = coords.activeSize;
+
+      if (!isDragging) {
+        // Atualiza estilo do cursor sobre o canvas
+        const activeL = state.layers.find(l => l.id === state.activeLayerId);
+        let cursorSet = false;
+
+        if (activeL) {
+          const b = getLayerBounds(activeL, activeSize.w, activeSize.h);
+          if (b) {
+            const handleTolerance = Math.max(16, 22 * (activeSize.w / 1280));
+            const dist = Math.hypot(coords.virtX - (b.lX + b.lW), coords.virtY - (b.lY + b.lH));
+            if (dist <= handleTolerance) {
+              canvas.style.cursor = "nwse-resize";
+              cursorSet = true;
+            }
+          }
+        }
+
+        if (!cursorSet) {
+          let overLayer = false;
+          for (let i = state.layers.length - 1; i >= 0; i--) {
+            const lyr = state.layers[i];
+            const b = getLayerBounds(lyr, activeSize.w, activeSize.h);
+            if (b && coords.virtX >= b.lX && coords.virtX <= b.lX + b.lW &&
+                     coords.virtY >= b.lY && coords.virtY <= b.lY + b.lH) {
+              overLayer = true;
+              break;
+            }
+          }
+          if (overLayer) {
+            canvas.style.cursor = "move";
+            cursorSet = true;
+          }
+        }
+
+        if (!cursorSet) {
+          if (state.dragTarget === 'image_pan') canvas.style.cursor = "grab";
+          else if (state.dragTarget === 'layer') canvas.style.cursor = "pointer";
+          else canvas.style.cursor = "move";
+        }
+        return;
+      }
+
+      // Se estiver arrastando:
       const rect = canvas.getBoundingClientRect();
       const dx = ((e.clientX - dragStart.mx) / rect.width) * 100;
       const dy = ((e.clientY - dragStart.my) / rect.height) * 100;
 
-      if (state.dragTarget === 'chat') {
+      if (dragMode === 'layer_resize') {
+        const activeL = state.layers.find(l => l.id === state.activeLayerId);
+        if (activeL && dragStart) {
+          const currentVirtX = ((e.clientX - rect.left) / rect.width) * activeSize.w;
+          const newWidth = Math.max(25, currentVirtX - dragStart.lX);
+          const newScale = Math.round((newWidth / (dragStart.natW * (activeSize.w / 1920))) * 100);
+          activeL.scale = Math.max(5, Math.min(500, newScale));
+          updateLayersUI();
+          renderPreview();
+        }
+      } else if (dragMode === 'layer_move') {
+        const activeL = state.layers.find(l => l.id === state.activeLayerId);
+        if (activeL) {
+          activeL.x = Math.max(-50, Math.min(150, Math.round((dragStart.valX + dx) * 10) / 10));
+          activeL.y = Math.max(-50, Math.min(150, Math.round((dragStart.valY + dy) * 10) / 10));
+          updateLayersUI();
+          renderPreview();
+        }
+      } else if (dragMode === 'chat') {
         state.textX = Math.min(98, Math.max(0, dragStart.valX + dx));
         state.textY = Math.min(98, Math.max(0, dragStart.valY + dy));
-      } else if (state.dragTarget === 'image_pan') {
+        renderPreview();
+      } else if (dragMode === 'image_pan') {
         state.imagePan.x = Math.min(100, Math.max(-100, Math.round(dragStart.valX + dx * 0.8)));
         state.imagePan.y = Math.min(100, Math.max(-100, Math.round(dragStart.valY + dy * 0.8)));
         updateImagePanUI();
-      } else if (state.dragTarget === 'layer') {
-        const activeL = state.layers.find(l => l.id === state.activeLayerId);
-        if (activeL) {
-          activeL.x = Math.min(98, Math.max(0, Math.round(dragStart.valX + dx)));
-          activeL.y = Math.min(98, Math.max(0, Math.round(dragStart.valY + dy)));
-          updateLayersUI();
-        }
+        renderPreview();
       }
-      renderPreview();
     });
 
     window.addEventListener("mouseup", () => {
@@ -2220,6 +2422,26 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         saveToStorage();
       }
     });
+
+    // Scroll Wheel no Canvas para Redimensionar Rápido a Camada Ativa
+    canvas.addEventListener("wheel", (e) => {
+      const activeL = state.layers.find(l => l.id === state.activeLayerId);
+      if (activeL) {
+        const coords = getCanvasCoordinates(e);
+        const b = getLayerBounds(activeL, coords.activeSize.w, coords.activeSize.h);
+        const isOverLayer = b && coords.virtX >= b.lX && coords.virtX <= b.lX + b.lW &&
+                                coords.virtY >= b.lY && coords.virtY <= b.lY + b.lH;
+        if (state.dragTarget === 'layer' || isOverLayer) {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 5;
+          const delta = e.deltaY < 0 ? step : -step;
+          activeL.scale = Math.max(5, Math.min(500, (activeL.scale ?? 100) + delta));
+          updateLayersUI();
+          renderPreview();
+          showToast(`📏 Escala da camada: ${activeL.scale}%`);
+        }
+      }
+    }, { passive: false });
 
     // Notificação Toast Flutuante
     let toastTimer = null;
@@ -2259,7 +2481,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         if (!state.layers.length) {
           showToast("⚠️ Adicione uma camada secundária primeiro!");
         } else {
-          showToast("📑 Modo Camada: Clique e arraste a 2ª imagem!");
+          showToast("📑 Modo Camada: Clique e arraste a imagem ou arraste o canto verde ↘ para redimensionar!");
         }
       } else {
         showToast("💬 Modo Chat: Clique e arraste o texto do chatlog!");
@@ -2381,10 +2603,24 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         };
         state.layers.push(newLayer);
         state.activeLayerId = newLayer.id;
+        state.dragTarget = 'layer';
+        document.getElementById("drag-target-chat").classList.remove("active");
+        document.getElementById("drag-target-pan").classList.remove("active");
+        document.getElementById("drag-target-layer").classList.add("active");
         updateLayersUI();
-        showToast("📑 Camada de imagem adicionada!");
+        showToast("📑 Camada adicionada! Arraste no canvas para mover ou use o canto ↘ para redimensionar.");
         renderPreview();
       });
+    }
+
+    function selectLayer(id) {
+      state.activeLayerId = id;
+      state.dragTarget = 'layer';
+      document.getElementById("drag-target-chat").classList.remove("active");
+      document.getElementById("drag-target-pan").classList.remove("active");
+      document.getElementById("drag-target-layer").classList.add("active");
+      updateLayersUI();
+      renderPreview();
     }
 
     function updateLayersUI() {
@@ -2402,41 +2638,164 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         const isAct = state.activeLayerId === layer.id;
         const card = document.createElement("div");
         card.className = `layer-card ${isAct ? "active-layer" : ""}`;
-        card.onclick = () => {
-          state.activeLayerId = layer.id;
-          updateLayersUI();
-          renderPreview();
-        };
+        card.onclick = () => selectLayer(layer.id);
 
         card.innerHTML = `
           <div class="layer-card-head">
             <div class="layer-info">
               <img src="${layer.src}" class="layer-thumb-mini" alt="Layer Thumb">
-              <span class="layer-name-txt">${layer.name}</span>
+              <div style="display:flex; flex-direction:column; overflow:hidden;">
+                <span class="layer-name-txt">${layer.name}</span>
+                <span style="font-size:8px; color:${isAct ? 'var(--accent-bright)' : 'var(--content-muted)'}; font-weight:600;">
+                  ${isAct ? '● Camada Ativa (Canvas)' : 'Clique p/ Selecionar'}
+                </span>
+              </div>
             </div>
             <div class="layer-actions">
-              <button class="action-btn" style="padding:2px 6px; font-size:8px; color:var(--error);" onclick="event.stopPropagation(); removeLayer(${layer.id})">🗑️</button>
+              <button class="action-btn" title="Centralizar no Canvas" style="padding:3px 6px; font-size:9px;" onclick="event.stopPropagation(); centerLayer(${layer.id})">🎯</button>
+              <button class="action-btn" title="Subir camada" style="padding:3px 6px; font-size:9px;" onclick="event.stopPropagation(); moveLayerOrder(${layer.id}, 1)">▲</button>
+              <button class="action-btn" title="Descer camada" style="padding:3px 6px; font-size:9px;" onclick="event.stopPropagation(); moveLayerOrder(${layer.id}, -1)">▼</button>
+              <button class="action-btn" title="Duplicar camada" style="padding:3px 6px; font-size:9px;" onclick="event.stopPropagation(); duplicateLayer(${layer.id})">📋</button>
+              <button class="action-btn" title="Excluir camada" style="padding:3px 6px; font-size:9px; color:var(--error);" onclick="event.stopPropagation(); removeLayer(${layer.id})">🗑️</button>
             </div>
           </div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
-            <div>
-              <div style="display:flex; justify-content:space-between; font-size:8px; margin-bottom:1px;">
-                <span>Tamanho / Escala</span>
-                <span class="card-val" style="font-size:8px;">${layer.scale}%</span>
-              </div>
-              <input type="range" min="10" max="200" value="${layer.scale}" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'scale', +this.value)">
+
+          <!-- Controles de Tamanho / Escala -->
+          <div style="background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:6px; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:8.5px; font-weight:700; color:var(--content-heading);">📏 Tamanho / Escala:</span>
+              <span class="card-val" style="font-size:9px; color:var(--accent-bright); font-weight:700;">${Math.round(layer.scale)}%</span>
             </div>
-            <div>
-              <div style="display:flex; justify-content:space-between; font-size:8px; margin-bottom:1px;">
-                <span>Opacidade</span>
-                <span class="card-val" style="font-size:8px;">${layer.opacity}%</span>
-              </div>
-              <input type="range" min="0" max="100" value="${layer.opacity}" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'opacity', +this.value)">
+            <div style="display:flex; gap:4px; align-items:center;">
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerScale(${layer.id}, -10)">-10%</button>
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerScale(${layer.id}, -5)">-5%</button>
+              <input type="range" min="5" max="400" value="${Math.round(layer.scale)}" style="flex:1;" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'scale', +this.value)">
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerScale(${layer.id}, 5)">+5%</button>
+              <button class="action-btn" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerScale(${layer.id}, 10)">+10%</button>
+              <button class="action-btn" title="Tamanho Padrão 100%" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); updateLayerProp(${layer.id}, 'scale', 100)">100%</button>
+              <button class="action-btn" title="Ajustar à largura da tela" style="padding:2px 5px; font-size:8px;" onclick="event.stopPropagation(); fitLayerToWidth(${layer.id})">↔ Tela</button>
             </div>
+          </div>
+
+          <!-- Controles de Posição (Mover) -->
+          <div style="background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:6px; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:8.5px; font-weight:700; color:var(--content-heading);">✥ Mover / Posição:</span>
+              <span class="card-val" style="font-size:8.5px;">X: ${Math.round(layer.x)}% · Y: ${Math.round(layer.y)}%</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:8px; color:var(--content-muted); margin-bottom:1px;">
+                  <span>Horizontal (X)</span>
+                  <span>${Math.round(layer.x)}%</span>
+                </div>
+                <div style="display:flex; gap:3px; align-items:center;">
+                  <button class="action-btn" style="padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerPos(${layer.id}, -5, 0)">◄</button>
+                  <input type="range" min="-30" max="120" value="${Math.round(layer.x)}" style="flex:1;" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'x', +this.value)">
+                  <button class="action-btn" style="padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerPos(${layer.id}, 5, 0)">►</button>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:8px; color:var(--content-muted); margin-bottom:1px;">
+                  <span>Vertical (Y)</span>
+                  <span>${Math.round(layer.y)}%</span>
+                </div>
+                <div style="display:flex; gap:3px; align-items:center;">
+                  <button class="action-btn" style="padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerPos(${layer.id}, 0, -5)">▲</button>
+                  <input type="range" min="-30" max="120" value="${Math.round(layer.y)}" style="flex:1;" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'y', +this.value)">
+                  <button class="action-btn" style="padding:2px 4px; font-size:8px;" onclick="event.stopPropagation(); adjustLayerPos(${layer.id}, 0, 5)">▼</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Opacidade -->
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="font-size:8.5px; color:var(--content-muted);">Opacidade</span>
+            <input type="range" min="0" max="100" value="${layer.opacity}" style="flex:1;" oninput="event.stopPropagation(); updateLayerProp(${layer.id}, 'opacity', +this.value)">
+            <span class="card-val" style="font-size:8.5px; width:28px; text-align:right;">${layer.opacity}%</span>
           </div>
         `;
         container.appendChild(card);
       });
+    }
+
+    function adjustLayerScale(id, delta) {
+      const l = state.layers.find(x => x.id === id);
+      if (l) {
+        l.scale = Math.max(5, Math.min(500, (l.scale ?? 100) + delta));
+        updateLayersUI();
+        renderPreview();
+      }
+    }
+
+    function adjustLayerPos(id, dx, dy) {
+      const l = state.layers.find(x => x.id === id);
+      if (l) {
+        l.x = Math.max(-50, Math.min(150, Math.round((l.x + dx) * 10) / 10));
+        l.y = Math.max(-50, Math.min(150, Math.round((l.y + dy) * 10) / 10));
+        updateLayersUI();
+        renderPreview();
+      }
+    }
+
+    function centerLayer(id) {
+      const l = state.layers.find(x => x.id === id);
+      if (!l) return;
+      const activeSize = getActiveCanvasSize();
+      const b = getLayerBounds(l, activeSize.w, activeSize.h);
+      if (b) {
+        const pctW = (b.lW / activeSize.w) * 100;
+        const pctH = (b.lH / activeSize.h) * 100;
+        l.x = Math.round((50 - pctW / 2) * 10) / 10;
+        l.y = Math.round((50 - pctH / 2) * 10) / 10;
+      } else {
+        l.x = 25;
+        l.y = 25;
+      }
+      updateLayersUI();
+      renderPreview();
+      showToast("🎯 Camada centralizada no canvas!");
+    }
+
+    function fitLayerToWidth(id) {
+      const l = state.layers.find(x => x.id === id);
+      if (!l || !l.el) return;
+      const natW = l.w || l.el.naturalWidth || 200;
+      l.scale = Math.round((1920 / natW) * 100);
+      l.x = 0;
+      updateLayersUI();
+      renderPreview();
+      showToast("↔ Camada ajustada à largura da tela!");
+    }
+
+    function moveLayerOrder(id, dir) {
+      const idx = state.layers.findIndex(x => x.id === id);
+      if (idx === -1) return;
+      const targetIdx = idx + dir;
+      if (targetIdx < 0 || targetIdx >= state.layers.length) return;
+      const temp = state.layers[idx];
+      state.layers[idx] = state.layers[targetIdx];
+      state.layers[targetIdx] = temp;
+      updateLayersUI();
+      renderPreview();
+    }
+
+    function duplicateLayer(id) {
+      const l = state.layers.find(x => x.id === id);
+      if (!l) return;
+      const copy = {
+        ...l,
+        id: Date.now() + Math.random(),
+        name: `${l.name} (Cópia)`,
+        x: Math.min(90, l.x + 5),
+        y: Math.min(90, l.y + 5)
+      };
+      state.layers.push(copy);
+      state.activeLayerId = copy.id;
+      updateLayersUI();
+      renderPreview();
+      showToast("📋 Camada duplicada!");
     }
 
     function updateLayerProp(id, prop, val) {
@@ -2823,6 +3182,11 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         state.effects.vignette = false;
         state.effects.grain = false;
         state.effects.lightleak = false;
+      } else {
+        // Preset 'none' / Padrão: desabilita todos os filtros e efeitos fotográficos
+        Object.keys(state.effects).forEach(key => {
+          state.effects[key] = false;
+        });
       }
 
       Object.keys(state.effects).forEach(key => {
