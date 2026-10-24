@@ -1094,6 +1094,99 @@
       font-weight: 600;
       color: var(--content-secondary);
     }
+
+    /* ============================================================
+       ILUMINAÇÃO DE ESTÚDIO & LUZ COLORIDA (SENSUAL & EVENTOS)
+       ============================================================ */
+    .lighting-presets-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      margin-bottom: 6px;
+    }
+    .light-preset-btn {
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      color: var(--content);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      font-size: 9.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+    .light-preset-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+    }
+    .light-preset-btn.active {
+      background: var(--btn-green-bg);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      box-shadow: 0 0 10px var(--accent-dim);
+    }
+    .light-preset-btn .dot-preview {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .color-swatches-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+      flex: 1;
+    }
+    .color-swatch-chip {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1.5px solid var(--surface);
+      box-shadow: 0 0 2px rgba(0,0,0,0.5);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .color-swatch-chip:hover {
+      transform: scale(1.3);
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    .light-origin-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+    .origin-pad-btn {
+      background: var(--surface-deep);
+      border: 1px solid var(--line);
+      color: var(--content);
+      border-radius: var(--radius-sm);
+      padding: 5px 2px;
+      font-size: 8.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .origin-pad-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+    }
+    .origin-pad-btn.active {
+      background: var(--btn-green-bg);
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      box-shadow: 0 0 8px var(--accent-dim);
+    }
+
   </style>
 </head>
 <body>
@@ -1428,6 +1521,218 @@
         </div>
       </div>
 
+      <!-- CARD: ILUMINAÇÃO DE ESTÚDIO & LUZ COLORIDA (SENSUAL & EVENTOS) -->
+      <div class="lation-card" id="card-studio-lighting">
+        <div class="card-head">
+          <span class="card-label"><span class="dot">◆</span> Iluminação &amp; Luz Colorida</span>
+          <span class="card-val" id="lighting-status-badge" style="color:var(--content-muted);">DESLIGADA</span>
+        </div>
+
+        <!-- Toggle Liga / Desliga -->
+        <div class="toggle-row" style="margin-bottom:6px;">
+          <span class="card-label" style="font-size:9.5px; font-weight:700;">Ativar Efeito de Luz</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="check-lighting-enabled" onchange="toggleLightingEnabled(this.checked)">
+            <span class="toggle-label" id="label-lighting-switch" style="color:var(--content-muted)">OFF</span>
+          </label>
+        </div>
+
+        <div id="lighting-controls-body" style="display:none; flex-direction:column; gap:8px;">
+          <!-- Presets Rápidos de 1 Clique (Sensual & Eventos) -->
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span class="card-label" style="font-size:9px;">Presets Rápidos de Iluminação:</span>
+              <span class="card-val" id="lighting-preset-badge" style="color:var(--accent-bright);">Boudoir</span>
+            </div>
+            <div class="lighting-presets-grid">
+              <button class="light-preset-btn active" data-preset="boudoir" onclick="applyLightingPreset('boudoir')" title="Vermelho Boudoir Sensual (Fotos de Referência)">
+                <span class="dot-preview" style="background:#ff2846; box-shadow:0 0 8px #ff2846;"></span>
+                <span>🌹 Boudoir Sensual</span>
+              </button>
+              <button class="light-preset-btn" data-preset="sunset" onclick="applyLightingPreset('sunset')" title="Pôr do Sol & Âmbar Romance">
+                <span class="dot-preview" style="background:#ff7832; box-shadow:0 0 8px #ff7832;"></span>
+                <span>🍑 Sunset Warmth</span>
+              </button>
+              <button class="light-preset-btn" data-preset="cyber" onclick="applyLightingPreset('cyber')" title="Cyberpunk & Neon Purple (Luz Negra)">
+                <span class="dot-preview" style="background:#b419ff; box-shadow:0 0 8px #b419ff;"></span>
+                <span>💜 Cyber Purple</span>
+              </button>
+              <button class="light-preset-btn" data-preset="pink" onclick="applyLightingPreset('pink')" title="Barbie Pink / Lingerie Glow">
+                <span class="dot-preview" style="background:#ff3296; box-shadow:0 0 8px #ff3296;"></span>
+                <span>🌸 Pink Boudoir</span>
+              </button>
+              <button class="light-preset-btn" data-preset="golden" onclick="applyLightingPreset('golden')" title="Golden Hour de Cinema">
+                <span class="dot-preview" style="background:#ffc346; box-shadow:0 0 8px #ffc346;"></span>
+                <span>💛 Golden Hour</span>
+              </button>
+              <button class="light-preset-btn" data-preset="candle" onclick="applyLightingPreset('candle')" title="Penumbra Romântica à Luz de Velas">
+                <span class="dot-preview" style="background:#ff5a14; box-shadow:0 0 8px #ff5a14;"></span>
+                <span>🕯️ Luz de Velas</span>
+              </button>
+              <button class="light-preset-btn" data-preset="cyan" onclick="applyLightingPreset('cyan')" title="Luar & Contraste Frio Ciano">
+                <span class="dot-preview" style="background:#1ec8ff; box-shadow:0 0 8px #1ec8ff;"></span>
+                <span>🌊 Luar Cyan</span>
+              </button>
+              <button class="light-preset-btn" data-preset="neutral" onclick="applyLightingPreset('neutral')" title="Estúdio Neutro 5500K Difuso">
+                <span class="dot-preview" style="background:#fffaf0; box-shadow:0 0 8px #fffaf0;"></span>
+                <span>🤍 Estúdio 5500K</span>
+              </button>
+              <button class="light-preset-btn" data-preset="duotone" onclick="applyLightingPreset('duotone')" title="Duo-Tone Cinema (Boudoir + Cyan Rim)">
+                <span class="dot-preview" style="background:linear-gradient(135deg, #ff2846, #1ec8ff); box-shadow:0 0 8px #ff2846;"></span>
+                <span>🎬 Duo-Tone 2 Cores</span>
+              </button>
+              <button class="light-preset-btn" data-preset="champagne" onclick="applyLightingPreset('champagne')" title="Champanhe Gala VIP">
+                <span class="dot-preview" style="background:#ffe1a0; box-shadow:0 0 8px #ffe1a0;"></span>
+                <span>🥂 Champanhe VIP</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Cor da Luz & Swatches -->
+          <div style="border-top:1px solid var(--line); padding-top:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span class="card-label" style="font-size:9px;">Cor Principal da Luz:</span>
+              <span class="card-val" id="light-color-hex">#FF2846</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <input type="color" id="input-light-color" value="#ff2846" style="width:36px; height:26px; border:none; background:none; cursor:pointer;" oninput="updateLightingColor(this.value)">
+              <!-- Paleta de Cores Rápidas -->
+              <div class="color-swatches-list">
+                <span class="color-swatch-chip" style="background:#ff2846;" onclick="updateLightingColor('#ff2846')" title="Boudoir Red"></span>
+                <span class="color-swatch-chip" style="background:#ff7832;" onclick="updateLightingColor('#ff7832')" title="Sunset Amber"></span>
+                <span class="color-swatch-chip" style="background:#b419ff;" onclick="updateLightingColor('#b419ff')" title="Cyber Purple"></span>
+                <span class="color-swatch-chip" style="background:#ff3296;" onclick="updateLightingColor('#ff3296')" title="Pink Glow"></span>
+                <span class="color-swatch-chip" style="background:#ffc346;" onclick="updateLightingColor('#ffc346')" title="Golden Hour"></span>
+                <span class="color-swatch-chip" style="background:#ff5a14;" onclick="updateLightingColor('#ff5a14')" title="Candlelight"></span>
+                <span class="color-swatch-chip" style="background:#1ec8ff;" onclick="updateLightingColor('#1ec8ff')" title="Cyan Rim"></span>
+                <span class="color-swatch-chip" style="background:#fffaf0;" onclick="updateLightingColor('#fffaf0')" title="Neutral White"></span>
+                <span class="color-swatch-chip" style="background:#19f078;" onclick="updateLightingColor('#19f078')" title="Emerald"></span>
+                <span class="color-swatch-chip" style="background:#ff0a14;" onclick="updateLightingColor('#ff0a14')" title="Deep Red"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cor Secundária (Visível apenas em Duo-Tone) -->
+          <div id="duotone-secondary-box" style="display:none; background:var(--surface-deep); border:1px solid var(--line); border-radius:var(--radius-sm); padding:6px; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="card-label" style="font-size:8.5px; color:#38bdf8;">🎨 Luz Secundária (Recorte / Rim):</span>
+              <span class="card-val" id="duotone-sec-hex">#1EC8FF</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="input-sec-color" value="#1ec8ff" style="width:34px; height:24px; border:none; background:none; cursor:pointer;" oninput="updateLightingSecColor(this.value)">
+              <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span class="card-label" style="font-size:8px;">Intensidade Secundária</span>
+                  <span class="card-val" id="sec-intensity-val">50%</span>
+                </div>
+                <input type="range" id="slider-sec-intensity" min="10" max="150" value="50" oninput="updateLightingSecIntensity(+this.value)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tipo / Fonte da Luz -->
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between;">
+              <span class="card-label" style="font-size:9px;">Fonte / Tipo de Luz</span>
+              <span class="card-val" id="light-type-badge">Radial / Softbox</span>
+            </div>
+            <select class="lation-select" id="select-light-type" onchange="updateLightingSourceType(this.value)">
+              <option value="radial" selected>Radial Softbox (Queda Suave / Natural)</option>
+              <option value="conic">Feixe Direcional de Estúdio (Spotlight Angular)</option>
+              <option value="rim">Luz de Recorte Lateral (Rim Light Silhueta)</option>
+              <option value="ambient">Banho de Cor Ambiente (Difusa no Cômodo)</option>
+              <option value="duotone">Duo-Tone de Cinema (Luz Principal + Recorte)</option>
+            </select>
+          </div>
+
+          <!-- Origem da Luz / Posição -->
+          <div style="border-top:1px solid var(--line); padding-top:6px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="card-label" style="font-size:9px;">Origem / Posição da Luz:</span>
+              <button class="action-btn" id="btn-drag-light-mode" style="padding:2px 8px; font-size:8.5px; color:var(--accent-bright); font-weight:700;" onclick="activateLightDragMode()" title="Arrastar a luz com o mouse diretamente na foto">
+                🕹️ Arrastar no Canvas
+              </button>
+            </div>
+
+            <!-- Direcional 3x3 Pad -->
+            <div class="light-origin-grid">
+              <button class="origin-pad-btn active" data-pos="top-left" onclick="setLightOriginPreset('top-left')">↖ Topo-Esq</button>
+              <button class="origin-pad-btn" data-pos="top" onclick="setLightOriginPreset('top')">⬆ Superior</button>
+              <button class="origin-pad-btn" data-pos="top-right" onclick="setLightOriginPreset('top-right')">↗ Topo-Dir</button>
+              <button class="origin-pad-btn" data-pos="left" onclick="setLightOriginPreset('left')">⬅ Esquerda</button>
+              <button class="origin-pad-btn" data-pos="center" onclick="setLightOriginPreset('center')">🎯 Centro</button>
+              <button class="origin-pad-btn" data-pos="right" onclick="setLightOriginPreset('right')">➡ Direita</button>
+              <button class="origin-pad-btn" data-pos="bottom-left" onclick="setLightOriginPreset('bottom-left')">↙ Chão-Esq</button>
+              <button class="origin-pad-btn" data-pos="bottom" onclick="setLightOriginPreset('bottom')">⬇ Inferior</button>
+              <button class="origin-pad-btn" data-pos="bottom-right" onclick="setLightOriginPreset('bottom-right')">↘ Chão-Dir</button>
+            </div>
+
+            <!-- Sliders X e Y para ajuste milimétrico -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:2px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span class="card-label" style="font-size:8px;">Origem X</span>
+                  <span class="card-val" id="light-x-val">25%</span>
+                </div>
+                <input type="range" id="slider-light-x" min="0" max="100" value="25" oninput="updateLightingX(+this.value)">
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span class="card-label" style="font-size:8px;">Origem Y</span>
+                  <span class="card-val" id="light-y-val">30%</span>
+                </div>
+                <input type="range" id="slider-light-y" min="0" max="100" value="30" oninput="updateLightingY(+this.value)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Controles de Intensidade, Raio, Suavidade e Blend Mode -->
+          <div style="border-top:1px solid var(--line); padding-top:6px; display:flex; flex-direction:column; gap:6px;">
+            <!-- Intensidade / Brilho -->
+            <div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span class="card-label" style="font-size:8.5px;">Intensidade / Brilho da Luz</span>
+                <span class="card-val" id="light-intensity-val">70%</span>
+              </div>
+              <input type="range" id="slider-light-intensity" min="5" max="150" value="70" oninput="updateLightingIntensity(+this.value)">
+            </div>
+
+            <!-- Raio / Alcance -->
+            <div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span class="card-label" style="font-size:8.5px;">Raio de Alcance / Difusão</span>
+                <span class="card-val" id="light-radius-val">80%</span>
+              </div>
+              <input type="range" id="slider-light-radius" min="15" max="200" value="80" oninput="updateLightingRadius(+this.value)">
+            </div>
+
+            <!-- Suavidade / Queda -->
+            <div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span class="card-label" style="font-size:8.5px;">Suavidade da Borda (Softness)</span>
+                <span class="card-val" id="light-softness-val">85%</span>
+              </div>
+              <input type="range" id="slider-light-softness" min="10" max="100" value="85" oninput="updateLightingSoftness(+this.value)">
+            </div>
+
+            <!-- Modo de Mesclagem Fotográfica (Blend Mode) -->
+            <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+              <div style="display:flex; justify-content:space-between;">
+                <span class="card-label" style="font-size:8.5px;">Modo de Mesclagem (Blend Mode)</span>
+                <span class="card-val" id="light-blend-badge">Screen (Natural)</span>
+              </div>
+              <select class="lation-select" id="select-light-blend" onchange="updateLightingBlend(this.value)">
+                <option value="screen" selected>Screen (Clareamento Natural de Estúdio)</option>
+                <option value="soft-light">Soft Light (Contraste Sensual &amp; Íntimo)</option>
+                <option value="color-dodge">Color Dodge (Brilho Elétrico / Neon Intenso)</option>
+                <option value="linear-dodge">Linear Dodge (Aditivo Luminoso Puro)</option>
+                <option value="overlay">Overlay (Dramático com Contraste Vivo)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- CARD 5: FILTROS & PRESETS DE CÂMERA DE RP -->
       <div class="lation-card">
         <div class="card-head">
@@ -1538,6 +1843,7 @@
           <button class="drag-btn active" id="drag-target-chat" onclick="setDragTarget('chat')">💬 Texto Chat</button>
           <button class="drag-btn" id="drag-target-pan" onclick="setDragTarget('image_pan')">🖼️ Enquadrar Foto</button>
           <button class="drag-btn" id="drag-target-layer" onclick="setDragTarget('layer')" title="Mover e redimensionar camadas de imagens">📑 Mover Camada</button>
+          <button class="drag-btn" id="drag-target-light" onclick="setDragTarget('light')" title="Clique ou arraste a fonte de luz sobre a foto">💡 Posicionar Luz</button>
         </div>
 
         <div class="preview-res" id="canvas-res-chip">1280 × 720 px</div>
@@ -1661,6 +1967,23 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         cctvLocation: "PAL 25FPS · 1080P · LIVE"
       },
 
+      // Iluminação Fotográfica de Estúdio & Luz Colorida (Sensual & Eventos)
+      lighting: {
+        enabled: false,
+        preset: 'boudoir',
+        color: '#ff2846',
+        intensity: 70,
+        radius: 80,
+        softness: 85,
+        x: 25,
+        y: 30,
+        sourceType: 'radial', // 'radial', 'conic', 'rim', 'ambient', 'duotone'
+        blendMode: 'screen', // 'screen', 'soft-light', 'color-dodge', 'linear-dodge', 'overlay'
+        secondaryColor: '#1ec8ff',
+        secondaryIntensity: 50,
+        secondaryX: 85,
+        secondaryY: 70
+      },
       effects: {
         grain: false,
         vignette: false,
@@ -2024,6 +2347,577 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       }
     }
 
+
+    // ============================================================
+    // ILUMINAÇÃO DE ESTÚDIO & LUZ COLORIDA (SENSUAL & EVENTOS)
+    // ============================================================
+    function hexToRgba(hex, alpha = 1) {
+      if (!hex || typeof hex !== 'string') return `rgba(255, 40, 70, ${alpha})`;
+      let c = hex.replace('#', '');
+      if (c.length === 3) {
+        c = c.split('').map(x => x + x).join('');
+      }
+      const num = parseInt(c, 16);
+      if (isNaN(num)) return `rgba(255, 40, 70, ${alpha})`;
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function drawPhotographicLight(ctx, W, H, lighting, isPreview) {
+      if (!lighting || !lighting.enabled) return;
+
+      const color = lighting.color || '#ff2846';
+      const intensity = (lighting.intensity !== undefined ? lighting.intensity : 70) / 100;
+      if (intensity <= 0) return;
+
+      const r = (lighting.radius !== undefined ? lighting.radius : 80) / 100;
+      const softness = (lighting.softness !== undefined ? lighting.softness : 85) / 100;
+      const type = lighting.sourceType || 'radial';
+      const blendMode = lighting.blendMode || 'screen';
+
+      const lx = (lighting.x / 100) * W;
+      const ly = (lighting.y / 100) * H;
+      const maxDim = Math.max(W, H);
+      const radiusPx = maxDim * r;
+
+      ctx.save();
+      ctx.globalCompositeOperation = blendMode;
+
+      const rgba = hexToRgba(color, intensity);
+      const rgbaMid = hexToRgba(color, intensity * 0.45);
+      const rgbaFade = hexToRgba(color, 0);
+
+      if (type === 'radial') {
+        // 1. Radial Softbox: Queda Suave Natural de Estúdio
+        const innerRadius = Math.max(0, radiusPx * (1 - softness));
+        const grad = ctx.createRadialGradient(lx, ly, innerRadius, lx, ly, radiusPx);
+        grad.addColorStop(0, rgba);
+        grad.addColorStop(0.35, hexToRgba(color, intensity * 0.7));
+        grad.addColorStop(0.7, rgbaMid);
+        grad.addColorStop(1, rgbaFade);
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Hotspot sutil de centro
+        if (intensity > 0.25) {
+          const coreGrad = ctx.createRadialGradient(lx, ly, 0, lx, ly, radiusPx * 0.22);
+          coreGrad.addColorStop(0, `rgba(255, 255, 255, ${intensity * 0.25})`);
+          coreGrad.addColorStop(0.5, hexToRgba(color, intensity * 0.15));
+          coreGrad.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = coreGrad;
+          ctx.fillRect(0, 0, W, H);
+        }
+      } else if (type === 'conic') {
+        // 2. Feixe Direcional de Estúdio / Spotlight Angular
+        const targetX = W / 2;
+        const targetY = H / 2;
+        const angle = Math.atan2(targetY - ly, targetX - lx);
+        const beamAngle = (Math.PI / 2.8) * (softness + 0.35);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.arc(lx, ly, radiusPx * 1.6, angle - beamAngle / 2, angle + beamAngle / 2);
+        ctx.closePath();
+        ctx.clip();
+
+        const beamGrad = ctx.createRadialGradient(lx, ly, 0, lx, ly, radiusPx * 1.6);
+        beamGrad.addColorStop(0, rgba);
+        beamGrad.addColorStop(0.35, hexToRgba(color, intensity * 0.65));
+        beamGrad.addColorStop(0.75, rgbaMid);
+        beamGrad.addColorStop(1, rgbaFade);
+
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      } else if (type === 'rim') {
+        // 3. Luz de Recorte Lateral (Rim Light Silhueta)
+        const edgeGrad = ctx.createRadialGradient(lx, ly, radiusPx * 0.1, lx, ly, radiusPx * 1.25);
+        edgeGrad.addColorStop(0, rgba);
+        edgeGrad.addColorStop(0.3, hexToRgba(color, intensity * 0.8));
+        edgeGrad.addColorStop(0.65, rgbaMid);
+        edgeGrad.addColorStop(1, rgbaFade);
+
+        ctx.fillStyle = edgeGrad;
+        ctx.fillRect(0, 0, W, H);
+      } else if (type === 'ambient') {
+        // 4. Banho Ambiente Difuso (Ambiente / Cômodo Inteiro)
+        const ambGrad = ctx.createRadialGradient(lx, ly, 0, W / 2, H / 2, maxDim);
+        ambGrad.addColorStop(0, rgba);
+        ambGrad.addColorStop(0.55, hexToRgba(color, intensity * 0.55));
+        ambGrad.addColorStop(1, hexToRgba(color, intensity * 0.2));
+
+        ctx.fillStyle = ambGrad;
+        ctx.fillRect(0, 0, W, H);
+      } else if (type === 'duotone') {
+        // 5. Duo-Tone de Cinema: Luz Principal + Recorte Secundário
+        const grad1 = ctx.createRadialGradient(lx, ly, 0, lx, ly, radiusPx);
+        grad1.addColorStop(0, rgba);
+        grad1.addColorStop(0.5, rgbaMid);
+        grad1.addColorStop(1, rgbaFade);
+        ctx.fillStyle = grad1;
+        ctx.fillRect(0, 0, W, H);
+
+        const secColor = lighting.secondaryColor || '#1ec8ff';
+        const secIntensity = ((lighting.secondaryIntensity !== undefined ? lighting.secondaryIntensity : 50) / 100);
+        const secX = ((lighting.secondaryX !== undefined ? lighting.secondaryX : 85) / 100) * W;
+        const secY = ((lighting.secondaryY !== undefined ? lighting.secondaryY : 70) / 100) * H;
+        const secRad = maxDim * 0.7;
+
+        const grad2 = ctx.createRadialGradient(secX, secY, 0, secX, secY, secRad);
+        grad2.addColorStop(0, hexToRgba(secColor, secIntensity));
+        grad2.addColorStop(0.5, hexToRgba(secColor, secIntensity * 0.45));
+        grad2.addColorStop(1, hexToRgba(secColor, 0));
+        ctx.fillStyle = grad2;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      ctx.restore();
+
+      // Desenhar Gizmo Interativo no Preview se o alvo do mouse for 'light'
+      if (isPreview && state.dragTarget === 'light') {
+        drawLightGizmo(ctx, lx, ly, color, 'Luz Principal');
+        if (type === 'duotone') {
+          const secX = ((lighting.secondaryX !== undefined ? lighting.secondaryX : 85) / 100) * W;
+          const secY = ((lighting.secondaryY !== undefined ? lighting.secondaryY : 70) / 100) * H;
+          drawLightGizmo(ctx, secX, secY, lighting.secondaryColor || '#1ec8ff', 'Luz Recorte');
+        }
+      }
+    }
+
+    function drawLightGizmo(ctx, x, y, color, label) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Halo externo
+      ctx.beginPath();
+      ctx.arc(x, y, 20, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 16, 19, 0.65)';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+
+      // Cruz do retículo
+      ctx.beginPath();
+      ctx.moveTo(x - 26, y); ctx.lineTo(x - 20, y);
+      ctx.moveTo(x + 20, y); ctx.lineTo(x + 26, y);
+      ctx.moveTo(x, y - 26); ctx.lineTo(x, y - 20);
+      ctx.moveTo(x, y + 20); ctx.lineTo(x, y + 26);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Ponto focal interno
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // Badge informativa
+      ctx.font = 'bold 11px "JetBrains Mono", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(`💡 ${label}`, x + 14, y - 12);
+
+      ctx.restore();
+    }
+
+    // Controles da UI de Iluminação
+    function toggleLightingEnabled(enabled) {
+      state.lighting.enabled = enabled;
+      const check = document.getElementById("check-lighting-enabled");
+      if (check) check.checked = enabled;
+      const body = document.getElementById("lighting-controls-body");
+      if (body) body.style.display = enabled ? "flex" : "none";
+      const statusBadge = document.getElementById("lighting-status-badge");
+      if (statusBadge) {
+        statusBadge.textContent = enabled ? "ATIVA" : "DESLIGADA";
+        statusBadge.style.color = enabled ? "var(--accent-bright)" : "var(--content-muted)";
+      }
+      const labelSwitch = document.getElementById("label-lighting-switch");
+      if (labelSwitch) {
+        labelSwitch.textContent = enabled ? "ON" : "OFF";
+        labelSwitch.style.color = enabled ? "var(--accent-bright)" : "var(--content-muted)";
+      }
+      saveToStorage();
+      renderPreview();
+      if (enabled) {
+        showToast("💡 Iluminação de estúdio ativada!");
+      }
+    }
+
+    const LIGHTING_PRESETS = {
+      boudoir: {
+        label: "Boudoir Sensual",
+        color: "#ff2846",
+        intensity: 70,
+        radius: 80,
+        softness: 85,
+        x: 25,
+        y: 30,
+        sourceType: "radial",
+        blendMode: "screen",
+        posPreset: "top-left"
+      },
+      sunset: {
+        label: "Sunset Warmth",
+        color: "#ff7832",
+        intensity: 65,
+        radius: 85,
+        softness: 90,
+        x: 15,
+        y: 45,
+        sourceType: "conic",
+        blendMode: "screen",
+        posPreset: "left"
+      },
+      cyber: {
+        label: "Cyber Purple",
+        color: "#b419ff",
+        intensity: 75,
+        radius: 70,
+        softness: 75,
+        x: 75,
+        y: 25,
+        sourceType: "radial",
+        blendMode: "color-dodge",
+        posPreset: "top-right"
+      },
+      pink: {
+        label: "Pink Boudoir",
+        color: "#ff3296",
+        intensity: 60,
+        radius: 75,
+        softness: 80,
+        x: 50,
+        y: 20,
+        sourceType: "radial",
+        blendMode: "screen",
+        posPreset: "top"
+      },
+      golden: {
+        label: "Golden Hour",
+        color: "#ffc346",
+        intensity: 65,
+        radius: 90,
+        softness: 85,
+        x: 20,
+        y: 20,
+        sourceType: "radial",
+        blendMode: "screen",
+        posPreset: "top-left"
+      },
+      candle: {
+        label: "Luz de Velas",
+        color: "#ff5a14",
+        intensity: 55,
+        radius: 60,
+        softness: 80,
+        x: 40,
+        y: 80,
+        sourceType: "radial",
+        blendMode: "soft-light",
+        posPreset: "bottom"
+      },
+      cyan: {
+        label: "Luar Cyan",
+        color: "#1ec8ff",
+        intensity: 70,
+        radius: 65,
+        softness: 70,
+        x: 88,
+        y: 50,
+        sourceType: "rim",
+        blendMode: "screen",
+        posPreset: "right"
+      },
+      neutral: {
+        label: "Estúdio 5500K",
+        color: "#fffaf0",
+        intensity: 60,
+        radius: 90,
+        softness: 95,
+        x: 50,
+        y: 30,
+        sourceType: "radial",
+        blendMode: "screen",
+        posPreset: "top"
+      },
+      duotone: {
+        label: "Duo-Tone 2 Cores",
+        color: "#ff2846",
+        secondaryColor: "#1ec8ff",
+        intensity: 65,
+        secondaryIntensity: 50,
+        radius: 75,
+        softness: 80,
+        x: 20,
+        y: 30,
+        secondaryX: 85,
+        secondaryY: 70,
+        sourceType: "duotone",
+        blendMode: "screen",
+        posPreset: "top-left"
+      },
+      champagne: {
+        label: "Champanhe VIP",
+        color: "#ffe1a0",
+        intensity: 55,
+        radius: 85,
+        softness: 90,
+        x: 50,
+        y: 15,
+        sourceType: "ambient",
+        blendMode: "screen",
+        posPreset: "top"
+      }
+    };
+
+    function applyLightingPreset(presetId) {
+      const p = LIGHTING_PRESETS[presetId];
+      if (!p) return;
+
+      state.lighting.enabled = true;
+      state.lighting.preset = presetId;
+      state.lighting.color = p.color;
+      state.lighting.intensity = p.intensity;
+      state.lighting.radius = p.radius;
+      state.lighting.softness = p.softness;
+      state.lighting.x = p.x;
+      state.lighting.y = p.y;
+      state.lighting.sourceType = p.sourceType;
+      state.lighting.blendMode = p.blendMode;
+
+      if (p.secondaryColor) state.lighting.secondaryColor = p.secondaryColor;
+      if (p.secondaryIntensity !== undefined) state.lighting.secondaryIntensity = p.secondaryIntensity;
+      if (p.secondaryX !== undefined) state.lighting.secondaryX = p.secondaryX;
+      if (p.secondaryY !== undefined) state.lighting.secondaryY = p.secondaryY;
+
+      updateLightingUI();
+      saveToStorage();
+      renderPreview();
+      showToast(`💡 Preset aplicado: ${p.label}`);
+    }
+
+    function updateLightingColor(color) {
+      state.lighting.color = color;
+      const inCol = document.getElementById("input-light-color");
+      if (inCol) inCol.value = color;
+      const hexVal = document.getElementById("light-color-hex");
+      if (hexVal) hexVal.textContent = color.toUpperCase();
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingSecColor(color) {
+      state.lighting.secondaryColor = color;
+      const inSec = document.getElementById("input-sec-color");
+      if (inSec) inSec.value = color;
+      const secHex = document.getElementById("duotone-sec-hex");
+      if (secHex) secHex.textContent = color.toUpperCase();
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingSecIntensity(val) {
+      state.lighting.secondaryIntensity = val;
+      const badge = document.getElementById("sec-intensity-val");
+      if (badge) badge.textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingSourceType(type) {
+      state.lighting.sourceType = type;
+      const secBox = document.getElementById("duotone-secondary-box");
+      if (secBox) secBox.style.display = type === 'duotone' ? "flex" : "none";
+      const badge = document.getElementById("light-type-badge");
+      if (badge) {
+        if (type === 'radial') badge.textContent = "Radial Softbox";
+        else if (type === 'conic') badge.textContent = "Feixe Direcional";
+        else if (type === 'rim') badge.textContent = "Luz de Recorte";
+        else if (type === 'ambient') badge.textContent = "Banho de Cor";
+        else if (type === 'duotone') badge.textContent = "Duo-Tone 2 Cores";
+      }
+      saveToStorage();
+      renderPreview();
+    }
+
+    function setLightOriginPreset(pos) {
+      let x = 50, y = 50;
+      if (pos === 'top-left') { x = 20; y = 20; }
+      else if (pos === 'top') { x = 50; y = 15; }
+      else if (pos === 'top-right') { x = 80; y = 20; }
+      else if (pos === 'left') { x = 15; y = 50; }
+      else if (pos === 'center') { x = 50; y = 50; }
+      else if (pos === 'right') { x = 85; y = 50; }
+      else if (pos === 'bottom-left') { x = 20; y = 80; }
+      else if (pos === 'bottom') { x = 50; y = 85; }
+      else if (pos === 'bottom-right') { x = 80; y = 80; }
+
+      state.lighting.x = x;
+      state.lighting.y = y;
+
+      document.querySelectorAll(".origin-pad-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.pos === pos);
+      });
+
+      const sx = document.getElementById("slider-light-x");
+      if (sx) sx.value = x;
+      const sy = document.getElementById("slider-light-y");
+      if (sy) sy.value = y;
+      const vx = document.getElementById("light-x-val");
+      if (vx) vx.textContent = `${x}%`;
+      const vy = document.getElementById("light-y-val");
+      if (vy) vy.textContent = `${y}%`;
+
+      saveToStorage();
+      renderPreview();
+      showToast("📍 Origem da luz reposicionada!");
+    }
+
+    function updateLightingX(val) {
+      state.lighting.x = val;
+      const vx = document.getElementById("light-x-val");
+      if (vx) vx.textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingY(val) {
+      state.lighting.y = val;
+      const vy = document.getElementById("light-y-val");
+      if (vy) vy.textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingIntensity(val) {
+      state.lighting.intensity = val;
+      const badge = document.getElementById("light-intensity-val");
+      if (badge) badge.textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingRadius(val) {
+      state.lighting.radius = val;
+      const badge = document.getElementById("light-radius-val");
+      if (badge) badge.textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingSoftness(val) {
+      state.lighting.softness = val;
+      const badge = document.getElementById("light-softness-val");
+      if (badge) badge.textContent = `${val}%`;
+      saveToStorage();
+      renderPreview();
+    }
+
+    function updateLightingBlend(val) {
+      state.lighting.blendMode = val;
+      const badge = document.getElementById("light-blend-badge");
+      if (badge) {
+        if (val === 'screen') badge.textContent = "Screen (Natural)";
+        else if (val === 'soft-light') badge.textContent = "Soft Light (Sensual)";
+        else if (val === 'color-dodge') badge.textContent = "Color Dodge (Neon)";
+        else if (val === 'linear-dodge') badge.textContent = "Linear Dodge (Luminoso)";
+        else if (val === 'overlay') badge.textContent = "Overlay (Contraste)";
+      }
+      saveToStorage();
+      renderPreview();
+    }
+
+    function activateLightDragMode() {
+      setDragTarget('light');
+    }
+
+    function updateLightingUI() {
+      const l = state.lighting;
+      const check = document.getElementById("check-lighting-enabled");
+      if (check) check.checked = !!l.enabled;
+      const body = document.getElementById("lighting-controls-body");
+      if (body) body.style.display = l.enabled ? "flex" : "none";
+      const statusBadge = document.getElementById("lighting-status-badge");
+      if (statusBadge) {
+        statusBadge.textContent = l.enabled ? "ATIVA" : "DESLIGADA";
+        statusBadge.style.color = l.enabled ? "var(--accent-bright)" : "var(--content-muted)";
+      }
+      const labelSwitch = document.getElementById("label-lighting-switch");
+      if (labelSwitch) {
+        labelSwitch.textContent = l.enabled ? "ON" : "OFF";
+        labelSwitch.style.color = l.enabled ? "var(--accent-bright)" : "var(--content-muted)";
+      }
+
+      document.querySelectorAll(".light-preset-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.preset === l.preset);
+      });
+      const presetBadge = document.getElementById("lighting-preset-badge");
+      if (presetBadge && LIGHTING_PRESETS[l.preset]) {
+        presetBadge.textContent = LIGHTING_PRESETS[l.preset].label;
+      }
+
+      const inCol = document.getElementById("input-light-color");
+      if (inCol) inCol.value = l.color || "#ff2846";
+      const hexVal = document.getElementById("light-color-hex");
+      if (hexVal) hexVal.textContent = (l.color || "#FF2846").toUpperCase();
+
+      const secBox = document.getElementById("duotone-secondary-box");
+      if (secBox) secBox.style.display = l.sourceType === 'duotone' ? "flex" : "none";
+      const inSec = document.getElementById("input-sec-color");
+      if (inSec) inSec.value = l.secondaryColor || "#1ec8ff";
+      const secHex = document.getElementById("duotone-sec-hex");
+      if (secHex) secHex.textContent = (l.secondaryColor || "#1EC8FF").toUpperCase();
+      const secIntVal = document.getElementById("sec-intensity-val");
+      if (secIntVal) secIntVal.textContent = `${l.secondaryIntensity || 50}%`;
+      const sliderSecInt = document.getElementById("slider-sec-intensity");
+      if (sliderSecInt) sliderSecInt.value = l.secondaryIntensity || 50;
+
+      const selType = document.getElementById("select-light-type");
+      if (selType) selType.value = l.sourceType || "radial";
+      updateLightingSourceType(l.sourceType || "radial");
+
+      const sx = document.getElementById("slider-light-x");
+      if (sx) sx.value = l.x !== undefined ? l.x : 25;
+      const vx = document.getElementById("light-x-val");
+      if (vx) vx.textContent = `${l.x !== undefined ? l.x : 25}%`;
+
+      const sy = document.getElementById("slider-light-y");
+      if (sy) sy.value = l.y !== undefined ? l.y : 30;
+      const vy = document.getElementById("light-y-val");
+      if (vy) vy.textContent = `${l.y !== undefined ? l.y : 30}%`;
+
+      const sInt = document.getElementById("slider-light-intensity");
+      if (sInt) sInt.value = l.intensity !== undefined ? l.intensity : 70;
+      const vInt = document.getElementById("light-intensity-val");
+      if (vInt) vInt.textContent = `${l.intensity !== undefined ? l.intensity : 70}%`;
+
+      const sRad = document.getElementById("slider-light-radius");
+      if (sRad) sRad.value = l.radius !== undefined ? l.radius : 80;
+      const vRad = document.getElementById("light-radius-val");
+      if (vRad) vRad.textContent = `${l.radius !== undefined ? l.radius : 80}%`;
+
+      const sSoft = document.getElementById("slider-light-softness");
+      if (sSoft) sSoft.value = l.softness !== undefined ? l.softness : 85;
+      const vSoft = document.getElementById("light-softness-val");
+      if (vSoft) vSoft.textContent = `${l.softness !== undefined ? l.softness : 85}%`;
+
+      const selBlend = document.getElementById("select-light-blend");
+      if (selBlend) selBlend.value = l.blendMode || "screen";
+      updateLightingBlend(l.blendMode || "screen");
+    }
+
+
     // Renderização dos Presets de Câmera RP (com campos customizáveis de data, hora e local)
     function drawCameraOverlay(ctx, w, h, preset) {
       if (!preset || preset === 'none') return;
@@ -2286,6 +3180,9 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       // 3. Efeitos Fotográficos Globais
       applyCanvasEffects(ctx.canvas, state.effects);
 
+      // 3.1 Iluminação Fotográfica de Estúdio & Luz Colorida (Sensual & Eventos)
+      drawPhotographicLight(ctx, W, H, state.lighting, isPreview);
+
       // 4. Escurecimento Global
       if (baseImgEl && state.overlay > 0) {
         ctx.fillStyle = `rgba(16, 23, 33, ${state.overlay / 100})`;
@@ -2440,6 +3337,42 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       }
 
       // 3. Se não clicou em camada, segue o dragTarget selecionado
+      if (state.dragTarget === 'light') {
+        isDragging = true;
+        canvas.classList.add("dragging");
+        const activeSize = coords.activeSize;
+        const normX = Math.max(0, Math.min(100, (coords.virtX / activeSize.w) * 100));
+        const normY = Math.max(0, Math.min(100, (coords.virtY / activeSize.h) * 100));
+
+        if (state.lighting.sourceType === 'duotone') {
+          const secX = (state.lighting.secondaryX || 85) / 100 * activeSize.w;
+          const secY = (state.lighting.secondaryY || 70) / 100 * activeSize.h;
+          const distSec = Math.hypot(coords.virtX - secX, coords.virtY - secY);
+          const primX = (state.lighting.x || 25) / 100 * activeSize.w;
+          const primY = (state.lighting.y || 30) / 100 * activeSize.h;
+          const distPrim = Math.hypot(coords.virtX - primX, coords.virtY - primY);
+
+          if (distSec < distPrim && distSec < 50) {
+            dragMode = 'light_secondary';
+            dragStart = { mx: e.clientX, my: e.clientY, valX: state.lighting.secondaryX || 85, valY: state.lighting.secondaryY || 70 };
+          } else {
+            dragMode = 'light_primary';
+            state.lighting.x = Math.round(normX);
+            state.lighting.y = Math.round(normY);
+            dragStart = { mx: e.clientX, my: e.clientY, valX: state.lighting.x, valY: state.lighting.y };
+            updateLightingUI();
+          }
+        } else {
+          dragMode = 'light_primary';
+          state.lighting.x = Math.round(normX);
+          state.lighting.y = Math.round(normY);
+          dragStart = { mx: e.clientX, my: e.clientY, valX: state.lighting.x, valY: state.lighting.y };
+          updateLightingUI();
+        }
+        renderPreview();
+        return;
+      }
+
       isDragging = true;
       canvas.classList.add("dragging");
 
@@ -2517,6 +3450,7 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         if (!cursorSet) {
           if (state.dragTarget === 'image_pan') canvas.style.cursor = "grab";
           else if (state.dragTarget === 'layer') canvas.style.cursor = "pointer";
+          else if (state.dragTarget === 'light') canvas.style.cursor = "crosshair";
           else canvas.style.cursor = "move";
         }
         return;
@@ -2569,6 +3503,16 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
         state.imagePan.x = Math.min(100, Math.max(-100, Math.round(dragStart.valX + dx * 0.8)));
         state.imagePan.y = Math.min(100, Math.max(-100, Math.round(dragStart.valY + dy * 0.8)));
         updateImagePanUI();
+        renderPreview();
+      } else if (dragMode === 'light_primary') {
+        state.lighting.x = Math.min(100, Math.max(0, Math.round(dragStart.valX + dx)));
+        state.lighting.y = Math.min(100, Math.max(0, Math.round(dragStart.valY + dy)));
+        updateLightingUI();
+        renderPreview();
+      } else if (dragMode === 'light_secondary') {
+        state.lighting.secondaryX = Math.min(100, Math.max(0, Math.round(dragStart.valX + dx)));
+        state.lighting.secondaryY = Math.min(100, Math.max(0, Math.round(dragStart.valY + dy)));
+        updateLightingUI();
         renderPreview();
       }
     });
@@ -2632,8 +3576,15 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
       document.getElementById("drag-target-chat").classList.toggle("active", target === 'chat');
       document.getElementById("drag-target-pan").classList.toggle("active", target === 'image_pan');
       document.getElementById("drag-target-layer").classList.toggle("active", target === 'layer');
+      const lightBtn = document.getElementById("drag-target-light");
+      if (lightBtn) lightBtn.classList.toggle("active", target === 'light');
       
-      if (target === 'image_pan') {
+      if (target === 'light') {
+        if (!state.lighting.enabled) {
+          toggleLightingEnabled(true);
+        }
+        showToast("💡 Modo Iluminação: Clique ou arraste a fonte de luz sobre a foto!");
+      } else if (target === 'image_pan') {
         showToast("🖼️ Modo Enquadramento: Clique e arraste a foto base no canvas!");
       } else if (target === 'layer') {
         if (!state.layers.length) {
@@ -3566,7 +4517,8 @@ Ramon Mendoza diz (celular): ||50 gramas|| de cristal, consegue?`;
           censorStyle: state.censorStyle,
           resolution: state.resolution,
           imagePan: state.imagePan,
-          cameraCustom: state.cameraCustom
+          cameraCustom: state.cameraCustom,
+          lighting: state.lighting
         };
         localStorage.setItem("haze_chatlog_state_v2", JSON.stringify(toSave));
       } catch (e) {
