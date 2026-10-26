@@ -95,7 +95,7 @@
       align-items: center;
       user-select: none;
       -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
 
     /* Scrollbars Padronizadas Lation */
@@ -233,6 +233,18 @@
     @media (max-width: 1280px) {
       main.app-container {
         grid-template-columns: 1fr;
+      }
+      .preview-column {
+        position: static;
+        top: unset;
+      }
+      .canvas-viewport {
+        min-height: 420px;
+        max-height: none;
+      }
+      .canvas-viewport canvas {
+        max-height: none;
+        width: 100%;
       }
     }
 
@@ -942,12 +954,16 @@
     }
 
     /* ============================================================
-       PREVIEW WORKSPACE (CANVAS)
+       PREVIEW WORKSPACE (CANVAS STICKY)
        ============================================================ */
     .preview-column {
       display: flex;
       flex-direction: column;
       gap: 12px;
+      position: sticky;
+      top: 76px;
+      align-self: start;
+      z-index: 20;
     }
 
     .preview-header-bar {
@@ -1019,13 +1035,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 520px;
+      min-height: 420px;
+      max-height: calc(100vh - 136px);
     }
 
     .canvas-viewport canvas {
       display: block;
-      width: 100%;
+      max-width: 100%;
+      max-height: calc(100vh - 146px);
+      width: auto;
       height: auto;
+      object-fit: contain;
       cursor: grab;
       user-select: none;
     }
