@@ -2,11 +2,12 @@
  * Master E2E Test Suite Orchestrator
  * Haze RP Studio v2.0 Emerald Edition
  *
- * Runs all 4 test tiers:
+ * Runs all 5 test tiers:
  * - Tier 1: 125 Feature Coverage Tests (5 per feature across features 1-25)
  * - Tier 2: 125 Boundary & Corner Case Tests
  * - Tier 3: 25 Cross-Feature Pairwise Interaction Tests
  * - Tier 4: 13 Real-World RP Application Scenarios
+ * - Tier 5: Unified Editor modules (lighting, camera, layers, chat renderer, store)
  *
  * Exits with code 0 on complete pass, or code 1 on any failure.
  */
@@ -55,6 +56,10 @@ async function loadTestSuites() {
 
   if (shouldLoadTier(4)) {
     await import('./tier4-scenarios/test_tier4_scenarios');
+  }
+
+  if (shouldLoadTier(5)) {
+    await import('./tier5-editor/test_editor_modules');
   }
 }
 
