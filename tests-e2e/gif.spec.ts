@@ -167,3 +167,60 @@ test.describe('GIF Lab: fonte e estilo do texto', () => {
     await expect(page.getByText('36px', { exact: true }).first()).toBeVisible();
   });
 });
+
+test.describe('GIF Lab: resolução e adaptação', () => {
+  /** Dimensões do GIF gerado e cor do pixel do canto superior esquerdo (1º quadro). */
+  const medir = (page: Page) => page.evaluate(async () => {
+    const img = [...document.querySelectorAll('img')].find(i => i.src.startsWith('blob:'))!;
+    const buf = await (await fetch(img.src)).arrayBuffer();
+    const dec = new (window as any).ImageDecoder({ data: buf, type: 'image/gif' });
+    await dec.tracks.ready;
+    const { image } = await dec.decode({ frameIndex: 0 });
+    const cv = document.createElement('canvas'); cv.width = image.displayWidth; cv.height = image.displayHeight;
+    const cx = cv.getContext('2d')!; cx.drawImage(image, 0, 0);
+    const p = (x: number, y: number) => [...cx.getImageData(x, y, 1, 1).data].slice(0, 3);
+    return { w: cv.width, h: cv.height, canto: p(2, 2), centro: p(cv.width >> 1, cv.height >> 1) };
+  });
+
+  test('resolução escolhida vira o tamanho do GIF; contain gera faixas pretas e cover preenche', async ({ page }) => {
+    await openFresh(page);
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    const video = await gravarVideo(page, 1200);
+    await page.getByTestId('video-input').setInputFiles({ name: 'clipe.webm', mimeType: 'video/webm', buffer: video });
+    await expect.poll(() => page.locator('video').evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(2);
+
+    const painel = page.getByTestId('gif-resolution');
+    // tamanho personalizado pequeno (rápido): 200×200, vídeo 16:9
+    await painel.getByLabel('Largura personalizada do GIF').fill('200');
+    await painel.getByLabel('Altura personalizada do GIF').fill('200');
+    await painel.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(painel.getByText('200×200')).toBeVisible();
+
+    // o preview passa a ter a proporção da saída
+    const caixa = await page.getByTestId('gif-preview-frame').boundingBox();
+    expect(Math.abs(caixa!.width - caixa!.height)).toBeLessThan(2);
+
+    await painel.getByRole('button', { name: 'Contain' }).click();
+    await converter(page);
+    const contain = await medir(page);
+    expect([contain.w, contain.h]).toEqual([200, 200]);
+    expect(Math.max(...contain.canto)).toBeLessThan(8);      // faixa preta no topo
+    expect(Math.max(...contain.centro)).toBeGreaterThan(20); // vídeo no meio
+
+    await painel.getByRole('button', { name: 'Cover' }).click();
+    await converter(page);
+    const cover = await medir(page);
+    expect([cover.w, cover.h]).toEqual([200, 200]);
+    expect(Math.max(...cover.canto)).toBeGreaterThan(20);    // vídeo preenche o canto
+  });
+
+  test('o limite máximo é respeitado ao aplicar um tamanho gigante', async ({ page }) => {
+    await openFresh(page);
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    const painel = page.getByTestId('gif-resolution');
+    await painel.getByLabel('Largura personalizada do GIF').fill('9000');
+    await painel.getByLabel('Altura personalizada do GIF').fill('5000');
+    await painel.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(painel.getByText('1920×1920')).toBeVisible();
+  });
+});

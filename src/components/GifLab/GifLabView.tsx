@@ -8,6 +8,8 @@ import { renderChatText } from '../../utils/chatRenderer';
 import { getSharedChat, subscribeSharedChat, requestChatText, requestChatStyle } from '../../utils/chatStore';
 import { DialogPanel } from '../ChatLog/panels/DialogPanel';
 import { EditorSection } from '../ChatLog/EditorSection';
+import { computeGifFrame, clampGifSize, GIF_RESOLUTION_PRESETS, GIF_MIN_RES, GIF_MAX_RES, type GifOutSize } from '../../utils/gifFrame';
+import type { FitMode } from '../../utils/editorSettings';
 import { seekWithRetry, SEEK_FAILURE_MESSAGES } from '../../utils/videoSeek';
 
 export type CropMode = 'original' | 'square';
@@ -33,6 +35,11 @@ export const GifLabView: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<DiscordPreset>('custom');
   const [cropMode, setCropMode] = useState<CropMode>('original');
   const [fps, setFps] = useState<number>(12);
+  // Resolução de saída (mesma ideia do Editor RP): null = largura escolhida + proporção original
+  const [outSize, setOutSize] = useState<GifOutSize | null>(null);
+  const [fitMode, setFitMode] = useState<FitMode>('cover');
+  const [customW, setCustomW] = useState<string>('1280');
+  const [customH, setCustomH] = useState<string>('720');
   const [targetWidth, setTargetWidth] = useState<number>(480);
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
   const [watermark, setWatermark] = useState<string>('');
@@ -115,6 +122,7 @@ export const GifLabView: React.FC = () => {
   // Área do quadro final dentro do vídeo exibido (no modo 1:1 é o recorte central)
   const previewFrame = () => {
     const { w, h } = videoBox;
+    if (outSize) return { x: 0, y: 0, w, h }; // o preview já tem a proporção e o ajuste da saída
     if (cropMode === 'square') {
       const side = Math.min(w, h);
       return { x: (w - side) / 2, y: (h - side) / 2, w: side, h: side };
@@ -144,7 +152,7 @@ export const GifLabView: React.FC = () => {
       chatPos: { x: ((chatXPct / 100) * fr.w) / sc, y: ((chatYPct / 100) * fr.h) / sc }
     });
     ctx.restore();
-    if (cropMode === 'square') {
+    if (cropMode === 'square' && !outSize) {
       ctx.save();
       ctx.strokeStyle = 'rgba(52, 211, 153, 0.8)';
       ctx.setLineDash([6, 4]);
@@ -152,7 +160,7 @@ export const GifLabView: React.FC = () => {
       ctx.restore();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeChat, sharedChat, chatXPct, chatYPct, chatScalePct, videoBox, cropMode]);
+  }, [includeChat, sharedChat, chatXPct, chatYPct, chatScalePct, videoBox, cropMode, outSize]);
 
   const chatPointerPct = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const cv = overlayRef.current!;
@@ -248,6 +256,7 @@ export const GifLabView: React.FC = () => {
   // Presets Rápidos para Discord com Crop 1:1 Quadrado (Feature 23)
   const applyPreset = (preset: DiscordPreset) => {
     setSelectedPreset(preset);
+    setOutSize(null); // os presets Discord definem largura e recorte próprios
 
     if (preset === 'banner') {
       setTargetWidth(540);
@@ -325,29 +334,8 @@ export const GifLabView: React.FC = () => {
     // Cálculo das dimensões e recorte central 1:1 para presets Avatar e Emoji (Feature 23)
     const vw = video.videoWidth || 1280;
     const vh = video.videoHeight || 720;
-    let outWidth = targetWidth;
-    let outHeight = targetWidth;
-    let sx = 0;
-    let sy = 0;
-    let sw = vw;
-    let sh = vh;
-
-    if (cropMode === 'square') {
-      const cropSize = Math.min(vw, vh);
-      sx = Math.round((vw - cropSize) / 2);
-      sy = Math.round((vh - cropSize) / 2);
-      sw = cropSize;
-      sh = cropSize;
-      outWidth = targetWidth;
-      outHeight = targetWidth; // 1:1 exato
-    } else {
-      const aspectRatio = vh / vw;
-      outHeight = Math.round(targetWidth * aspectRatio);
-      sx = 0;
-      sy = 0;
-      sw = vw;
-      sh = vh;
-    }
+    const geo = computeGifFrame(vw, vh, cropMode, targetWidth, outSize, fitMode);
+    const { outWidth, outHeight, sx, sy, sw, sh, dx, dy, dw, dh } = geo;
 
     canvas.width = outWidth;
     canvas.height = outHeight;
@@ -454,7 +442,8 @@ export const GifLabView: React.FC = () => {
 
         // Renderizar frame recortado no canvas
         ctx.clearRect(0, 0, outWidth, outHeight);
-        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outWidth, outHeight);
+        if (geo.fillBackground) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, outWidth, outHeight); }
+        ctx.drawImage(video, sx, sy, sw, sh, dx, dy, dw, dh);
 
         if (revealChat) {
           // 80% do clipe revela as linhas; o restante mostra o chat completo
@@ -787,6 +776,72 @@ export const GifLabView: React.FC = () => {
             </div>
           </div>
 
+          {/* Resolução e adaptação (mesma função do Editor RP) */}
+          <div className="pt-3 border-t border-haze-border space-y-2" data-testid="gif-resolution">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-haze-text">Resolução &amp; Adaptação</span>
+              <span className="text-xs font-mono text-haze-soft">{outSize ? `${outSize.w}×${outSize.h}` : 'Original'}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Resolução do GIF">
+              {GIF_RESOLUTION_PRESETS.map(p => {
+                const active = p.size === null ? outSize === null : outSize?.w === p.size.w && outSize?.h === p.size.h;
+                return (
+                  <button
+                    key={p.label} type="button" aria-pressed={active}
+                    onClick={() => { setOutSize(p.size); if (p.size) { setCustomW(String(p.size.w)); setCustomH(String(p.size.h)); setSelectedPreset('custom'); } }}
+                    className={`py-1.5 rounded-lg text-xs border transition-colors ${
+                      active ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={GIF_MIN_RES} max={GIF_MAX_RES} value={customW} aria-label="Largura personalizada do GIF"
+                onChange={(e) => setCustomW(e.target.value)}
+                className="w-full p-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text font-mono"
+              />
+              <span className="text-haze-faint text-xs">×</span>
+              <input
+                type="number" min={GIF_MIN_RES} max={GIF_MAX_RES} value={customH} aria-label="Altura personalizada do GIF"
+                onChange={(e) => setCustomH(e.target.value)}
+                className="w-full p-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const next = clampGifSize(parseInt(customW, 10), parseInt(customH, 10));
+                  if (!next) return;
+                  setOutSize(next); setCustomW(String(next.w)); setCustomH(String(next.h)); setSelectedPreset('custom');
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-haze-accent/50 text-haze-accent hover:bg-haze-accent/10"
+              >
+                Aplicar
+              </button>
+            </div>
+            <p className="text-xs text-haze-faint">Máximo {GIF_MAX_RES}px por lado. Tamanhos grandes geram GIFs pesados (o Discord limita o envio).</p>
+            <div>
+              <span className="text-xs text-haze-muted block mb-1">Modo de adaptação do vídeo</span>
+              <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Modo de adaptação do vídeo">
+                {([['cover', 'Cover'], ['contain', 'Contain'], ['stretch', 'Esticar']] as const).map(([key, label]) => (
+                  <button
+                    key={key} type="button" aria-pressed={fitMode === key} disabled={!outSize}
+                    onClick={() => setFitMode(key)}
+                    className={`py-1.5 rounded-lg text-xs border transition-colors disabled:opacity-40 ${
+                      fitMode === key ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {!outSize && <p className="text-xs text-haze-faint mt-1">Escolha uma resolução para usar o modo de adaptação.</p>}
+            </div>
+          </div>
+
           {/* FPS e Velocidade */}
           <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div>
@@ -1018,7 +1073,11 @@ export const GifLabView: React.FC = () => {
 
           <div className="relative rounded-xl overflow-hidden bg-haze-stage border border-haze-border min-h-[300px] flex items-center justify-center">
             {videoSrc ? (
-              <div className="relative inline-block">
+              <div
+                className="relative inline-block"
+                style={outSize ? { aspectRatio: `${outSize.w} / ${outSize.h}`, width: `min(100%, calc(50vh * ${outSize.w / outSize.h}))`, display: 'block' } : undefined}
+                data-testid="gif-preview-frame"
+              >
               <video
                 ref={videoRef}
                 src={videoSrc}
@@ -1027,7 +1086,8 @@ export const GifLabView: React.FC = () => {
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
-                className="max-h-[50vh] w-auto object-contain rounded-lg"
+                className={outSize ? 'w-full h-full rounded-lg' : 'max-h-[50vh] w-auto object-contain rounded-lg'}
+                style={outSize ? { objectFit: fitMode === 'stretch' ? 'fill' : fitMode, background: '#000' } : undefined}
               />
               <canvas
                 ref={overlayRef}
