@@ -312,6 +312,17 @@ export const ChatLogView: React.FC = () => {
     img.src = objectUrl;
   };
 
+  // Define a foto de fundo com uma imagem já decodificada (abrir projeto): tudo no mesmo instante
+  const setBackgroundDecoded = (blob: Blob, id: string, img: HTMLImageElement) => {
+    if (currentBlobUrlRef.current) URL.revokeObjectURL(currentBlobUrlRef.current);
+    const objectUrl = URL.createObjectURL(blob);
+    currentBlobUrlRef.current = objectUrl;
+    loadedImageRef.current = img;
+    setImageDimensions({ width: img.naturalWidth || 1280, height: img.naturalHeight || 720 });
+    setImageSrc(objectUrl);
+    setBgId(id);
+  };
+
   const handleImageUpload = (file: File) => {
     if (!file.type.startsWith('image/')) return;
     const id = `BG${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -766,7 +777,13 @@ export const ChatLogView: React.FC = () => {
         ...data.scene,
         layers: data.imageLayers,
         bgId: data.background ? data.background.assetId : null
-      }));
+      }), { skipBackground: true });
+      if (data.background) {
+        const a = data.assets.get(data.background.assetId)!;
+        setBackgroundDecoded(a.blob, a.id, decoded.get(a.id)!);
+      } else {
+        clearBackground();
+      }
       setSelectedLayerId(null);
       setSelectedCanvasLayerId(null);
       resetHistory();
@@ -1278,6 +1295,12 @@ export const ChatLogView: React.FC = () => {
 
   // Registra mudanças 500ms após o usuário parar (agrupa arrastes de slider e digitação)
   useEffect(() => {
+    // Ponto de partida do histórico: adotado na hora (sem esperar o debounce), para que uma edição
+    // feita logo depois de abrir o app ou um projeto já possa ser desfeita.
+    if (committedRef.current === null) {
+      committedRef.current = JSON.stringify(snapshotRef.current);
+      return;
+    }
     const t = setTimeout(() => {
       const cur = JSON.stringify(snapshotRef.current);
       if (committedRef.current === null) { committedRef.current = cur; return; }
@@ -1296,7 +1319,7 @@ export const ChatLogView: React.FC = () => {
     outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, layers, bgId
   ]);
 
-  const applySnapshot = (json: string) => {
+  const applySnapshot = (json: string, opts?: { skipBackground?: boolean }) => {
     const s = JSON.parse(json);
     setDarkening(s.darkening); setAdjustments(s.adjustments); setRawText(s.rawText);
     setFontSize(s.fontSize); setFontFamily(s.fontFamily); setLineHeightFactor(s.lineHeightFactor);
@@ -1322,7 +1345,7 @@ export const ChatLogView: React.FC = () => {
 
     // foto de fundo
     const targetBg: string | null = typeof s.bgId === 'string' ? s.bgId : null;
-    if (targetBg !== snapshotRef.current.bgId) {
+    if (!opts?.skipBackground && targetBg !== snapshotRef.current.bgId) {
       const blob = targetBg ? bgBlobs.current.get(targetBg) : undefined;
       if (targetBg && blob) setBackgroundFromBlob(blob, targetBg);
       else clearBackground();

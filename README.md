@@ -78,10 +78,13 @@ Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinh
 ## 🧪 Qualidade
 
 ```bash
-npm run test:e2e   # suíte de testes (domínio, limites, integração e cenários)
-npx tsc --noEmit   # checagem de tipos
-npm run build      # build de produção
+npm run test:e2e      # testes de domínio, limites, integração e cenários (rápidos, sem navegador)
+npm run test:browser  # testes de ponta a ponta no navegador (Playwright + Chrome instalado)
+npx tsc --noEmit      # checagem de tipos
+npm run build         # build de produção
 ```
+
+Os testes de navegador sobem o app, usam upload real, mouse e teclado e conferem os arquivos baixados: PNG (tamanho), ZIP do lote, projeto `.haze`, GIF (decodificado) e a área de transferência. Para usar o Chromium do Playwright em vez do Chrome: `npx playwright install chromium` e `PW_CHANNEL=chromium npm run test:browser`.
 
 Mais detalhes em [`docs/`](./docs).
 
@@ -123,7 +126,8 @@ src/
 │   └── gifEncoder.ts
 legacy/index.html   # versão original em HTML único (referência)
 docs/               # notas de projeto e de testes
-tests/              # suíte de testes
+tests/              # testes de domínio e módulos
+tests-e2e/          # testes de ponta a ponta no navegador (Playwright)
 ```
 
 ---
