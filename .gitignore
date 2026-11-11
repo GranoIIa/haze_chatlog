@@ -3,6 +3,7 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+.agents/
 
 # Arquivos de mídia e vídeos pesados
 *.mp4

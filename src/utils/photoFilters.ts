@@ -15,6 +15,8 @@ export interface PhotoAdjustments {
   warmth: number;     // -100 to 100 (0 default: negative = cool, positive = warm)
   sharpen: number;    // 0 to 100 (0 default)
   depthOfField: number; // 0 to 100 (0 default, bokeh nas bordas)
+  vignette: number;   // 0 to 100 (0 default, vinheta escura nas bordas)
+  grain: number;      // 0 to 100 (0 default, granulação de filme)
   letterbox: boolean; // 21:9 cinematic black bars
   colorPreset: 'none' | 'golden-hour' | 'midnight-neon' | 'grit-crime' | 'vintage-90s';
 }
@@ -26,6 +28,8 @@ export const DEFAULT_ADJUSTMENTS: PhotoAdjustments = {
   warmth: 0,
   sharpen: 0,
   depthOfField: 0,
+  vignette: 0,
+  grain: 0,
   letterbox: false,
   colorPreset: 'none'
 };
@@ -36,13 +40,14 @@ export function applyPhotoAdjustments(
   height: number,
   adjustments: PhotoAdjustments
 ) {
-  // 1. Processamento de Pixels (ImageData) para Brilho, Contraste, Saturação, Warmth e Sharpen
+  // 1. Processamento de Pixels (ImageData) para Brilho, Contraste, Saturação, Warmth, Grain e Sharpen
   const hasPixelAdjustments = 
     adjustments.brightness !== 0 ||
     adjustments.contrast !== 0 ||
     adjustments.saturation !== 0 ||
     adjustments.warmth !== 0 ||
     adjustments.colorPreset !== 'none' ||
+    adjustments.grain > 0 ||
     adjustments.sharpen > 0;
 
   if (hasPixelAdjustments) {
@@ -76,6 +81,9 @@ export function applyPhotoAdjustments(
       presetG = 15;
       presetB = -15;
     }
+
+    const hasGrain = adjustments.grain > 0;
+    const grainFactor = (adjustments.grain / 100) * 35;
 
     for (let i = 0; i < d.length; i += 4) {
       let r = d[i];
@@ -114,30 +122,42 @@ export function applyPhotoAdjustments(
         finalB = lum * 0.4 + finalB * 0.6;
       }
 
+      // Procedural Film Grain Noise
+      if (hasGrain) {
+        const noise = (Math.random() - 0.5) * grainFactor;
+        finalR += noise;
+        finalG += noise;
+        finalB += noise;
+      }
+
       d[i] = Math.max(0, Math.min(255, finalR));
       d[i + 1] = Math.max(0, Math.min(255, finalG));
       d[i + 2] = Math.max(0, Math.min(255, finalB));
     }
 
-    // Smart Sharpen (Convolução Laplaciana)
+    // Smart Sharpen (Convolução Laplaciana com Strides Otimizados)
     if (adjustments.sharpen > 0) {
-      const amount = adjustments.sharpen / 100;
+      const k = (adjustments.sharpen / 100) * 0.4;
       const copy = new Uint8ClampedArray(d);
       const w = width;
       const h = height;
 
       for (let y = 1; y < h - 1; y++) {
+        const rowPrev = (y - 1) * w;
+        const rowCurr = y * w;
+        const rowNext = (y + 1) * w;
+
         for (let x = 1; x < w - 1; x++) {
-          const idx = (y * w + x) * 4;
+          const idx = (rowCurr + x) << 2;
+          const upIdx = (rowPrev + x) << 2;
+          const downIdx = (rowNext + x) << 2;
+          const leftIdx = (rowCurr + x - 1) << 2;
+          const rightIdx = (rowCurr + x + 1) << 2;
+
           for (let c = 0; c < 3; c++) {
             const center = copy[idx + c];
-            const up = copy[((y - 1) * w + x) * 4 + c];
-            const down = copy[((y + 1) * w + x) * 4 + c];
-            const left = copy[(y * w + (x - 1)) * 4 + c];
-            const right = copy[(y * w + (x + 1)) * 4 + c];
-
-            const sharpVal = center + (center * 4 - up - down - left - right) * amount * 0.4;
-            d[idx + c] = Math.max(0, Math.min(255, sharpVal));
+            const laplacian = center * 4 - copy[upIdx + c] - copy[downIdx + c] - copy[leftIdx + c] - copy[rightIdx + c];
+            d[idx + c] = Math.max(0, Math.min(255, center + laplacian * k));
           }
         }
       }
@@ -184,7 +204,22 @@ export function applyPhotoAdjustments(
     ctx.restore();
   }
 
-  // 3. Cinematic Letterbox (Barras Anamórficas 21:9)
+  // 3. Radial Vignette (Vinheta de Borda)
+  if (adjustments.vignette > 0) {
+    ctx.save();
+    const cx = width / 2;
+    const cy = height / 2;
+    const r1 = Math.min(width, height) * 0.35;
+    const r2 = Math.hypot(width, height) / 2;
+    const grad = ctx.createRadialGradient(cx, cy, r1, cx, cy, r2);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(1, `rgba(0, 0, 0, ${(adjustments.vignette / 100) * 0.85})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  // 4. Cinematic Letterbox (Barras Anamórficas 21:9)
   if (adjustments.letterbox) {
     ctx.save();
     const barHeight = Math.round(height * 0.12);

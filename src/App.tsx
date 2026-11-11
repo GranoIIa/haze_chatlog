@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ActiveTab } from './types';
 import { Navbar } from './components/Navbar';
 import { ChatLogView } from './components/ChatLog/ChatLogView';
@@ -13,11 +13,17 @@ export function App() {
       {/* Top Navbar */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Main Content Area */}
+      {/* Main Content Area - Persistent Tab State (No unmounting on switch) */}
       <main className="flex-1">
-        {activeTab === 'chatlog' && <ChatLogView />}
-        {activeTab === 'canvas' && <CanvasEditorView />}
-        {activeTab === 'giflab' && <GifLabView />}
+        <div className={activeTab === 'chatlog' ? 'block' : 'hidden'}>
+          <ChatLogView />
+        </div>
+        <div className={activeTab === 'canvas' ? 'block' : 'hidden'}>
+          <CanvasEditorView />
+        </div>
+        <div className={activeTab === 'giflab' ? 'block' : 'hidden'}>
+          <GifLabView />
+        </div>
       </main>
 
       {/* Footer */}
