@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Character, ParsedLine } from '../../types';
 import { CHAR_COLORS } from '../../utils/chatParser';
 import { renderChatText } from '../../utils/chatRenderer';
-import { publishChat, subscribeChatTextRequests } from '../../utils/chatStore';
+import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
 import { RP_STICKERS } from '../../utils/rpStickers';
@@ -665,6 +665,16 @@ export const ChatLogView: React.FC = () => {
 
   // Outros módulos (GIF Lab) podem editar o texto do chat: este componente é o dono do estado
   useEffect(() => subscribeChatTextRequests(text => setRawText(text.slice(0, 200_000))), []);
+  // ...e o estilo (fonte, tamanho, contorno, fundo) ajustado no GIF Lab
+  useEffect(() => subscribeChatStyleRequests(p => {
+    if (p.fontSize !== undefined) setFontSize(Math.min(48, Math.max(12, Math.round(p.fontSize))));
+    if (p.fontFamily !== undefined) setFontFamily(p.fontFamily);
+    if (p.lineHeightFactor !== undefined) setLineHeightFactor(Math.min(2.2, Math.max(1.1, p.lineHeightFactor)));
+    if (p.strokeEnabled !== undefined) setStrokeEnabled(p.strokeEnabled);
+    if (p.strokeWidth !== undefined) setStrokeWidth(Math.min(6, Math.max(1, p.strokeWidth)));
+    if (p.bgEnabled !== undefined) setBgEnabled(p.bgEnabled);
+    if (p.bgOpacity !== undefined) setBgOpacity(Math.min(1, Math.max(0, p.bgOpacity)));
+  }), []);
 
   // Publica o chat atual (texto + estilo) para outros módulos, como o GIF Lab
   useEffect(() => {

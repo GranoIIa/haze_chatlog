@@ -40,3 +40,21 @@ export const subscribeChatTextRequests = (fn: TextListener): (() => void) => {
   textListeners.add(fn);
   return () => { textListeners.delete(fn); };
 };
+
+// ---- Pedidos de alteração do estilo do texto (fonte, tamanho, contorno, fundo) ----
+
+export type ChatStylePatch = Partial<Pick<ChatStyle,
+  'fontSize' | 'fontFamily' | 'lineHeightFactor' | 'strokeEnabled' | 'strokeWidth' | 'bgEnabled' | 'bgOpacity'>>;
+
+type StyleListener = (patch: ChatStylePatch) => void;
+const styleListeners = new Set<StyleListener>();
+
+/** Pede ao Chat Log para mudar o estilo do chat (ex.: tamanho da fonte ajustado no GIF Lab). */
+export const requestChatStyle = (patch: ChatStylePatch): void => {
+  styleListeners.forEach(fn => fn(patch));
+};
+
+export const subscribeChatStyleRequests = (fn: StyleListener): (() => void) => {
+  styleListeners.add(fn);
+  return () => { styleListeners.delete(fn); };
+};

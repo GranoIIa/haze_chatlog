@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { DiscordPreset } from '../../types';
 import { renderChatText } from '../../utils/chatRenderer';
-import { getSharedChat, subscribeSharedChat, requestChatText } from '../../utils/chatStore';
+import { getSharedChat, subscribeSharedChat, requestChatText, requestChatStyle } from '../../utils/chatStore';
 import { DialogPanel } from '../ChatLog/panels/DialogPanel';
 import { EditorSection } from '../ChatLog/EditorSection';
 import { seekWithRetry, SEEK_FAILURE_MESSAGES } from '../../utils/videoSeek';
@@ -858,7 +858,7 @@ export const GifLabView: React.FC = () => {
                 {([
                   ['Posição X', chatXPct, 0, 95, 1, '%', setChatXPct],
                   ['Posição Y', chatYPct, 0, 95, 1, '%', setChatYPct],
-                  ['Tamanho do texto', chatScalePct, 40, 400, 5, '%', setChatScalePct]
+                  ['Escala do chat no vídeo', chatScalePct, 40, 400, 5, '%', setChatScalePct]
                 ] as const).map(([label, value, min, max, step, unit, setter]) => (
                   <div key={label}>
                     <div className="flex justify-between text-xs text-haze-muted mb-1">
@@ -905,6 +905,50 @@ export const GifLabView: React.FC = () => {
               onActiveCharChange={setGifActiveCharId}
               showCharacters
             />
+            <div className="p-3 rounded-xl bg-haze-field border border-haze-border space-y-2 text-xs" data-testid="gif-text-style">
+              <span className="font-semibold text-haze-text">Texto: fonte e estilo</span>
+              <select
+                aria-label="Família da fonte"
+                value={sharedChat.style.fontFamily}
+                onChange={(e) => requestChatStyle({ fontFamily: e.target.value })}
+                className="w-full p-2 rounded-lg bg-haze-panel border border-haze-border text-xs text-haze-text focus:outline-none focus:border-haze-accent"
+              >
+                {[
+                  ['Arial, Helvetica, sans-serif', 'Arial / GTA Standard'],
+                  ['ChaletLondonNineteenSixty, Arial, sans-serif', 'Chalet London (GTA V, se instalada)'],
+                  ['"JetBrains Mono", monospace', 'JetBrains Mono (Logs / OOC)'],
+                  ['"Trebuchet MS", sans-serif', 'Trebuchet MS'],
+                  ['Impact, sans-serif', 'Impact'],
+                  ['Georgia, serif', 'Georgia']
+                ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              {([
+                ['Tamanho da fonte', sharedChat.style.fontSize, 12, 48, 1, 'px', (n: number) => requestChatStyle({ fontSize: n })],
+                ['Espaçamento entre linhas', sharedChat.style.lineHeightFactor, 1.1, 2.2, 0.05, 'x', (n: number) => requestChatStyle({ lineHeightFactor: n })]
+              ] as const).map(([label, value, min, max, step, unit, setter]) => (
+                <div key={label}>
+                  <div className="flex justify-between text-haze-muted mb-1">
+                    <span>{label}</span>
+                    <span className="font-mono text-haze-text">{unit === 'x' ? value.toFixed(2) : value}{unit}</span>
+                  </div>
+                  <input
+                    type="range" min={min} max={max} step={step} value={value} aria-label={label}
+                    onChange={(e) => setter(parseFloat(e.target.value))}
+                    className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
+                  />
+                </div>
+              ))}
+              <label className="flex items-center gap-2 text-haze-soft cursor-pointer">
+                <input type="checkbox" checked={sharedChat.style.strokeEnabled}
+                  onChange={(e) => requestChatStyle({ strokeEnabled: e.target.checked })} className="accent-haze-accent" />
+                Contorno
+              </label>
+              <label className="flex items-center gap-2 text-haze-soft cursor-pointer">
+                <input type="checkbox" checked={sharedChat.style.bgEnabled}
+                  onChange={(e) => requestChatStyle({ bgEnabled: e.target.checked })} className="accent-haze-accent" />
+                Fundo atrás do texto
+              </label>
+            </div>
             <p className="text-xs text-haze-faint leading-relaxed px-1">
               Este é o mesmo texto da aba Editor RP: o que você muda aqui também muda lá.
               {includeChat ? '' : ' Marque "Incluir chat do Chat Log no GIF" nas opções acima para vê-lo no vídeo.'}

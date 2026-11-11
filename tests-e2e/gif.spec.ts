@@ -146,3 +146,24 @@ test.describe('GIF Lab: Diálogos e ações', () => {
     await expect.poll(pixels).toBeGreaterThan(antes);
   });
 });
+
+test.describe('GIF Lab: fonte e estilo do texto', () => {
+  test('tamanho da fonte e espaçamento mudados no GIF Lab valem também no Editor RP', async ({ page }) => {
+    await openFresh(page);
+    await editorText(page).fill('Mike Johnson diz (normal): olá');
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+
+    const estilo = page.getByTestId('gif-text-style');
+    await expect(estilo).toBeVisible();
+    const tamanho = estilo.getByRole('slider', { name: 'Tamanho da fonte' });
+    await tamanho.fill('36');
+    await expect(estilo.getByText('36px')).toBeVisible();
+    await estilo.getByRole('combobox', { name: 'Família da fonte' }).selectOption({ label: 'Impact' });
+
+    // o Editor (dono do estado) recebeu a mudança
+    await page.getByRole('button', { name: /Editor RP/ }).click();
+    await page.getByRole('button', { name: /Tipografia/ }).click();
+    await expect(page.getByText('36px', { exact: true }).first()).toBeVisible();
+  });
+});
