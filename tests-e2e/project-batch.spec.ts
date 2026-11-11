@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
 import {
   openFresh, setBackground, addImageLayer, layerCount, canvasSize, settle,
-  readDownload, solidPng, pngSize, file
+  readDownload, solidPng, pngSize, file, openSection, editorText
 } from './helpers';
 
 test.describe('Projeto .haze', () => {
@@ -11,7 +11,7 @@ test.describe('Projeto .haze', () => {
   const montarCena = async (page: import('@playwright/test').Page) => {
     await setBackground(page, 640, 360, [30, 40, 90], 'cena.png');
     await addImageLayer(page, 'selo.png', [255, 0, 0]);
-    await page.locator('textarea').fill('Mike Johnson diz (rádio): CENA SALVA NO PROJETO');
+    await editorText(page).fill('Mike Johnson diz (rádio): CENA SALVA NO PROJETO');
     await settle(page, 900);
   };
 
@@ -60,11 +60,11 @@ test.describe('Projeto .haze', () => {
 
     await expect.poll(() => canvasSize(page)).toEqual({ w: 640, h: 360 });
     await expect.poll(() => layerCount(page)).toBe(1);
-    await expect(page.locator('textarea')).toHaveValue('Mike Johnson diz (rádio): CENA SALVA NO PROJETO');
+    await expect(editorText(page)).toHaveValue('Mike Johnson diz (rádio): CENA SALVA NO PROJETO');
     await expect(page.getByRole('button', { name: /Desfazer/ })).toBeDisabled();
 
     // e continua editável: editar depois de abrir cria um passo desfazível
-    await page.locator('textarea').fill('EDITADO DEPOIS DE ABRIR');
+    await editorText(page).fill('EDITADO DEPOIS DE ABRIR');
     await settle(page, 800);
     await expect(page.getByRole('button', { name: /Desfazer/ })).toBeEnabled();
   });
@@ -97,7 +97,7 @@ test.describe('Projeto .haze', () => {
     // a cena original continua lá
     expect(await canvasSize(page)).toEqual({ w: 640, h: 360 });
     expect(await layerCount(page)).toBe(1);
-    await expect(page.locator('textarea')).toHaveValue('Mike Johnson diz (rádio): CENA SALVA NO PROJETO');
+    await expect(editorText(page)).toHaveValue('Mike Johnson diz (rádio): CENA SALVA NO PROJETO');
   });
 
   test('caminho malicioso no manifesto é descartado com aviso ao usuário', async ({ page }) => {
@@ -146,6 +146,7 @@ test.describe('Lote (ZIP)', () => {
 
   test('com resolução escolhida, todas as fotos saem no mesmo tamanho', async ({ page }) => {
     await openFresh(page);
+    await openSection(page, 'resolucao');
     await page.getByRole('button', { name: '1:1 Square' }).click();
     await page.getByRole('tab', { name: 'Lote (ZIP)' }).click();
     await page.getByTestId('batch-input').setInputFiles([

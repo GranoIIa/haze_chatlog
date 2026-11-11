@@ -97,5 +97,19 @@ export const addImageLayer = async (page: Page, name: string, rgb: [number, numb
 export const undo = async (page: Page) => { await page.locator('body').click({ position: { x: 5, y: 5 } }); await page.keyboard.press('Control+z'); };
 export const redo = async (page: Page) => { await page.locator('body').click({ position: { x: 5, y: 5 } }); await page.keyboard.press('Control+y'); };
 
+/** Botões de cabeçalho das seções do Editor RP (exclui seções de outras telas). */
+export const sectionButtons = (page: Page) =>
+  page.locator('section[data-section]:not([data-section="gif-dialogos"]) > h3 > button');
+
+/** Caixa de texto do chat no Editor RP (o GIF Lab, montado em segundo plano, tem outra). */
+export const editorText = (page: Page) => page.getByTestId('editor-dialog').locator('textarea');
+
+/** Abre uma seção do painel do Editor RP (id como em src/components/ChatLog/EditorSection.tsx). */
+export const openSection = async (page: Page, id: string) => {
+  const btn = page.locator(`section[data-section="${id}"] > h3 > button`);
+  if ((await btn.getAttribute('aria-expanded')) !== 'true') await btn.click();
+  await expect(btn).toHaveAttribute('aria-expanded', 'true');
+};
+
 /** Aguarda o autosave (debounce) antes de recarregar. */
 export const settle = (page: Page, ms = 1200) => page.waitForTimeout(ms);

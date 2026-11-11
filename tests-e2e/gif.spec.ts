@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { openFresh } from './helpers';
+import { openFresh, editorText } from './helpers';
 
 /** Grava um vídeo curto (WebM) dentro do próprio navegador e devolve os bytes. */
 async function gravarVideo(page: Page, ms = 1800): Promise<Buffer> {
@@ -81,7 +81,7 @@ test.describe('Video to GIF Lab', () => {
 
   test('o texto digitado no editor aparece no chat do GIF', async ({ page }) => {
     await openFresh(page);
-    await page.locator('textarea').fill('Mike Johnson diz (gritando): TEXTO NOVO PARA O GIF');
+    await editorText(page).fill('Mike Johnson diz (gritando): TEXTO NOVO PARA O GIF');
     await page.waitForTimeout(500);
     await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
     await page.getByTestId('video-input').setInputFiles({ name: 'c.webm', mimeType: 'video/webm', buffer: await gravarVideo(page, 1200) });
@@ -95,5 +95,54 @@ test.describe('Video to GIF Lab', () => {
       return k;
     });
     expect(desenhado).toBeGreaterThan(200);
+  });
+});
+
+test.describe('GIF Lab: Diálogos e ações', () => {
+  test('o painel edita o mesmo texto do Editor RP, nos dois sentidos', async ({ page }) => {
+    await openFresh(page);
+    await editorText(page).fill('Mike Johnson diz (normal): começo');
+    await page.waitForTimeout(400);
+
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    const painel = page.getByTestId('gif-dialog-panel');
+    await expect(painel).toBeVisible();
+    const campo = painel.getByRole('textbox', { name: 'Texto do chat' });
+    await expect(campo).toHaveValue('Mike Johnson diz (normal): começo');
+
+    // botões de tom e personagem ativo funcionam aqui
+    await campo.fill('');
+    await painel.getByRole('button', { name: 'Sarah Miller' }).click();
+    await painel.getByRole('button', { name: 'Grito', exact: true }).click();
+    await expect(campo).toHaveValue('Sarah Miller diz (gritando): ');
+    await painel.getByRole('button', { name: '* /me', exact: true }).click();
+    await expect(campo).toHaveValue('Sarah Miller diz (gritando): \n* Sarah Miller ');
+
+    // volta ao Editor: o texto digitado no GIF Lab está lá
+    await page.getByRole('button', { name: /Editor RP/ }).click();
+    await expect(editorText(page)).toHaveValue('Sarah Miller diz (gritando): \n* Sarah Miller ');
+
+    // e o caminho inverso: editar no Editor aparece no GIF Lab
+    await editorText(page).fill('Texto novo vindo do Editor');
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    await expect(campo).toHaveValue('Texto novo vindo do Editor');
+  });
+
+  test('o texto editado no GIF Lab aparece no chat do vídeo', async ({ page }) => {
+    await openFresh(page);
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    await page.getByTestId('video-input').setInputFiles({ name: 'c.webm', mimeType: 'video/webm', buffer: await gravarVideo(page, 1200) });
+    await expect(page.locator('video')).toBeVisible();
+    await page.getByLabel(/Incluir chat do Chat Log/).check();
+
+    const pixels = () => page.locator('canvas[aria-label^="Chat sobre o vídeo"]').evaluate((c: HTMLCanvasElement) => {
+      const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      let k = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) k++;
+      return k;
+    });
+    const antes = await pixels();
+    const campo = page.getByTestId('gif-dialog-panel').getByRole('textbox', { name: 'Texto do chat' });
+    await campo.fill((await campo.inputValue()) + '\nMike Johnson diz (gritando): MAIS UMA LINHA GRANDE NO VIDEO PARA ENCHER');
+    await expect.poll(pixels).toBeGreaterThan(antes);
   });
 });

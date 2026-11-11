@@ -17,7 +17,7 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ lighting, patchLig
   return (
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Iluminação &amp; Luz Colorida</span>
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Iluminação &amp; Luz Colorida</span>
             <label className="flex items-center gap-1.5 text-[11px] cursor-pointer">
               <input
                 type="checkbox"

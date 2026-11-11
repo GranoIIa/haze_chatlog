@@ -5,7 +5,9 @@ import {
 } from 'lucide-react';
 import type { DiscordPreset } from '../../types';
 import { renderChatText } from '../../utils/chatRenderer';
-import { getSharedChat, subscribeSharedChat } from '../../utils/chatStore';
+import { getSharedChat, subscribeSharedChat, requestChatText } from '../../utils/chatStore';
+import { DialogPanel } from '../ChatLog/panels/DialogPanel';
+import { EditorSection } from '../ChatLog/EditorSection';
 import { seekWithRetry, SEEK_FAILURE_MESSAGES } from '../../utils/videoSeek';
 
 export type CropMode = 'original' | 'square';
@@ -46,6 +48,21 @@ export const GifLabView: React.FC = () => {
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const chatDragRef = useRef<{ offX: number; offY: number } | null>(null);
   const chatPosInitRef = useRef<boolean>(false);
+
+  // Diálogos e ações editáveis aqui: o texto é o MESMO do Editor RP (alterações vão e voltam)
+  const [chatDraft, setChatDraft] = useState<string>('');
+  const [gifActiveCharId, setGifActiveCharId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(true);
+  const sharedRawText = sharedChat?.style.rawText;
+  useEffect(() => {
+    // mudanças vindas do Editor (digitação, desfazer, abrir projeto) entram no rascunho local
+    if (sharedRawText !== undefined && sharedRawText !== chatDraft) setChatDraft(sharedRawText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedRawText]);
+  const onChatTextChange = (text: string) => {
+    setChatDraft(text);          // atualiza na hora (sem pulo do cursor)
+    requestChatText(text);       // e avisa o Editor, que é o dono do texto
+  };
 
   // Posição do chat no GIF = mesma posição relativa do canvas do Chat Log
   const syncChatPosition = () => {
@@ -875,6 +892,30 @@ export const GifLabView: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Diálogos & Ações: o mesmo texto do Editor RP, editável aqui */}
+        {sharedChat ? (
+          <div data-testid="gif-dialog-panel">
+          <EditorSection id="gif-dialogos" title="Diálogos e ações" open={dialogOpen} onToggle={() => setDialogOpen(v => !v)}>
+            <DialogPanel
+              value={chatDraft}
+              onChange={onChatTextChange}
+              characters={sharedChat.style.characters}
+              activeCharId={gifActiveCharId}
+              onActiveCharChange={setGifActiveCharId}
+              showCharacters
+            />
+            <p className="text-[11px] text-slate-500 leading-relaxed px-1">
+              Este é o mesmo texto da aba Editor RP: o que você muda aqui também muda lá.
+              {includeChat ? '' : ' Marque "Incluir chat do Chat Log no GIF" nas opções acima para vê-lo no vídeo.'}
+            </p>
+          </EditorSection>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] text-[11px] text-slate-500">
+            Diálogos &amp; Ações: abra a aba Editor RP uma vez para carregar o chat.
+          </div>
+        )}
 
         {/* Botão de Ação & Botão de Cancelar (Feature 20) */}
         <div className="space-y-2">

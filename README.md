@@ -24,6 +24,9 @@ Construído com **Vite + React 18 + TypeScript + Tailwind CSS**. Deploy contínu
 
 Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinho e tem **Modo foco** (`F`) que esconde os controles.
 
+O painel lateral é dividido em **seções recolhíveis**, na ordem do fluxo de trabalho (o estado aberto/fechado é lembrado; há *Expandir tudo* e *Recolher tudo*):
+Fundo da cena → Resolução → Personagens da cena → Diálogos e ações → Câmera RP e efeitos → Retoque fotográfico → Elementos de RP (presets e texto) → Adesivos e marcadores → Tipografia → Iluminação → Camadas e overlays → Inspetor de propriedades.
+
 ### Chat Log
 - **Parser de chat RP** com os formatos `* /me`, `> /ame`, `$` (item/dinheiro), `#` (celular), `!` (sistema), `(( OOC ))`, rádio, `/dispatch` e tons de voz `diz (normal | sussurrando | gritando | baixo | rádio | celular)`.
 - **Botões de tom de voz e de marcadores** que inserem no cursor, usando o **personagem ativo**.
@@ -32,7 +35,7 @@ Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinh
 - **Gerenciador de personagens** com cores e atalhos `Alt+1…9`.
 
 ### Foto e cena
-- **Resolução e adaptação:** Original, 1280×720, 1920×1080, 2560×1440, 4K, 1:1, 4:5 ou personalizada; modos Cover, Contain e Esticar; pan X/Y e zoom.
+- **Resolução e adaptação:** Original, 1280×720, 1920×1080, 2560×1440, 4K, 1:1, 4:5 ou personalizada; modos Cover, Contain e Esticar. Para enquadrar a foto, use a ferramenta **Enquadrar foto** (tecla `2`): arraste a imagem direto no preview e use a roda do mouse para o zoom (*Centralizar foto* desfaz).
 - **Retoque:** brilho, contraste, saturação, temperatura, nitidez (Smart Sharpen), Depth of Field e Letterbox 21:9, com presets de color grading.
 - **Iluminação & luz colorida:** 10 presets (Boudoir, Sunset, Cyber Purple, Golden Hour, Luar Cyan, Duo-Tone…), 5 tipos de fonte, 7 modos de mistura e arrasto da luz no preview.
 - **Câmera RP:** Bodycam (AXON), CCTV e Noite Fria com campos editáveis, mais efeitos de filme (granulado, vinheta, light leak, realce, vintage, P&B).
@@ -70,6 +73,7 @@ Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinh
 - **Corte** (início e fim), FPS, velocidade (0,5× a 2×) e formato original ou 1:1.
 - **Captura confiável:** se o vídeo não conseguir posicionar um quadro, a conversão para com uma mensagem clara em vez de exportar um quadro repetido.
 - **Presets para Discord:** banner de perfil, avatar animado e emoji.
+- **Diálogos e ações no GIF Lab:** o mesmo editor do chat (tom de voz, marcadores, censura e personagem ativo) fica disponível na própria aba, e o texto é compartilhado com o Editor RP nos dois sentidos.
 - **Chat do Editor sobre o GIF:** use o texto, os personagens e o estilo criados no Editor; arraste o texto no preview do vídeo, ajuste posição e tamanho e, se quiser, **revele as linhas aos poucos** (efeito de digitação).
 - **Marca d'água** de texto opcional.
 

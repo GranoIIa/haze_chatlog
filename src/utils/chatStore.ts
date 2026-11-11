@@ -25,3 +25,18 @@ export const subscribeSharedChat = (fn: () => void): (() => void) => {
   listeners.add(fn);
   return () => { listeners.delete(fn); };
 };
+
+// ---- Pedidos de alteração do texto do chat (outros módulos editam; o Chat Log é o dono do estado) ----
+
+type TextListener = (text: string) => void;
+const textListeners = new Set<TextListener>();
+
+/** Pede ao Chat Log para trocar o texto do chat (ex.: edição feita no GIF Lab). */
+export const requestChatText = (text: string): void => {
+  textListeners.forEach(fn => fn(text));
+};
+
+export const subscribeChatTextRequests = (fn: TextListener): (() => void) => {
+  textListeners.add(fn);
+  return () => { textListeners.delete(fn); };
+};

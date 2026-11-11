@@ -48,3 +48,15 @@ body {
 .emerald-glow-sm {
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
 }
+
+/* Seções recolhíveis do Editor RP: o cartão interno perde a moldura e o título (que passa a ser da seção) */
+.accordion-body > div {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+.accordion-body .section-title {
+  display: none;
+}

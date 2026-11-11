@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Character, ParsedLine } from '../../types';
 import { CHAR_COLORS } from '../../utils/chatParser';
 import { renderChatText } from '../../utils/chatRenderer';
-import { publishChat } from '../../utils/chatStore';
+import { publishChat, subscribeChatTextRequests } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
 import { RP_STICKERS } from '../../utils/rpStickers';
@@ -12,6 +12,10 @@ import {
 } from '../../utils/canvasLayerRenderer';
 import { CanvasLayersSidebar, PresetKey } from '../RpElements/CanvasLayersSidebar';
 import { CameraPanel } from './panels/CameraPanel';
+import { DialogPanel } from './panels/DialogPanel';
+import {
+  EditorSection, SectionId, SECTION_IDS, loadOpenSections, saveOpenSections
+} from './EditorSection';
 import { LightingPanel } from './panels/LightingPanel';
 import { 
   PhotoAdjustments, DEFAULT_ADJUSTMENTS, applyPhotoAdjustments 
@@ -445,18 +449,6 @@ export const ChatLogView: React.FC = () => {
     insertSpeech('normal', charName);
   };
 
-  // Envolve a seleção em ||...|| (censura); sem seleção, insere um marcador editável
-  const insertCensor = () => {
-    const ta = textareaRef.current;
-    if (ta && ta.selectionStart !== ta.selectionEnd) {
-      const s = ta.selectionStart;
-      const e = ta.selectionEnd;
-      setRawText(rawText.slice(0, s) + '||' + rawText.slice(s, e) + '||' + rawText.slice(e));
-      requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(e + 4, e + 4); });
-    } else {
-      insertAtCursor('||CENSURADO|| ', false);
-    }
-  };
 
   // ---- Camadas de imagem (logos, molduras, marcas d'água) ----
   const layerRect = (l: ImageLayer, img: HTMLImageElement, W: number, H: number) => {
@@ -670,6 +662,9 @@ export const ChatLogView: React.FC = () => {
     bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
     censorStyle, showTimestamps, chatPos, characters
   ]);
+
+  // Outros módulos (GIF Lab) podem editar o texto do chat: este componente é o dono do estado
+  useEffect(() => subscribeChatTextRequests(text => setRawText(text.slice(0, 200_000))), []);
 
   // Publica o chat atual (texto + estilo) para outros módulos, como o GIF Lab
   useEffect(() => {
@@ -1454,6 +1449,31 @@ export const ChatLogView: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // ---- Seções recolhíveis do painel ----
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(loadOpenSections);
+  useEffect(() => { saveOpenSections(openSections); }, [openSections]);
+  const toggleSection = (id: SectionId) => setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+  const setAllSections = (open: boolean) =>
+    setOpenSections(Object.fromEntries(SECTION_IDS.map(id => [id, open])));
+  const sectionProps = (id: SectionId) => ({ id, open: !!openSections[id], onToggle: toggleSection });
+
+  const sidebarProps = {
+    layers: canvasLayers,
+    setLayers: setCanvasLayers,
+    selectedLayerId: selectedCanvasLayerId,
+    setSelectedLayerId: (id: string | null) => { setSelectedCanvasLayerId(id); if (id) setSelectedLayerId(null); },
+    applyPreset,
+    addSticker,
+    addTextLayer,
+    moveLayer: moveCanvasLayer,
+    bringLayerToFront: bringCanvasLayerToFront,
+    sendLayerToBack: sendCanvasLayerToBack,
+    duplicateLayer: duplicateCanvasLayer,
+    deleteLayer: deleteCanvasLayer,
+    updateSelectedLayer: updateSelectedCanvasLayer,
+    updatePresetDataField: updateCanvasPresetField
+  };
+
   return (
     <div ref={containerRef} className="max-w-[1800px] mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
@@ -1574,7 +1594,7 @@ export const ChatLogView: React.FC = () => {
 
         {mode === 'batch' && (
           <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Lote de fotos</span>
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Lote de fotos</span>
             <p className="text-[11px] text-slate-400 leading-relaxed">
               Aplica o chat e os ajustes atuais a todas as fotos e baixa um .zip. Posição e tamanho do texto
               acompanham o preview ({canvasDims.width}px de largura).{' '}
@@ -1652,10 +1672,19 @@ export const ChatLogView: React.FC = () => {
           Restaurar configurações padrão
         </button>
 
-        {/* Painel de Upload de Fundo com Drag & Drop */}
+        {/* Seções do Editor RP (na ordem do fluxo de trabalho) */}
+        <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+          <span>Seções do editor</span>
+          <span className="flex items-center gap-3">
+            <button type="button" onClick={() => setAllSections(true)} className="hover:text-emerald-300 underline-offset-2 hover:underline">Expandir tudo</button>
+            <button type="button" onClick={() => setAllSections(false)} className="hover:text-emerald-300 underline-offset-2 hover:underline">Recolher tudo</button>
+          </span>
+        </div>
+
+        <EditorSection {...sectionProps('fundo')} title="Fundo da cena" badge={`${canvasDims.width}×${canvasDims.height}px`}>
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Upload className="w-3.5 h-3.5" /> Fundo da Cena
             </span>
             <span className="text-[11px] font-mono text-slate-400">
@@ -1722,11 +1751,12 @@ export const ChatLogView: React.FC = () => {
             </div>
           </div>
         </div>
+        </EditorSection>
 
-        {/* Painel de Resolução & Adaptação da foto */}
+        <EditorSection {...sectionProps('resolucao')} title="Resolução e adaptação" badge={outputRes ? `${outputRes.w}×${outputRes.h}` : 'Original'}>
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Resolução &amp; Adaptação</span>
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Resolução &amp; Adaptação</span>
             <span className="text-[11px] font-mono text-slate-300">
               {outputRes ? `${outputRes.w}×${outputRes.h}` : 'Original'}
             </span>
@@ -1791,189 +1821,223 @@ export const ChatLogView: React.FC = () => {
               ))}
             </div>
           </div>
+        </div>
+        </EditorSection>
 
-          <div className="space-y-2 pt-2 border-t border-[#1E2638]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">Mover foto na resolução</span>
-              <button onClick={resetFraming} className="text-[11px] text-slate-300 hover:text-emerald-300 underline-offset-2 hover:underline">
-                Centralizar
-              </button>
-            </div>
-            {([
-              ['Pan X (horizontal)', panX, setPanX, -100, 100, 1, '%'],
-              ['Pan Y (vertical)', panY, setPanY, -100, 100, 1, '%'],
-              ['Zoom da foto', zoom, setZoom, 25, 400, 1, '%']
-            ] as const).map(([label, value, setter, min, max, step, unit]) => (
-              <div key={label}>
-                <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                  <span>{label}</span>
-                  <span className="font-mono text-slate-200">{value}{unit}</span>
-                </div>
-                <input
-                  type="range" min={min} max={max} step={step} value={value} aria-label={label}
-                  onChange={(e) => setter(parseInt(e.target.value))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
-                />
+        <EditorSection {...sectionProps('personagens')} title="Personagens da cena" badge={`${characters.length}`}>
+        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5" /> Personagens da Cena
+            </span>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCharName}
+              onChange={(e) => setNewCharName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCharacter()}
+              placeholder="Nome do personagem..."
+              className="flex-1 px-3 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+            />
+            <button
+              onClick={addCharacter}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center gap-1 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {characters.map((char) => (
+              <div
+                key={char.id}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all"
+                style={{
+                  borderColor: char.id === activeChar?.id ? char.color : `${char.color}40`,
+                  backgroundColor: `${char.color}${char.id === activeChar?.id ? '30' : '15'}`,
+                  color: char.color,
+                  boxShadow: char.id === activeChar?.id ? `0 0 0 1px ${char.color}` : undefined
+                }}
+              >
+                <button
+                  onClick={() => insertCharSpeech(char.name)}
+                  aria-pressed={char.id === activeChar?.id}
+                  className="font-medium hover:underline text-[11px]"
+                  title="Define como personagem ativo e insere a fala"
+                >
+                  {char.name}
+                </button>
+                <button
+                  onClick={() => removeCharacter(char.id)}
+                  className="opacity-60 hover:opacity-100 hover:text-red-400 ml-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
               </div>
             ))}
           </div>
         </div>
+        </EditorSection>
 
-        {/* Painel de Camadas & Overlays */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Camadas &amp; Overlays</span>
-            <span className="text-[11px] font-mono text-slate-300">{layers.length} camada{layers.length === 1 ? '' : 's'}</span>
-          </div>
-
-          <input
-            ref={layerInputRef}
-            data-testid="layer-input"
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => { if (e.target.files) addLayerFiles(e.target.files); e.target.value = ''; }}
+        <EditorSection {...sectionProps('dialogos')} title="Diálogos e ações">
+          <DialogPanel
+            testId="editor-dialog"
+            value={rawText}
+            onChange={setRawText}
+            characters={characters}
+            activeCharId={activeCharId}
+            onActiveCharChange={setActiveCharId}
+            textareaRef={textareaRef}
           />
-          <button
-            onClick={() => layerInputRef.current?.click()}
-            disabled={layers.length >= MAX_LAYERS}
-            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-            onDrop={(e) => { e.preventDefault(); addLayerFiles(e.dataTransfer.files); }}
-            className="w-full py-2 rounded-lg border border-dashed border-[#1E2638] hover:border-emerald-500/50 text-xs text-slate-300 disabled:opacity-40"
-          >
-            + Adicionar camada de imagem
-          </button>
+        </EditorSection>
 
-          {layers.length === 0 ? (
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              Sobreponha logos, molduras, marcas d'água ou fotos secundárias (PNG com transparência funciona melhor).
-              Use a ferramenta Mover camada (3) na barra do preview para arrastá-las; a roda do mouse muda o tamanho. As camadas ficam salvas neste navegador.
-            </p>
-          ) : (
-            <ul className="space-y-1" aria-label="Lista de camadas (a de cima é a última da lista)">
-              {[...layers].reverse().map((l) => {
-                const selected = l.id === selectedLayerId;
-                return (
-                  <li
-                    key={l.id}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] ${
-                      selected ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-[#1E2638] bg-[#0B0E14]'
-                    }`}
-                  >
-                    <button
-                      onClick={() => updateLayer(l.id, { visible: !l.visible })}
-                      aria-label={l.visible ? `Ocultar ${l.name}` : `Mostrar ${l.name}`}
-                      title={l.visible ? 'Ocultar' : 'Mostrar'}
-                      className="px-1 text-slate-400 hover:text-slate-100"
-                    >
-                      {l.visible ? '👁' : '—'}
-                    </button>
-                    <button
-                      onClick={() => setSelectedLayerId(selected ? null : l.id)}
-                      aria-pressed={selected}
-                      className="flex-1 min-w-0 text-left truncate text-slate-200"
-                      title={l.name}
-                    >
-                      {l.name}
-                    </button>
-                    <button onClick={() => moveLayerOrder(l.id, 1)} aria-label={`Subir ${l.name}`} title="Trazer para frente" className="px-1 text-slate-400 hover:text-slate-100">↑</button>
-                    <button onClick={() => moveLayerOrder(l.id, -1)} aria-label={`Descer ${l.name}`} title="Enviar para trás" className="px-1 text-slate-400 hover:text-slate-100">↓</button>
-                    <button onClick={() => duplicateLayer(l.id)} aria-label={`Duplicar ${l.name}`} title="Duplicar" className="px-1 text-slate-400 hover:text-slate-100">⧉</button>
-                    <button onClick={() => removeLayer(l.id)} aria-label={`Remover ${l.name}`} title="Remover" className="px-1 text-slate-500 hover:text-rose-400">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+        <EditorSection {...sectionProps('camera')} title="Câmera RP e efeitos" badge={({ none: 'Padrão', bodycam: 'Bodycam', cctv: 'CCTV', noir: 'Noite Fria' } as const)[camera.preset]}>
+          <CameraPanel camera={camera} setCamera={setCamera} activeCharName={activeChar?.name} />
+        </EditorSection>
 
-          {(() => {
-            const sel = layers.find(l => l.id === selectedLayerId);
-            if (!sel) return null;
-            return (
-              <div className="space-y-2 pt-2 border-t border-[#1E2638]">
-                {([
-                  ['Tamanho (largura)', Math.round(sel.widthPct), 2, 200, '%', (v: number) => updateLayer(sel.id, { widthPct: v })],
-                  ['Rotação', Math.round(sel.rotation), -180, 180, '°', (v: number) => updateLayer(sel.id, { rotation: v })],
-                  ['Opacidade', Math.round(sel.opacity * 100), 0, 100, '%', (v: number) => updateLayer(sel.id, { opacity: v / 100 })],
-                  ['Posição X', Math.round(sel.cx * 100), 0, 100, '%', (v: number) => updateLayer(sel.id, { cx: v / 100 })],
-                  ['Posição Y', Math.round(sel.cy * 100), 0, 100, '%', (v: number) => updateLayer(sel.id, { cy: v / 100 })]
-                ] as const).map(([label, value, min, max, unit, onChange]) => (
-                  <div key={label}>
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                      <span>{label}</span>
-                      <span className="font-mono text-slate-200">{value}{unit}</span>
-                    </div>
-                    <input
-                      type="range" min={min} max={max} value={value} aria-label={label}
-                      onChange={(e) => onChange(parseInt(e.target.value))}
-                      className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
-                    />
-                  </div>
-                ))}
-                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sel.aboveChat}
-                    onChange={(e) => updateLayer(sel.id, { aboveChat: e.target.checked })}
-                    className="accent-emerald-500"
-                  />
-                  Desenhar acima do texto do chat
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={() => updateLayer(sel.id, { cx: 0.5, cy: 0.5 })}
-                    className="py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
-                  >
-                    Centralizar
-                  </button>
-                  <button
-                    onClick={() => updateLayer(sel.id, { widthPct: 100, cx: 0.5, rotation: 0 })}
-                    className="py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
-                  >
-                    Ajustar à largura
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Elementos de RP: presets cinemáticos, adesivos, texto (antigo Canvas Studio) */}
-        <details open className="rounded-2xl bg-[#0F141F] border border-[#1E2638] shadow-md">
-          <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold uppercase tracking-wider text-emerald-400">
-            Elementos de RP · presets, adesivos e texto
-          </summary>
-          <div className="px-2 pb-3 space-y-3">
-            <CanvasLayersSidebar
-              layers={canvasLayers}
-              setLayers={setCanvasLayers}
-              selectedLayerId={selectedCanvasLayerId}
-              setSelectedLayerId={(id) => { setSelectedCanvasLayerId(id); if (id) setSelectedLayerId(null); }}
-              applyPreset={applyPreset}
-              addSticker={addSticker}
-              addTextLayer={addTextLayer}
-              moveLayer={moveCanvasLayer}
-              bringLayerToFront={bringCanvasLayerToFront}
-              sendLayerToBack={sendCanvasLayerToBack}
-              duplicateLayer={duplicateCanvasLayer}
-              deleteLayer={deleteCanvasLayer}
-              updateSelectedLayer={updateSelectedCanvasLayer}
-              updatePresetDataField={updateCanvasPresetField}
-            />
-          </div>
-        </details>
-
-        <CameraPanel camera={camera} setCamera={setCamera} activeCharName={activeChar?.name} />
-
-        <LightingPanel lighting={lighting} patchLighting={patchLighting} mouseTool={mouseTool} setMouseTool={setMouseTool} />
-
-        {/* Painel de Tipografia & Estilo do Chat (Feature 10) */}
+        <EditorSection {...sectionProps('retoque')} title="Retoque fotográfico">
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5" /> Retoque Fotográfico (Color Grading)
+            </span>
+            <button
+              onClick={() => setAdjustments({ ...DEFAULT_ADJUSTMENTS })}
+              className="text-[10px] text-slate-400 hover:text-emerald-400"
+            >
+              Resetar
+            </button>
+          </div>
+
+          {/* Color Grading Presets */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'golden-hour' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'golden-hour'
+                  ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Sun className="w-3.5 h-3.5 text-amber-400" /> Golden Hour</div>
+            </button>
+
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'midnight-neon' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'midnight-neon'
+                  ? 'border-sky-500 bg-sky-500/15 text-sky-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-sky-400" /> Midnight Neon</div>
+            </button>
+
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'grit-crime' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'grit-crime'
+                  ? 'border-red-500 bg-red-500/15 text-red-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Contrast className="w-3.5 h-3.5 text-red-400" /> Grit &amp; Crime</div>
+            </button>
+
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'vintage-90s' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'vintage-90s'
+                  ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-emerald-400" /> San Andreas 90s</div>
+            </button>
+          </div>
+
+          {/* Sliders de Ajuste Fino */}
+          <div className="space-y-2 pt-1 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Brilho</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="-50" max="50" value={adjustments.brightness}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, brightness: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.brightness}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Contraste</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="-50" max="50" value={adjustments.contrast}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, contrast: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.contrast}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Nitidez (Sharpen)</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="0" max="100" value={adjustments.sharpen}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, sharpen: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.sharpen}%</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Depth of Field (Bokeh)</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="0" max="100" value={adjustments.depthOfField}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, depthOfField: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.depthOfField}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Letterbox de Cinema */}
+          <div className="pt-2 border-t border-[#1E2638] flex items-center justify-between text-xs">
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, letterbox: !prev.letterbox }))}
+              className={`w-full py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all font-semibold ${
+                adjustments.letterbox
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                  : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-white'
+              }`}
+            >
+              <Clapperboard className="w-4 h-4" />
+              <span>{adjustments.letterbox ? 'Letterbox 21:9 Ativo (Barras de Cinema)' : 'Ativar Letterbox 21:9 (Cinema)'}</span>
+            </button>
+          </div>
+        </div>
+        </EditorSection>
+
+        <EditorSection {...sectionProps('rp')} title="Elementos de RP · presets e texto">
+          <CanvasLayersSidebar part="presets" {...sidebarProps} />
+        </EditorSection>
+
+        <EditorSection {...sectionProps('adesivos')} title="Adesivos e marcadores">
+          <CanvasLayersSidebar part="stickers" {...sidebarProps} />
+        </EditorSection>
+
+        <EditorSection {...sectionProps('tipografia')} title="Tipografia">
+        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Type className="w-3.5 h-3.5" /> Tipografia &amp; Estilo do Chat
             </span>
           </div>
@@ -2170,269 +2234,138 @@ export const ChatLogView: React.FC = () => {
             </div>
           </div>
         </div>
+        </EditorSection>
 
-        {/* Laboratório Fotográfico (Retoque de Imagem estilo Photoshop) */}
+        <EditorSection {...sectionProps('iluminacao')} title="Iluminação" badge={lighting.enabled ? 'ATIVA' : 'desligada'}>
+          <LightingPanel lighting={lighting} patchLighting={patchLighting} mouseTool={mouseTool} setMouseTool={setMouseTool} />
+        </EditorSection>
+
+        <EditorSection {...sectionProps('camadas')} title="Camadas e overlays" badge={`${layers.length} camada${layers.length === 1 ? '' : 's'}`}>
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5" /> Retoque Fotográfico (Color Grading)
-            </span>
-            <button
-              onClick={() => setAdjustments({ ...DEFAULT_ADJUSTMENTS })}
-              className="text-[10px] text-slate-400 hover:text-emerald-400"
-            >
-              Resetar
-            </button>
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Camadas &amp; Overlays</span>
+            <span className="text-[11px] font-mono text-slate-300">{layers.length} camada{layers.length === 1 ? '' : 's'}</span>
           </div>
 
-          {/* Color Grading Presets */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'golden-hour' }))}
-              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
-                adjustments.colorPreset === 'golden-hour'
-                  ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-1.5"><Sun className="w-3.5 h-3.5 text-amber-400" /> Golden Hour</div>
-            </button>
-
-            <button
-              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'midnight-neon' }))}
-              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
-                adjustments.colorPreset === 'midnight-neon'
-                  ? 'border-sky-500 bg-sky-500/15 text-sky-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-sky-400" /> Midnight Neon</div>
-            </button>
-
-            <button
-              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'grit-crime' }))}
-              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
-                adjustments.colorPreset === 'grit-crime'
-                  ? 'border-red-500 bg-red-500/15 text-red-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-1.5"><Contrast className="w-3.5 h-3.5 text-red-400" /> Grit &amp; Crime</div>
-            </button>
-
-            <button
-              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'vintage-90s' }))}
-              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
-                adjustments.colorPreset === 'vintage-90s'
-                  ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-emerald-400" /> San Andreas 90s</div>
-            </button>
-          </div>
-
-          {/* Sliders de Ajuste Fino */}
-          <div className="space-y-2 pt-1 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Brilho</span>
-              <div className="flex items-center gap-2 w-1/2">
-                <input
-                  type="range" min="-50" max="50" value={adjustments.brightness}
-                  onChange={(e) => setAdjustments(prev => ({ ...prev, brightness: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
-                />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.brightness}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Contraste</span>
-              <div className="flex items-center gap-2 w-1/2">
-                <input
-                  type="range" min="-50" max="50" value={adjustments.contrast}
-                  onChange={(e) => setAdjustments(prev => ({ ...prev, contrast: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
-                />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.contrast}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Nitidez (Sharpen)</span>
-              <div className="flex items-center gap-2 w-1/2">
-                <input
-                  type="range" min="0" max="100" value={adjustments.sharpen}
-                  onChange={(e) => setAdjustments(prev => ({ ...prev, sharpen: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
-                />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.sharpen}%</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Depth of Field (Bokeh)</span>
-              <div className="flex items-center gap-2 w-1/2">
-                <input
-                  type="range" min="0" max="100" value={adjustments.depthOfField}
-                  onChange={(e) => setAdjustments(prev => ({ ...prev, depthOfField: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
-                />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.depthOfField}%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Letterbox de Cinema */}
-          <div className="pt-2 border-t border-[#1E2638] flex items-center justify-between text-xs">
-            <button
-              onClick={() => setAdjustments(prev => ({ ...prev, letterbox: !prev.letterbox }))}
-              className={`w-full py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all font-semibold ${
-                adjustments.letterbox
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                  : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-white'
-              }`}
-            >
-              <Clapperboard className="w-4 h-4" />
-              <span>{adjustments.letterbox ? 'Letterbox 21:9 Ativo (Barras de Cinema)' : 'Ativar Letterbox 21:9 (Cinema)'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Editor de Texto do Chat */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Type className="w-3.5 h-3.5" /> Diálogos &amp; Ações
-            </span>
-            <span className="text-[10px] text-slate-500">
-              * /me, &gt; /ame, $ din, (( ooc ))
-            </span>
-          </div>
-
-          <textarea
-            ref={textareaRef}
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            rows={6}
-            className="w-full p-3 rounded-xl bg-[#0B0E14] border border-[#1E2638] text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-y"
-            placeholder="Digite ou cole as falas do chat aqui..."
+          <input
+            ref={layerInputRef}
+            data-testid="layer-input"
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => { if (e.target.files) addLayerFiles(e.target.files); e.target.value = ''; }}
           />
+          <button
+            onClick={() => layerInputRef.current?.click()}
+            disabled={layers.length >= MAX_LAYERS}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+            onDrop={(e) => { e.preventDefault(); addLayerFiles(e.dataTransfer.files); }}
+            className="w-full py-2 rounded-lg border border-dashed border-[#1E2638] hover:border-emerald-500/50 text-xs text-slate-300 disabled:opacity-40"
+          >
+            + Adicionar camada de imagem
+          </button>
 
-          <div>
-            <span className="text-[11px] text-slate-400 block mb-1.5">
-              Tom de voz · fala de <strong style={{ color: activeChar?.color }}>{activeChar?.name ?? 'Personagem'}</strong>
-            </span>
-            <div className="grid grid-cols-3 gap-1.5">
-              {([
-                ['Fala', 'normal', 'Fala normal', '#ffffff'],
-                ['Sussurro', 'sussurrando', 'Sussurrando', '#94a3b8'],
-                ['Grito', 'gritando', 'Gritando', '#ffffff'],
-                ['Baixo', 'baixo', 'Falando baixo', '#cbd5e1'],
-                ['Rádio', 'rádio', 'Fala no rádio', '#38bdf8'],
-                ['Celular', 'celular', 'Ligação ou mensagem', '#f5c500']
-              ] as const).map(([label, tone, tip, color]) => (
-                <button
-                  key={tone}
-                  onClick={() => insertSpeech(tone)}
-                  title={`${tip} (“diz (${tone}):”)`}
-                  style={{ color, borderColor: `${color}55` }}
-                  className={`px-2 py-1.5 rounded-lg border bg-[#0B0E14] hover:bg-slate-800 text-[11px] transition-colors ${tone === 'gritando' ? 'font-extrabold' : 'font-semibold'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {layers.length === 0 ? (
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Sobreponha logos, molduras, marcas d'água ou fotos secundárias (PNG com transparência funciona melhor).
+              Use a ferramenta Mover camada (3) na barra do preview para arrastá-las; a roda do mouse muda o tamanho. As camadas ficam salvas neste navegador.
+            </p>
+          ) : (
+            <ul className="space-y-1" aria-label="Lista de camadas (a de cima é a última da lista)">
+              {[...layers].reverse().map((l) => {
+                const selected = l.id === selectedLayerId;
+                return (
+                  <li
+                    key={l.id}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] ${
+                      selected ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-[#1E2638] bg-[#0B0E14]'
+                    }`}
+                  >
+                    <button
+                      onClick={() => updateLayer(l.id, { visible: !l.visible })}
+                      aria-label={l.visible ? `Ocultar ${l.name}` : `Mostrar ${l.name}`}
+                      title={l.visible ? 'Ocultar' : 'Mostrar'}
+                      className="px-1 text-slate-400 hover:text-slate-100"
+                    >
+                      {l.visible ? '👁' : '—'}
+                    </button>
+                    <button
+                      onClick={() => setSelectedLayerId(selected ? null : l.id)}
+                      aria-pressed={selected}
+                      className="flex-1 min-w-0 text-left truncate text-slate-200"
+                      title={l.name}
+                    >
+                      {l.name}
+                    </button>
+                    <button onClick={() => moveLayerOrder(l.id, 1)} aria-label={`Subir ${l.name}`} title="Trazer para frente" className="px-1 text-slate-400 hover:text-slate-100">↑</button>
+                    <button onClick={() => moveLayerOrder(l.id, -1)} aria-label={`Descer ${l.name}`} title="Enviar para trás" className="px-1 text-slate-400 hover:text-slate-100">↓</button>
+                    <button onClick={() => duplicateLayer(l.id)} aria-label={`Duplicar ${l.name}`} title="Duplicar" className="px-1 text-slate-400 hover:text-slate-100">⧉</button>
+                    <button onClick={() => removeLayer(l.id)} aria-label={`Remover ${l.name}`} title="Remover" className="px-1 text-slate-500 hover:text-rose-400">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-          <div>
-            <span className="text-[11px] text-slate-400 block mb-1.5">Ações e marcadores</span>
-            <div className="grid grid-cols-4 gap-1.5">
-              {([
-                ['* /me', () => insertAtCursor(`* ${activeChar?.name ?? 'Personagem'} `), 'Ação do personagem ativo', '#cc99ff'],
-                ['> /ame', () => insertAtCursor('> '), 'Ação sobre o personagem', '#cc99ff'],
-                ['* /do', () => insertAtCursor('* '), 'Ação do ambiente', '#cc99ff'],
-                ['$ Item', () => insertAtCursor('$ '), 'Item ou dinheiro', '#f5c500'],
-                ['# Cel', () => insertAtCursor('# '), 'Mensagem ou ligação', '#f5c500'],
-                ['! Sis', () => insertAtCursor('! '), 'Notificação do sistema', '#f87171'],
-                ['(( OOC', () => insertAtCursor('(( '), 'Fora do personagem', '#94a3b8']
-              ] as const).map(([label, fn, tip, color]) => (
-                <button
-                  key={label}
-                  onClick={fn}
-                  title={tip}
-                  style={{ color, borderColor: `${color}55` }}
-                  className="px-2 py-1.5 rounded-lg border bg-[#0B0E14] hover:bg-slate-800 text-[11px] font-semibold transition-colors"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={insertCensor}
-              title="Selecione um trecho no editor e clique para censurar; sem seleção insere um marcador"
-              className="mt-1.5 w-full px-2 py-1.5 rounded-lg border border-red-400/30 bg-red-950/40 hover:bg-red-900/50 text-red-300 text-[11px] font-semibold transition-colors"
-            >
-              ||Censurar seleção||
-            </button>
-          </div>
-        </div>
-
-        {/* Gerenciador de Personagens */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" /> Personagens da Cena
-            </span>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newCharName}
-              onChange={(e) => setNewCharName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCharacter()}
-              placeholder="Nome do personagem..."
-              className="flex-1 px-3 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-            />
-            <button
-              onClick={addCharacter}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center gap-1 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {characters.map((char) => (
-              <div
-                key={char.id}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all"
-                style={{
-                  borderColor: char.id === activeChar?.id ? char.color : `${char.color}40`,
-                  backgroundColor: `${char.color}${char.id === activeChar?.id ? '30' : '15'}`,
-                  color: char.color,
-                  boxShadow: char.id === activeChar?.id ? `0 0 0 1px ${char.color}` : undefined
-                }}
-              >
-                <button
-                  onClick={() => insertCharSpeech(char.name)}
-                  aria-pressed={char.id === activeChar?.id}
-                  className="font-medium hover:underline text-[11px]"
-                  title="Define como personagem ativo e insere a fala"
-                >
-                  {char.name}
-                </button>
-                <button
-                  onClick={() => removeCharacter(char.id)}
-                  className="opacity-60 hover:opacity-100 hover:text-red-400 ml-1"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+          {(() => {
+            const sel = layers.find(l => l.id === selectedLayerId);
+            if (!sel) return null;
+            return (
+              <div className="space-y-2 pt-2 border-t border-[#1E2638]">
+                {([
+                  ['Tamanho (largura)', Math.round(sel.widthPct), 2, 200, '%', (v: number) => updateLayer(sel.id, { widthPct: v })],
+                  ['Rotação', Math.round(sel.rotation), -180, 180, '°', (v: number) => updateLayer(sel.id, { rotation: v })],
+                  ['Opacidade', Math.round(sel.opacity * 100), 0, 100, '%', (v: number) => updateLayer(sel.id, { opacity: v / 100 })],
+                  ['Posição X', Math.round(sel.cx * 100), 0, 100, '%', (v: number) => updateLayer(sel.id, { cx: v / 100 })],
+                  ['Posição Y', Math.round(sel.cy * 100), 0, 100, '%', (v: number) => updateLayer(sel.id, { cy: v / 100 })]
+                ] as const).map(([label, value, min, max, unit, onChange]) => (
+                  <div key={label}>
+                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                      <span>{label}</span>
+                      <span className="font-mono text-slate-200">{value}{unit}</span>
+                    </div>
+                    <input
+                      type="range" min={min} max={max} value={value} aria-label={label}
+                      onChange={(e) => onChange(parseInt(e.target.value))}
+                      className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                    />
+                  </div>
+                ))}
+                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sel.aboveChat}
+                    onChange={(e) => updateLayer(sel.id, { aboveChat: e.target.checked })}
+                    className="accent-emerald-500"
+                  />
+                  Desenhar acima do texto do chat
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => updateLayer(sel.id, { cx: 0.5, cy: 0.5 })}
+                    className="py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                  >
+                    Centralizar
+                  </button>
+                  <button
+                    onClick={() => updateLayer(sel.id, { widthPct: 100, cx: 0.5, rotation: 0 })}
+                    className="py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                  >
+                    Ajustar à largura
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
+        </EditorSection>
+
+        <EditorSection {...sectionProps('inspetor')} title="Inspetor de propriedades" badge={`${canvasLayers.length} elemento${canvasLayers.length === 1 ? '' : 's'}`}>
+          <CanvasLayersSidebar part="inspector" {...sidebarProps} />
+        </EditorSection>
 
       </div>
 
@@ -2468,7 +2401,12 @@ export const ChatLogView: React.FC = () => {
             <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
               <Move className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               {mouseTool === 'chat' && 'Arraste para posicionar o chat'}
-              {mouseTool === 'photo' && 'Arraste para enquadrar a foto · roda do mouse = zoom'}
+              {mouseTool === 'photo' && (
+                <>
+                  Arraste para enquadrar a foto · roda do mouse = zoom
+                  <button type="button" onClick={resetFraming} className="ml-2 underline underline-offset-2 hover:text-emerald-300">Centralizar foto</button>
+                </>
+              )}
               {mouseTool === 'layer' && (layers.length ? 'Clique numa camada para selecionar e arrastar · roda = tamanho' : 'Adicione uma camada no painel à esquerda')}
               {mouseTool === 'light' && (lighting.enabled ? 'Arraste para posicionar a luz' : 'Ative a iluminação no painel para usar esta ferramenta')}
             </span>

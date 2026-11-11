@@ -15,7 +15,7 @@ export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, act
   return (
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Câmera RP &amp; Efeitos</span>
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Câmera RP &amp; Efeitos</span>
             <span className="text-[11px] font-mono text-slate-300">
               {({ none: 'Padrão', bodycam: 'Bodycam', cctv: 'CCTV', noir: 'Noite Fria' } as const)[camera.preset]}
             </span>

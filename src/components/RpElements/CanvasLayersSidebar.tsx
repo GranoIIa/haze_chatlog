@@ -34,6 +34,8 @@ const FONT_FAMILIES = [
 export type PresetKey = 'bodycam' | 'weazel' | 'flir' | 'dashcam' | 'cctv' | 'mugshot';
 
 export interface CanvasLayersSidebarProps {
+  /** Qual parte renderizar (o editor mostra cada uma numa seção); sem valor, mostra todas. */
+  part?: 'presets' | 'stickers' | 'inspector';
   layers: CanvasLayer[];
   setLayers: React.Dispatch<React.SetStateAction<CanvasLayer[]>>;
   selectedLayerId: string | null;
@@ -52,7 +54,7 @@ export interface CanvasLayersSidebarProps {
 
 /** Presets cinemáticos, adesivos, texto, inspetor e lista de camadas de RP (editor unificado). */
 export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
-  layers, setLayers, selectedLayerId, setSelectedLayerId, applyPreset, addSticker, addTextLayer,
+  part, layers, setLayers, selectedLayerId, setSelectedLayerId, applyPreset, addSticker, addTextLayer,
   moveLayer, bringLayerToFront, sendLayerToBack, duplicateLayer, deleteLayer,
   updateSelectedLayer, updatePresetDataField
 }) => {
@@ -61,10 +63,13 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
   return (
     <>
+
+      {(part === undefined || part === 'presets') && (
+        <>
         {/* Presets de 1 Clique (RP) */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" /> Presets Cinemáticos de RP
             </span>
           </div>
@@ -130,11 +135,23 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
               <p className="text-[10px] text-slate-400">Plaqueta policial de detenção.</p>
             </button>
           </div>
+          <div className="pt-2">
+            <button
+              onClick={addTextLayer}
+              className="w-full py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Type className="w-3.5 h-3.5 text-emerald-400" /> Adicionar texto
+            </button>
+          </div>
         </div>
+        </>
+      )}
 
+      {(part === undefined || part === 'stickers') && (
+        <>
         {/* Adesivos, Texto, Imagem e Fundo */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+          <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
             <Palette className="w-3.5 h-3.5" /> Adesivos &amp; Marcadores Forenses
           </span>
 
@@ -150,21 +167,16 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
               </button>
             ))}
           </div>
-
-          <div className="pt-2">
-            <button
-              onClick={addTextLayer}
-              className="w-full py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Type className="w-3.5 h-3.5 text-emerald-400" /> Adicionar texto
-            </button>
-          </div>
         </div>
+        </>
+      )}
 
+      {(part === undefined || part === 'inspector') && (
+        <>
         {/* Inspetor de Propriedades da Camada (Feature 13) */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5" /> Inspetor de Propriedades
             </span>
             {selectedLayer && (
@@ -698,7 +710,7 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
         {/* Gerenciador de Camadas */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" /> Elementos de RP ({layers.length})
             </span>
           </div>
@@ -756,6 +768,8 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
             })}
           </div>
         </div>
+        </>
+      )}
     </>
   );
 };
