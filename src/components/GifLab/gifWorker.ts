@@ -15,6 +15,8 @@ let defaultDelay = 100;
 let totalFramesExpected = 0;
 let framesProcessed = 0;
 let isAborted = false;
+let maxColors = 256;
+let maxBytes = Infinity;
 
 export function handleWorkerMessage(job: GifEncodeJob & { buffer?: ArrayBuffer; totalFrames?: number }): void {
   switch (job.type) {
@@ -23,10 +25,12 @@ export function handleWorkerMessage(job: GifEncodeJob & { buffer?: ArrayBuffer; 
       targetWidth = job.width || 480;
       targetHeight = job.height || 360;
       defaultDelay = job.delay || 100;
+      maxColors = job.colors || 256;
+      maxBytes = job.maxBytes && job.maxBytes > 0 ? job.maxBytes : Infinity;
       totalFramesExpected = job.totalFrames || 0;
       framesProcessed = 0;
 
-      encoder = new SimpleGifEncoder(targetWidth, targetHeight, defaultDelay);
+      encoder = new SimpleGifEncoder(targetWidth, targetHeight, defaultDelay, maxColors);
       encoder.start();
 
       postWorkerMessage({
@@ -41,7 +45,7 @@ export function handleWorkerMessage(job: GifEncodeJob & { buffer?: ArrayBuffer; 
 
       try {
         if (!encoder) {
-          encoder = new SimpleGifEncoder(targetWidth, targetHeight, defaultDelay);
+          encoder = new SimpleGifEncoder(targetWidth, targetHeight, defaultDelay, maxColors);
           encoder.start();
         }
 
@@ -62,9 +66,18 @@ export function handleWorkerMessage(job: GifEncodeJob & { buffer?: ArrayBuffer; 
           ? Math.round((framesProcessed / totalFramesExpected) * 100)
           : 50;
 
+        const bytes = encoder.bytesWritten;
+        if (bytes > maxBytes) {
+          // o GIF já passou do limite pedido: para na hora e libera a memória
+          isAborted = true;
+          encoder = null;
+          postWorkerMessage({ type: 'ERROR', code: 'OUTPUT_LIMIT', bytes, error: `O GIF passou do limite de ${Math.round(maxBytes / 1024)} KB.` });
+          break;
+        }
         postWorkerMessage({
           type: 'PROGRESS',
           progress,
+          bytes,
         });
       } catch (err: any) {
         postWorkerMessage({

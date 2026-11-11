@@ -8,6 +8,8 @@
  * Memory-safe preallocated Uint8Array buffer manager.
  * Eliminates V8 number[] heap inflation and provides zero-copy Blob generation.
  */
+import { buildPalette } from './gifPalette';
+
 export class DynamicUint8Buffer {
   private buffer: Uint8Array;
   private position: number = 0;
@@ -22,8 +24,9 @@ export class DynamicUint8Buffer {
     const required = this.position + neededBytes;
     if (required > this.buffer.length) {
       let newCapacity = this.buffer.length;
+      // crescimento geométrico (×1,5): com passo fixo de 64 KB, um GIF de dezenas de MB copiava o buffer inteiro centenas de vezes
       while (newCapacity < required) {
-        newCapacity += this.chunkSize;
+        newCapacity += Math.max(this.chunkSize, newCapacity >> 1);
       }
       const newBuffer = new Uint8Array(newCapacity);
       newBuffer.set(this.buffer.subarray(0, this.position), 0);
@@ -178,12 +181,19 @@ export class SimpleGifEncoder {
   private delay: number; // in centiseconds (1/100 s)
   private outBuffer: DynamicUint8Buffer;
 
-  constructor(width: number, height: number, delayMs: number = 100) {
+  private maxColors: number;
+
+  /** `maxColors` (2–256): quantas cores por quadro. Menos cores = arquivo menor. */
+  constructor(width: number, height: number, delayMs: number = 100, maxColors: number = 256) {
     this.width = width;
     this.height = height;
+    this.maxColors = Math.min(256, Math.max(2, Math.floor(maxColors) || 256));
     this.delay = Math.round(delayMs / 10);
     this.outBuffer = new DynamicUint8Buffer(65536, 65536);
   }
+
+  /** Bytes já escritos no GIF (cresce a cada quadro). */
+  public get bytesWritten(): number { return this.outBuffer.length; }
 
   public start(): void {
     this.outBuffer.reset();
@@ -224,9 +234,9 @@ export class SimpleGifEncoder {
       ? Math.round(frameDelayMs / 10) 
       : this.delay;
 
-    // Gerador de Paleta NeuQuant
-    const nq = new NeuQuant(pixels, 10);
-    const colormap = nq.buildColormap();
+    // Paleta do quadro (median-cut sobre histograma RGB555)
+    const pal = buildPalette(pixels, this.maxColors);
+    const tableSize = 1 << pal.bits;
 
     // Graphic Control Extension (delay time, disposal)
     this.outBuffer.writeBytes([0x21, 0xf9, 0x04, 0x00]);
@@ -239,32 +249,20 @@ export class SimpleGifEncoder {
     this.outBuffer.writeShort(0); // Top
     this.outBuffer.writeShort(this.width);
     this.outBuffer.writeShort(this.height);
-    this.outBuffer.writeByte(0x87); // Local Color Table flag (1) + 256 colors (7)
+    this.outBuffer.writeByte(0x80 | (pal.bits - 1)); // Local Color Table flag + tamanho (2^bits cores)
 
-    // Write Local Colormap (256 * 3 bytes)
-    this.outBuffer.writeBytes(colormap);
+    // Local Color Table
+    this.outBuffer.writeBytes(pal.colors.subarray(0, tableSize * 3));
 
-    // Map pixels to color indices using RGB555 memoization table
+    // Pixels -> índices da paleta
     const totalPixels = this.width * this.height;
     const indexedPixels = new Uint8Array(totalPixels);
-    const colorCache = new Int16Array(32768).fill(-1);
-
     for (let i = 0, p = 0; i < pixels.length && p < totalPixels; i += 4, p++) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      const rgb555 = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-
-      let idx = colorCache[rgb555];
-      if (idx === -1) {
-        idx = nq.lookup(r, g, b, colormap);
-        colorCache[rgb555] = idx;
-      }
-      indexedPixels[p] = idx;
+      indexedPixels[p] = pal.binToIndex[((pixels[i] >> 3) << 10) | ((pixels[i + 1] >> 3) << 5) | (pixels[i + 2] >> 3)];
     }
 
     // LZW Compression
-    this.writeLZW(indexedPixels, 8);
+    this.writeLZW(indexedPixels, Math.max(2, pal.bits));
   }
 
   private writeLZW(pixels: Uint8Array, minCodeSize: number): void {

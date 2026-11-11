@@ -114,6 +114,10 @@ export interface GifEncodeJob {
   height?: number;
   delay?: number;
   frameData?: ImageData; // Transferable
+  /** START: número de cores por quadro (2–256) */
+  colors?: number;
+  /** START: o worker interrompe se o GIF passar deste tamanho (bytes) */
+  maxBytes?: number;
 }
 
 export interface GifWorkerMessage {
@@ -121,4 +125,8 @@ export interface GifWorkerMessage {
   progress?: number;
   blob?: Blob;
   error?: string;
+  /** PROGRESS/ERROR: tamanho atual do GIF em bytes */
+  bytes?: number;
+  /** ERROR: 'OUTPUT_LIMIT' quando o arquivo passou do limite pedido */
+  code?: 'OUTPUT_LIMIT';
 }

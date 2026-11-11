@@ -3,23 +3,20 @@ import {
   Film, Upload, Scissors, Gauge, Download, Sparkles, AlertCircle, 
   CheckCircle2, Play, Pause, RefreshCw, Eye, X, Square, Maximize2, Clock
 } from 'lucide-react';
-import type { DiscordPreset } from '../../types';
 import { renderChatText } from '../../utils/chatRenderer';
 import { getSharedChat, subscribeSharedChat, requestChatText, requestChatStyle } from '../../utils/chatStore';
 import { DialogPanel } from '../ChatLog/panels/DialogPanel';
 import { EditorSection } from '../ChatLog/EditorSection';
-import { computeGifFrame, clampGifSize, GIF_RESOLUTION_PRESETS, GIF_MIN_RES, GIF_MAX_RES, type GifOutSize } from '../../utils/gifFrame';
+import { clampGifSize, GIF_RESOLUTION_PRESETS, GIF_MIN_RES, GIF_MAX_RES } from '../../utils/gifFrame';
 import type { FitMode } from '../../utils/editorSettings';
-import { seekWithRetry, SEEK_FAILURE_MESSAGES } from '../../utils/videoSeek';
+import { estimateCost, suggestLighter, formatBytes, type Suggestion } from '../../utils/gifBudget';
+import {
+  DEFAULT_GIF_SETTINGS, GIF_PROFILES, GIF_QUALITY_LABELS, MAX_SMART_ATTEMPTS, applyProfile, applyQuality, clampColors,
+  nextLighter, outputDims, setCustomSize, withManual, type GifProfileId, type GifSettings
+} from '../../utils/gifSettings';
+import { exportGif, SeekFailure } from './gifExport';
 
 export type CropMode = 'original' | 'square';
-
-/** Falha ao posicionar o vídeo em um quadro (interrompe a conversão com mensagem clara). */
-class SeekFailure extends Error {
-  constructor(public frame: number, public total: number, public reason: string) {
-    super(`seek falhou no quadro ${frame}/${total}: ${reason}`);
-  }
-}
 
 export const GifLabView: React.FC = () => {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
@@ -32,16 +29,20 @@ export const GifLabView: React.FC = () => {
   const [endTime, setEndTime] = useState<number>(5);
 
   // Parâmetros de GIF & Presets
-  const [selectedPreset, setSelectedPreset] = useState<DiscordPreset>('custom');
-  const [cropMode, setCropMode] = useState<CropMode>('original');
-  const [fps, setFps] = useState<number>(12);
-  // Resolução de saída (mesma ideia do Editor RP): null = largura escolhida + proporção original
-  const [outSize, setOutSize] = useState<GifOutSize | null>(null);
-  const [fitMode, setFitMode] = useState<FitMode>('cover');
+  // Configuração única e tipada do GIF (perfil, qualidade, enquadramento, FPS, velocidade, cores)
+  const [cfg, setCfg] = useState<GifSettings>(DEFAULT_GIF_SETTINGS);
   const [customW, setCustomW] = useState<string>('1280');
   const [customH, setCustomH] = useState<string>('720');
-  const [targetWidth, setTargetWidth] = useState<number>(480);
-  const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
+  const [smartExport, setSmartExport] = useState<boolean>(true);
+  const [heavyOk, setHeavyOk] = useState<boolean>(false);
+  const [videoNative, setVideoNative] = useState<{ w: number; h: number }>({ w: 1280, h: 720 });
+  // valores derivados (o resto do componente lê estes nomes)
+  const outSize = cfg.frame.kind === 'size' ? cfg.frame.size : null;
+  const fitMode: FitMode = cfg.frame.kind === 'size' ? cfg.frame.fit : 'cover';
+  const cropMode: CropMode = cfg.frame.kind === 'width' ? cfg.frame.crop : 'original';
+  const targetWidth = cfg.frame.kind === 'width' ? cfg.frame.width : 480;
+  const fps = cfg.fps;
+  void fps;
   const [watermark, setWatermark] = useState<string>('');
 
   // Chat Log sobre o GIF: usa o texto e o estilo criados na aba Chat Log
@@ -83,7 +84,10 @@ export const GifLabView: React.FC = () => {
   const [progress, setProgress] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [resultGifUrl, setResultGifUrl] = useState<string | null>(null);
-  const [gifSizeMb, setGifSizeMb] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    bytes: number; width: number; height: number; frames: number; seconds: number; used: string;
+    target: { bytes: number; met: boolean } | null; attempts: Array<{ label: string; bytes?: number }>;
+  } | null>(null);
 
   // Ergonomia: Drag and Drop
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -239,7 +243,7 @@ export const GifLabView: React.FC = () => {
     const url = URL.createObjectURL(file);
     setVideoSrc(url);
     setResultGifUrl(null);
-    setGifSizeMb(null);
+    setResult(null);
     setIsPlaying(false);
   }, []);
 
@@ -248,266 +252,146 @@ export const GifLabView: React.FC = () => {
     if (videoRef.current) {
       const dur = videoRef.current.duration || 10;
       setVideoDuration(dur);
+      setVideoNative({ w: videoRef.current.videoWidth || 1280, h: videoRef.current.videoHeight || 720 });
       setStartTime(0);
       setEndTime(Math.min(5, Math.max(1, Math.floor(dur))));
     }
   };
 
-  // Presets Rápidos para Discord com Crop 1:1 Quadrado (Feature 23)
-  const applyPreset = (preset: DiscordPreset) => {
-    setSelectedPreset(preset);
-    setOutSize(null); // os presets Discord definem largura e recorte próprios
-
-    if (preset === 'banner') {
-      setTargetWidth(540);
-      setCropMode('original');
-      setFps(12);
-    } else if (preset === 'avatar') {
-      setTargetWidth(320);
-      setCropMode('square');
-      setFps(12);
-    } else if (preset === 'emoji') {
-      setTargetWidth(128);
-      setCropMode('square');
-      setFps(10);
-      // Limita duração padrão para emojis garantindo < 256 KB
-      if (endTime - startTime > 2.5) {
-        setEndTime(Math.min(videoDuration || 10, startTime + 2.0));
-      }
-    } else {
-      setTargetWidth(480);
-      setCropMode('original');
-      setFps(12);
+  // Perfis (Emoji / Avatar / Banner / RP Forum / Personalizado): aplicam enquadramento, FPS e cores no nível atual
+  const chooseProfile = (id: GifProfileId) => {
+    setCfg(c => applyProfile(c, id));
+    setHeavyOk(false);
+    const pr = id === 'custom' ? null : GIF_PROFILES[id];
+    if (pr?.maxSeconds && endTime - startTime > pr.maxSeconds) {
+      setEndTime(Math.min(videoDuration || 10, startTime + 2.0)); // trecho curto para caber no limite (como já era no preset Emoji)
     }
   };
+  const setCrop = (crop: 'original' | 'square') =>
+    setCfg(c => withManual(c, { frame: { kind: 'width', width: c.frame.kind === 'width' ? c.frame.width : 480, crop } }));
+  const applySuggestion = (patch: Suggestion['patch']) => {
+    if (patch.w && patch.h) setCfg(c => setCustomSize(c, patch.w!, patch.h!));
+    if (patch.fps) setCfg(c => withManual(c, { fps: patch.fps! }));
+    if (patch.colors) setCfg(c => withManual(c, { colors: patch.colors! }));
+    if (patch.durationS) setEndTime(Math.min(videoDuration || 10, startTime + patch.durationS));
+    setHeavyOk(false);
+  };
 
-  // Cancelamento da conversão ativa via AbortController e terminate() (Feature 20)
+  // Cancelamento da conversão ativa: o AbortSignal termina o worker e libera os canvases (ver gifExport.ts)
   const handleCancel = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
-    }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setIsProcessing(false);
     setProgress(0);
     setStatusMessage('Conversão cancelada pelo usuário.');
   };
 
-  // Conversão de Vídeo para GIF em background via Web Worker (Features 20, 21, 22, 23)
+  const describeSettings = (s: GifSettings, v: { w: number; h: number }) => {
+    const d = outputDims(s, v.w, v.h);
+    return `${d.w}×${d.h}, ${s.fps} FPS, ${s.colors} cores`;
+  };
+
+  // Conversão de vídeo para GIF: captura no thread principal, codificação no Web Worker.
+  // Com Smart Export e um alvo de tamanho, tenta configurações cada vez mais leves e MEDE o arquivo de cada tentativa.
   const generateGif = async () => {
     const video = videoRef.current;
     if (!video || !videoSrc || isProcessing) return;
-
-    // Teardown de instâncias e blobs antigos
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
+    if (cost?.level === 'blocked') return;
+    if (cost?.level === 'heavy' && !heavyOk) {
+      setStatusMessage('Configuração pesada: marque "Entendo o risco" ou reduza as configurações.');
+      return;
     }
+
     if (resultGifUrlRef.current) {
       safeRevokeUrl(resultGifUrlRef.current);
       setResultGifUrl(null);
     }
+    setResult(null);
 
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsProcessing(true);
     setProgress(0);
-    setStatusMessage('Inicializando pipeline Web Worker...');
-    setGifSizeMb(null);
+    setStatusMessage('Preparando a conversão...');
 
-    // Pausar vídeo durante a extração
     video.pause();
     setIsPlaying(false);
 
-    const canvas = hiddenCanvasRef.current || document.createElement('canvas');
-    hiddenCanvasRef.current = canvas;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) {
-      setIsProcessing(false);
-      return;
-    }
-
-    // Cálculo das dimensões e recorte central 1:1 para presets Avatar e Emoji (Feature 23)
-    const vw = video.videoWidth || 1280;
-    const vh = video.videoHeight || 720;
-    const geo = computeGifFrame(vw, vh, cropMode, targetWidth, outSize, fitMode);
-    const { outWidth, outHeight, sx, sy, sw, sh, dx, dy, dw, dh } = geo;
-
-    canvas.width = outWidth;
-    canvas.height = outHeight;
-
-    // Chat Log sobre cada quadro: renderiza numa camada transparente e reaplica em todos.
-    // Com "revelar linhas", a camada é refeita só quando entra uma linha nova.
-    const buildChatOverlay = (rawText: string): HTMLCanvasElement | null => {
-      if (!sharedChat) return null;
-      const cv = document.createElement('canvas');
-      cv.width = outWidth;
-      cv.height = outHeight;
-      const octx = cv.getContext('2d');
-      if (!octx) return null;
-      const sc = (outWidth / sharedChat.refWidth) * (chatScalePct / 100);
-      renderChatText(octx, outWidth, outHeight, sc, {
-        ...sharedChat.style,
-        rawText,
-        chatPos: { x: ((chatXPct / 100) * outWidth) / sc, y: ((chatYPct / 100) * outHeight) / sc }
-      });
-      return cv;
-    };
-    const chatLines = sharedChat ? sharedChat.style.rawText.split('\n') : [];
-    const chatLineIdx = chatLines.map((l, i) => (l.trim() ? i : -1)).filter(i => i >= 0);
-    const revealChat = !!(includeChat && sharedChat && chatReveal && chatLineIdx.length > 1);
-    let shownLines = -1;
-    let chatOverlay: HTMLCanvasElement | null =
-      includeChat && sharedChat && !revealChat ? buildChatOverlay(sharedChat.style.rawText) : null;
-
-    const clipDuration = Math.max(0.2, endTime - startTime);
-    const totalFrames = Math.max(1, Math.floor(clipDuration * fps));
-    const frameInterval = clipDuration / totalFrames;
-    const delayMs = Math.round((1000 / fps) / speedMultiplier);
-
-    // Instanciação nativa do Web Worker (Vite 6 module worker)
-    const worker = new Worker(
-      new URL('./gifWorker.ts', import.meta.url),
-      { type: 'module' }
-    );
-    workerRef.current = worker;
-
-    worker.onmessage = (e: MessageEvent) => {
-      const data = e.data;
-      if (data.type === 'PROGRESS') {
-        if (typeof data.progress === 'number') {
-          setProgress(data.progress);
-        }
-      } else if (data.type === 'DONE') {
-        const gifBlob: Blob = data.blob;
-        const gifUrl = URL.createObjectURL(gifBlob);
-        setResultGifUrl(gifUrl);
-        setGifSizeMb((gifBlob.size / (1024 * 1024)).toFixed(2));
-        setIsProcessing(false);
-        setStatusMessage('Concluído!');
-        if (workerRef.current) {
-          workerRef.current.terminate();
-          workerRef.current = null;
-        }
-      } else if (data.type === 'ERROR') {
-        console.error('[GifWorker Error]:', data.error);
-        setIsProcessing(false);
-        setStatusMessage(`Erro: ${data.error}`);
-        if (workerRef.current) {
-          workerRef.current.terminate();
-          workerRef.current = null;
-        }
-      }
-    };
-
-    worker.onerror = (err) => {
-      console.error('[Worker Runtime Error]:', err);
-      setIsProcessing(false);
-      setStatusMessage('Falha crítica no Web Worker.');
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
-    };
-
-    // Iniciar encoder no Worker
-    worker.postMessage({
-      type: 'START',
-      width: outWidth,
-      height: outHeight,
-      delay: delayMs,
-      totalFrames
-    });
-
-    // Loop de extração de frames no thread principal e streaming zero-copy para o Worker
-    try {
-      for (let i = 0; i < totalFrames; i++) {
-        if (abortController.signal.aborted) break;
-
-        const frameTime = startTime + i * frameInterval;
-        setStatusMessage(`Capturando quadro ${i + 1}/${totalFrames}...`);
-
-        // Posiciona o vídeo; nunca exporta um quadro antigo se o seek falhar
-        const seek = await seekWithRetry(video, frameTime, {
-          timeoutMs: 3000, retries: 2, signal: abortController.signal
+    const chat = includeChat && sharedChat ? {
+      fullText: sharedChat.style.rawText,
+      reveal: chatReveal,
+      build: (w: number, h: number, text: string) => {
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const octx = cv.getContext('2d');
+        if (!octx) return null;
+        const sc = (w / sharedChat.refWidth) * (chatScalePct / 100);
+        renderChatText(octx, w, h, sc, {
+          ...sharedChat.style,
+          rawText: text,
+          chatPos: { x: ((chatXPct / 100) * w) / sc, y: ((chatYPct / 100) * h) / sc }
         });
-        if (abortController.signal.aborted || seek === 'aborted') break;
-        if (seek !== 'ok') {
-          throw new SeekFailure(i + 1, totalFrames, SEEK_FAILURE_MESSAGES[seek]);
-        }
-
-        // Renderizar frame recortado no canvas
-        ctx.clearRect(0, 0, outWidth, outHeight);
-        if (geo.fillBackground) {
-          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, outWidth, outHeight);
-          if (geo.fillBackground === 'blur') {
-            // faixas com o próprio quadro ampliado e desfocado
-            const k = Math.max(outWidth / vw, outHeight / vh);
-            ctx.save();
-            ctx.filter = `blur(${Math.round(Math.max(outWidth, outHeight) / 40)}px) brightness(0.65)`;
-            ctx.drawImage(video, (outWidth - vw * k) / 2, (outHeight - vh * k) / 2, vw * k, vh * k);
-            ctx.restore();
-          }
-        }
-        ctx.drawImage(video, sx, sy, sw, sh, dx, dy, dw, dh);
-
-        if (revealChat) {
-          // 80% do clipe revela as linhas; o restante mostra o chat completo
-          const t = Math.min(1, (i + 1) / Math.max(1, Math.floor(totalFrames * 0.8)));
-          const n = Math.max(1, Math.ceil(chatLineIdx.length * t));
-          if (n !== shownLines) {
-            shownLines = n;
-            chatOverlay = buildChatOverlay(chatLines.slice(0, chatLineIdx[n - 1] + 1).join('\n'));
-          }
-        }
-        if (chatOverlay) ctx.drawImage(chatOverlay, 0, 0);
-
-        // Marca d'água opcional
-        if (watermark.trim()) {
-          ctx.save();
-          ctx.font = 'bold 12px "Inter", sans-serif';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-          ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur = 4;
-          ctx.fillText(watermark, 10, outHeight - 10);
-          ctx.restore();
-        }
-
-        const imgData = ctx.getImageData(0, 0, outWidth, outHeight);
-        const buffer = imgData.data.buffer;
-
-        // Zero-copy transfer: a propriedade buffer do ArrayBuffer é transferida instantaneamente
-        worker.postMessage(
-          {
-            type: 'ADD_FRAME',
-            frameData: imgData,
-            buffer: buffer,
-            delay: delayMs
-          },
-          [buffer]
-        );
+        return cv;
       }
+    } : null;
 
-      if (!abortController.signal.aborted) {
-        setStatusMessage('Comprimindo LZW e finalizando GIF...');
-        worker.postMessage({ type: 'FINISH' });
+    const targetBytes = smartExport && profile?.target ? profile.target.bytes : undefined;
+    const base = cfg;
+    let cur = cfg;
+    const log: Array<{ label: string; bytes?: number }> = [];
+
+    try {
+      for (let attempt = 1; attempt <= MAX_SMART_ATTEMPTS; attempt++) {
+        const last = attempt === MAX_SMART_ATTEMPTS || !targetBytes || !nextLighter(cur, base);
+        // na última tentativa possível, gera o arquivo mesmo acima do alvo (e informa o tamanho medido)
+        const limit = targetBytes && !last ? targetBytes : undefined;
+        const label = describeSettings(cur, videoNative);
+        setStatusMessage(attempt > 1 ? `Tentativa ${attempt}: ${label}...` : 'Capturando quadros...');
+        const outcome = await exportGif({
+          video, settings: cur, startTime, endTime, chat, watermark, signal: controller.signal, maxBytes: limit,
+          onProgress: ({ frame, total, bytes, phase }) => {
+            setProgress(Math.round((frame / total) * 100));
+            setStatusMessage(phase === 'finish' ? 'Finalizando GIF...' : `${attempt > 1 ? `Tentativa ${attempt} · ` : ''}Quadro ${frame}/${total}${bytes ? ` · ${formatBytes(bytes)}` : ''}`);
+          }
+        });
+
+        if (outcome.status === 'aborted') { setStatusMessage('Conversão cancelada pelo usuário.'); return; }
+        if (outcome.status === 'too-large') {
+          log.push({ label, bytes: outcome.bytes });
+          const next = nextLighter(cur, base);
+          if (next) { cur = next; continue; }
+          continue; // sem mais reduções: a próxima volta é a última e gera sem limite
+        }
+        if (limit && outcome.bytes > limit) {
+          // passou do alvo por poucos bytes (ex.: finalizador do GIF): conta como tentativa fracassada
+          log.push({ label, bytes: outcome.bytes });
+          const next = nextLighter(cur, base);
+          if (next) { cur = next; continue; }
+        }
+        // pronto: o tamanho abaixo é o do arquivo gerado (medido)
+        log.push({ label, bytes: outcome.bytes });
+        const url = URL.createObjectURL(outcome.blob);
+        setResultGifUrl(url);
+        setResult({
+          bytes: outcome.bytes, width: outcome.width, height: outcome.height, frames: outcome.frames,
+          seconds: outcome.durationMs / 1000, used: describeSettings(cur, videoNative),
+          target: targetBytes ? { bytes: targetBytes, met: outcome.bytes <= targetBytes } : null,
+          attempts: log
+        });
+        setProgress(100);
+        setStatusMessage('Concluído!');
+        return;
       }
     } catch (err: any) {
-      console.error('[Capture Loop Error]:', err);
-      setIsProcessing(false);
+      console.error('[GIF export]', err);
       setStatusMessage(
         err instanceof SeekFailure
           ? `Falha no quadro ${err.frame}/${err.total}: ${err.reason}. Tente um intervalo menor ou um vídeo MP4 (H.264).`
-          : 'Erro durante a extração de frames.'
+          : `Erro: ${err?.message || 'durante a extração de frames.'}`
       );
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
+    } finally {
+      abortControllerRef.current = null;
+      setIsProcessing(false);
     }
   };
 
@@ -597,8 +481,14 @@ export const GifLabView: React.FC = () => {
     }
   };
 
-  const isEmojiPreset = selectedPreset === 'emoji';
-  const durationExceedsEmoji = isEmojiPreset && (endTime - startTime) > 2.5;
+  const profile = cfg.profile === 'custom' ? null : GIF_PROFILES[cfg.profile];
+  const dims = outputDims(cfg, videoNative.w, videoNative.h);
+  const costInput = {
+    w: dims.w, h: dims.h, fps: cfg.fps, durationS: endTime - startTime, speed: cfg.speed, colors: cfg.colors,
+    withChat: includeChat && !!sharedChat
+  };
+  const cost = videoSrc ? estimateCost(costInput) : null;
+  const suggestions = cost && cost.level !== 'ok' ? suggestLighter(costInput) : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -695,96 +585,134 @@ export const GifLabView: React.FC = () => {
           </div>
         </div>
 
-        {/* Presets Rápidos Discord & Configurações de Dimensão */}
-        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
+        {/* Smart Export: perfil, qualidade, resolução e custo */}
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3" data-testid="gif-export-settings">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" /> Presets Discord (1-Clique)
+              <Sparkles className="w-3.5 h-3.5" /> Perfil de exportação
             </span>
-            <span className="text-[11px] uppercase font-mono px-1.5 py-0.5 rounded bg-haze-raised text-haze-muted">
-              {cropMode === 'square' ? '1:1 Quadrado' : 'Original'}
+            <span className="text-[11px] uppercase font-mono px-1.5 py-0.5 rounded bg-haze-raised text-haze-muted" data-testid="gif-profile-badge">
+              {cfg.profile === 'custom' ? 'Personalizado' : `${GIF_PROFILES[cfg.profile].label}${cfg.tweaked ? ' (ajustado)' : ''}`}
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Perfil do GIF">
+            {(['emoji', 'avatar', 'banner', 'forum'] as const).map(id => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={cfg.profile === id}
+                onClick={() => chooseProfile(id)}
+                className={`p-2 rounded-lg border text-center text-xs transition-colors ${
+                  cfg.profile === id
+                    ? 'bg-haze-accent/20 border-haze-accent text-white'
+                    : 'bg-haze-field hover:bg-haze-raised border-haze-border text-haze-soft'
+                }`}
+              >
+                <div className="font-bold text-haze-accent text-xs">{GIF_PROFILES[id].label}</div>
+                <div className="text-[11px] text-haze-muted">{GIF_PROFILES[id].hint}</div>
+              </button>
+            ))}
             <button
               type="button"
-              onClick={() => applyPreset('banner')}
+              aria-pressed={cfg.profile === 'custom'}
+              onClick={() => chooseProfile('custom')}
               className={`p-2 rounded-lg border text-center text-xs transition-colors ${
-                selectedPreset === 'banner'
+                cfg.profile === 'custom'
                   ? 'bg-haze-accent/20 border-haze-accent text-white'
                   : 'bg-haze-field hover:bg-haze-raised border-haze-border text-haze-soft'
               }`}
             >
-              <div className="font-bold text-haze-accent text-xs">Banner Nitro</div>
-              <div className="text-[11px] text-haze-muted">540p (Original)</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyPreset('avatar')}
-              className={`p-2 rounded-lg border text-center text-xs transition-colors ${
-                selectedPreset === 'avatar'
-                  ? 'bg-haze-accent/20 border-haze-accent text-white'
-                  : 'bg-haze-field hover:bg-haze-raised border-haze-border text-haze-soft'
-              }`}
-            >
-              <div className="font-bold text-haze-accent text-xs">Avatar 1:1</div>
-              <div className="text-[11px] text-haze-muted">320x320</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyPreset('emoji')}
-              className={`p-2 rounded-lg border text-center text-xs transition-colors ${
-                selectedPreset === 'emoji'
-                  ? 'bg-haze-accent/20 border-haze-accent text-white'
-                  : 'bg-haze-field hover:bg-haze-raised border-haze-border text-haze-soft'
-              }`}
-            >
-              <div className="font-bold text-haze-accent text-xs">Emoji 1:1</div>
-              <div className="text-[11px] text-haze-muted">&lt;256KB (128p)</div>
+              <div className="font-bold text-haze-accent text-xs">Personalizado</div>
+              <div className="text-[11px] text-haze-muted">Você define tudo</div>
             </button>
           </div>
 
-          {/* Aviso de Tamanho para Presets de Emoji (Feature 23) */}
-          {durationExceedsEmoji && (
+          {cfg.profile !== 'custom' && (
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Nível de qualidade">
+                {(['quality', 'balanced', 'compact'] as const).map(q => (
+                  <button
+                    key={q}
+                    type="button"
+                    aria-pressed={cfg.quality === q}
+                    title={GIF_QUALITY_LABELS[q].hint}
+                    onClick={() => setCfg(c => applyQuality(c, q))}
+                    className={`py-1.5 rounded-lg text-xs border transition-colors ${
+                      cfg.quality === q ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
+                    }`}
+                  >
+                    {GIF_QUALITY_LABELS[q].label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-haze-faint">{GIF_QUALITY_LABELS[cfg.quality].hint}.</p>
+            </div>
+          )}
+
+          {profile?.target && (
+            <div className="space-y-1.5" data-testid="gif-target">
+              <label className="flex items-center gap-2 text-xs text-haze-text cursor-pointer">
+                <input type="checkbox" checked={smartExport} onChange={(e) => setSmartExport(e.target.checked)} className="accent-haze-accent" />
+                <span className="font-semibold">Smart Export: caber em {formatBytes(profile.target.bytes)}</span>
+              </label>
+              <p className="text-xs text-haze-faint leading-relaxed">
+                {profile.target.note} Verificado em {profile.target.verifiedOn}; as regras podem mudar. O tamanho do arquivo final é sempre medido.
+                {' '}<a href={profile.target.source} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-haze-accent-hover">Fonte</a>
+              </p>
+            </div>
+          )}
+
+          {profile && profile.maxSeconds && (endTime - startTime) > profile.maxSeconds && (
             <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-300">
               <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" />
               <span>
-                <strong>Atenção ao limite de 256 KB:</strong> Duração atual de {(endTime - startTime).toFixed(1)}s pode exceder o limite do Discord para emojis. Recomendado: ≤ 2.5s a 10 FPS.
+                Trecho de {(endTime - startTime).toFixed(1)}s: para este perfil o recomendado é até {profile.maxSeconds}s (a 10 FPS). Quanto mais longo, mais difícil caber no limite.
               </span>
             </div>
           )}
 
-          {/* Modo de Corte / Aspect Ratio */}
-          <div className="pt-1">
-            <label className="text-haze-muted block mb-1 text-xs">Formato de Recorte</label>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setCropMode('original')}
-                className={`py-1.5 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-xs transition-colors ${
-                  cropMode === 'original'
-                    ? 'bg-haze-accent/20 border-haze-accent text-haze-accent font-bold'
-                    : 'bg-haze-field border-haze-border text-haze-muted hover:text-haze-text'
-                }`}
-              >
-                <Maximize2 className="w-3.5 h-3.5" /> Proporção Original
-              </button>
-              <button
-                type="button"
-                onClick={() => setCropMode('square')}
-                className={`py-1.5 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-xs transition-colors ${
-                  cropMode === 'square'
-                    ? 'bg-haze-accent/20 border-haze-accent text-haze-accent font-bold'
-                    : 'bg-haze-field border-haze-border text-haze-muted hover:text-haze-text'
-                }`}
-              >
-                <Square className="w-3.5 h-3.5" /> 1:1 Quadrado
-              </button>
+          {/* Modo de Corte / Aspect Ratio (só quando a saída segue a largura escolhida) */}
+          {cfg.frame.kind === 'width' && (
+            <div className="pt-1">
+              <label className="text-haze-muted block mb-1 text-xs">Formato de Recorte</label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCrop('original')}
+                  className={`py-1.5 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-xs transition-colors ${
+                    cropMode === 'original'
+                      ? 'bg-haze-accent/20 border-haze-accent text-haze-accent font-bold'
+                      : 'bg-haze-field border-haze-border text-haze-muted hover:text-haze-text'
+                  }`}
+                >
+                  <Maximize2 className="w-3.5 h-3.5" /> Proporção Original
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCrop('square')}
+                  className={`py-1.5 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-xs transition-colors ${
+                    cropMode === 'square'
+                      ? 'bg-haze-accent/20 border-haze-accent text-haze-accent font-bold'
+                      : 'bg-haze-field border-haze-border text-haze-muted hover:text-haze-text'
+                  }`}
+                >
+                  <Square className="w-3.5 h-3.5" /> 1:1 Quadrado
+                </button>
+              </div>
+              <div className="mt-2">
+                <div className="flex justify-between text-xs text-haze-muted mb-1">
+                  <span>Largura do GIF</span>
+                  <span className="font-mono text-haze-text">{targetWidth}px</span>
+                </div>
+                <input
+                  type="range" min={64} max={1280} step={16} value={targetWidth} aria-label="Largura do GIF"
+                  onChange={(e) => setCfg(c => withManual(c, { frame: { kind: 'width', width: parseInt(e.target.value, 10), crop: cropMode } }))}
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Resolução e adaptação (mesma função do Editor RP) */}
           <div className="pt-3 border-t border-haze-border space-y-2" data-testid="gif-resolution">
@@ -793,17 +721,20 @@ export const GifLabView: React.FC = () => {
               <span className="text-xs font-mono text-haze-soft">{outSize ? `${outSize.w}×${outSize.h}` : 'Original'}</span>
             </div>
             <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Resolução do GIF">
-              {GIF_RESOLUTION_PRESETS.map(p => {
-                const active = p.size === null ? outSize === null : outSize?.w === p.size.w && outSize?.h === p.size.h;
+              {GIF_RESOLUTION_PRESETS.map(pr => {
+                const active = pr.size === null ? outSize === null : outSize?.w === pr.size.w && outSize?.h === pr.size.h;
                 return (
                   <button
-                    key={p.label} type="button" aria-pressed={active}
-                    onClick={() => { setOutSize(p.size); if (p.size) { setCustomW(String(p.size.w)); setCustomH(String(p.size.h)); setSelectedPreset('custom'); } }}
+                    key={pr.label} type="button" aria-pressed={active}
+                    onClick={() => {
+                      if (pr.size) { setCfg(c => setCustomSize(c, pr.size!.w, pr.size!.h)); setCustomW(String(pr.size.w)); setCustomH(String(pr.size.h)); }
+                      else setCrop('original');
+                    }}
                     className={`py-1.5 rounded-lg text-xs border transition-colors ${
                       active ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
                     }`}
                   >
-                    {p.label}
+                    {pr.label}
                   </button>
                 );
               })}
@@ -825,21 +756,21 @@ export const GifLabView: React.FC = () => {
                 onClick={() => {
                   const next = clampGifSize(parseInt(customW, 10), parseInt(customH, 10));
                   if (!next) return;
-                  setOutSize(next); setCustomW(String(next.w)); setCustomH(String(next.h)); setSelectedPreset('custom');
+                  setCfg(c => setCustomSize(c, next.w, next.h)); setCustomW(String(next.w)); setCustomH(String(next.h));
                 }}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-haze-accent/50 text-haze-accent hover:bg-haze-accent/10"
               >
                 Aplicar
               </button>
             </div>
-            <p className="text-xs text-haze-faint">Máximo {GIF_MAX_RES}px por lado. Tamanhos grandes geram GIFs pesados (o Discord limita o envio).</p>
+            <p className="text-xs text-haze-faint">Máximo {GIF_MAX_RES}px por lado. Tamanhos grandes geram GIFs pesados.</p>
             <div>
               <span className="text-xs text-haze-muted block mb-1">Modo de adaptação do vídeo</span>
               <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Modo de adaptação do vídeo">
                 {([['cover', 'Cover'], ['contain', 'Contain'], ['blur', 'Contain + desfoque'], ['stretch', 'Esticar']] as const).map(([key, label]) => (
                   <button
                     key={key} type="button" aria-pressed={fitMode === key} disabled={!outSize}
-                    onClick={() => setFitMode(key)}
+                    onClick={() => setCfg(c => c.frame.kind === 'size' ? withManual(c, { frame: { ...c.frame, fit: key } }) : c)}
                     className={`py-1.5 rounded-lg text-xs border transition-colors disabled:opacity-40 ${
                       fitMode === key ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
                     }`}
@@ -852,34 +783,42 @@ export const GifLabView: React.FC = () => {
             </div>
           </div>
 
-          {/* FPS e Velocidade */}
-          <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+          {/* FPS, Velocidade e Cores */}
+          <div className="grid grid-cols-3 gap-3 text-xs pt-1">
             <div>
               <label className="text-haze-muted block mb-1">FPS (Quadros/s)</label>
               <select
-                value={fps}
-                onChange={(e) => setFps(parseInt(e.target.value))}
+                value={cfg.fps}
+                onChange={(e) => setCfg(c => withManual(c, { fps: parseInt(e.target.value, 10) }))}
                 className="w-full px-2 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs focus:border-haze-accent focus:outline-none"
               >
-                <option value={8}>8 FPS (Leve)</option>
-                <option value={10}>10 FPS (Discord Emoji)</option>
-                <option value={12}>12 FPS (Balanceado)</option>
-                <option value={15}>15 FPS (Fluido)</option>
-                <option value={20}>20 FPS (Alta Taxa)</option>
+                {[6, 8, 10, 12, 15, 20].map(v => <option key={v} value={v}>{v} FPS{v === 8 ? ' (Leve)' : v === 10 ? ' (Discord Emoji)' : v === 12 ? ' (Balanceado)' : v === 15 ? ' (Fluido)' : v === 20 ? ' (Alta Taxa)' : ''}</option>)}
               </select>
             </div>
 
             <div>
               <label className="text-haze-muted block mb-1">Velocidade</label>
               <select
-                value={speedMultiplier}
-                onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
+                value={cfg.speed}
+                onChange={(e) => setCfg(c => withManual(c, { speed: parseFloat(e.target.value) }))}
                 className="w-full px-2 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs focus:border-haze-accent focus:outline-none"
               >
                 <option value={0.5}>0.5× (Slow Motion)</option>
                 <option value={1}>1.0× (Normal)</option>
                 <option value={1.5}>1.5× (Acelerado)</option>
                 <option value={2}>2.0× (Rápido)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-haze-muted block mb-1">Cores</label>
+              <select
+                aria-label="Cores do GIF"
+                value={cfg.colors}
+                onChange={(e) => setCfg(c => withManual(c, { colors: clampColors(parseInt(e.target.value, 10)) }))}
+                className="w-full px-2 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs focus:border-haze-accent focus:outline-none"
+              >
+                {[256, 128, 64, 32, 16].map(v => <option key={v} value={v}>{v} cores{v === 256 ? ' (máx.)' : ''}</option>)}
               </select>
             </div>
           </div>
@@ -893,6 +832,56 @@ export const GifLabView: React.FC = () => {
               placeholder="ex: @HazeRP ou discord.gg/..."
               className="w-full px-3 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs focus:border-haze-accent focus:outline-none"
             />
+          </div>
+
+          {/* Orçamento: estimativa antes de converter */}
+          <div
+            data-testid="gif-budget"
+            data-level={cost?.level ?? 'none'}
+            className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+              !cost ? 'border-haze-border text-haze-faint'
+              : cost.level === 'ok' ? 'border-haze-border bg-haze-field text-haze-soft'
+              : cost.level === 'heavy' ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+              : 'border-red-500/40 bg-red-500/10 text-red-200'
+            }`}
+          >
+            {!cost ? <span>Carregue um vídeo para ver a estimativa de tamanho e desempenho.</span> : (
+              <>
+                <div className="font-semibold text-haze-text">
+                  {cost.frames} quadros · {dims.w}×{dims.h} · cerca de {Math.max(1, Math.round(cost.seconds))} s para converter
+                </div>
+                <div>
+                  GIF estimado: ~{formatBytes(cost.outputBytes)} <span className="text-haze-faint">(estimativa; o tamanho real é medido no fim)</span> · memória de pico: ~{Math.round(cost.peakRamBytes / 1048576)} MB
+                </div>
+                {profile?.target && cost.outputBytes > profile.target.bytes && (
+                  <div>Pode passar de {formatBytes(profile.target.bytes)}.{smartExport ? ' O Smart Export vai reduzir qualidade o necessário.' : ' Ative o Smart Export para ajustar sozinho.'}</div>
+                )}
+                {cost.level !== 'ok' && (
+                  <div className="space-y-1.5">
+                    <div className="font-semibold">
+                      {cost.level === 'blocked' ? 'Configuração pesada demais: reduza antes de converter.' : 'Configuração pesada: pode deixar o navegador lento.'}
+                      {' '}({cost.reasons.join('; ')})
+                    </div>
+                    {suggestions.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.map(sg => (
+                          <button key={sg.label} type="button" onClick={() => applySuggestion(sg.patch)}
+                            className="px-2 py-1 rounded-lg border border-current/40 hover:bg-white/10">
+                            {sg.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {cost.level === 'heavy' && (
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={heavyOk} onChange={(e) => setHeavyOk(e.target.checked)} className="accent-haze-accent" />
+                        Entendo o risco e quero converter assim mesmo
+                      </label>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Chat Log sobre o GIF */}
@@ -1031,7 +1020,7 @@ export const GifLabView: React.FC = () => {
           <button
             type="button"
             onClick={generateGif}
-            disabled={!videoSrc || isProcessing}
+            disabled={!videoSrc || isProcessing || cost?.level === 'blocked'}
             className="w-full py-3 px-4 rounded-xl bg-haze-accent-fill hover:bg-haze-accent-fill-hover disabled:opacity-50 disabled:cursor-not-allowed text-haze-on-accent font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-haze-accent/20 transition-all cursor-pointer"
           >
             {isProcessing ? (
@@ -1167,8 +1156,8 @@ export const GifLabView: React.FC = () => {
                 <span className="text-xs font-bold uppercase tracking-wider text-white">
                   GIF Gerado com Sucesso!
                 </span>
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-haze-accent/20 text-haze-accent">
-                  {gifSizeMb} MB
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-haze-accent/20 text-haze-accent" data-testid="gif-result-size">
+                  {result ? formatBytes(result.bytes) : ''}
                 </span>
               </div>
 
@@ -1180,6 +1169,29 @@ export const GifLabView: React.FC = () => {
                 <Download className="w-4 h-4" /> Baixar GIF
               </a>
             </div>
+
+            {result && (
+              <div className="space-y-1.5 text-xs" data-testid="gif-result-meta">
+                <div className="text-haze-soft font-mono">
+                  {result.width}×{result.height} · {result.frames} quadros · convertido em {result.seconds.toFixed(1)} s · {result.used}
+                </div>
+                {result.target && (
+                  <div className={`p-2.5 rounded-xl border ${result.target.met ? 'border-haze-accent/40 bg-haze-accent/10 text-haze-accent' : 'border-amber-500/40 bg-amber-500/10 text-amber-300'}`}>
+                    {result.target.met
+                      ? `Dentro do limite: ${formatBytes(result.bytes)} (limite ${formatBytes(result.target.bytes)}, medido no arquivo final).`
+                      : `Acima do limite: o arquivo ficou com ${formatBytes(result.bytes)} e o limite é ${formatBytes(result.target.bytes)}. Reduza o trecho, a resolução ou use o nível Compacto.`}
+                  </div>
+                )}
+                {result.attempts.length > 1 && (
+                  <details className="text-haze-faint">
+                    <summary className="cursor-pointer">Tentativas ({result.attempts.length})</summary>
+                    <ul className="mt-1 space-y-0.5 font-mono">
+                      {result.attempts.map((a, i) => <li key={i}>{i + 1}. {a.label}: {a.bytes ? (i === result.attempts.length - 1 ? `resultado ${formatBytes(a.bytes)}` : `passou de ${formatBytes(a.bytes)}`) : '—'}</li>)}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
 
             <div className="rounded-xl overflow-hidden bg-haze-stage border border-haze-border flex items-center justify-center p-2">
               <img
