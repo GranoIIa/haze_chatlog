@@ -1,0 +1,86 @@
+{
+  "when": "2026-11-11T23:18:11.170Z",
+  "browser": "149.0.7827.201",
+  "video": {
+    "w": 1280,
+    "h": 720,
+    "dur": 3.982458
+  },
+  "results": [
+    {
+      "cfg": "480w c256",
+      "ms": 4963,
+      "psnr": 38.19,
+      "bytes": 622091,
+      "frames": 36,
+      "w": 480,
+      "h": 270,
+      "durS": 3,
+      "sent": 36,
+      "maxQueue": 2,
+      "heapPeakMB": 24,
+      "mbFile": 0.59,
+      "rawFrameMB": 0.49
+    },
+    {
+      "cfg": "480w c128",
+      "ms": 4948,
+      "psnr": 37.85,
+      "bytes": 575627,
+      "frames": 36,
+      "w": 480,
+      "h": 270,
+      "durS": 3,
+      "sent": 36,
+      "maxQueue": 1,
+      "heapPeakMB": 25.6,
+      "mbFile": 0.55,
+      "rawFrameMB": 0.49
+    },
+    {
+      "cfg": "480w c64",
+      "ms": 4962,
+      "psnr": 36.57,
+      "bytes": 488358,
+      "frames": 36,
+      "w": 480,
+      "h": 270,
+      "durS": 3,
+      "sent": 36,
+      "maxQueue": 1,
+      "heapPeakMB": 40,
+      "mbFile": 0.47,
+      "rawFrameMB": 0.49
+    },
+    {
+      "cfg": "480w c32",
+      "ms": 4962,
+      "psnr": 33.29,
+      "bytes": 375603,
+      "frames": 36,
+      "w": 480,
+      "h": 270,
+      "durS": 3,
+      "sent": 36,
+      "maxQueue": 1,
+      "heapPeakMB": 38,
+      "mbFile": 0.36,
+      "rawFrameMB": 0.49
+    },
+    {
+      "cfg": "480w c16",
+      "ms": 4967,
+      "psnr": 28.24,
+      "bytes": 296467,
+      "frames": 36,
+      "w": 480,
+      "h": 270,
+      "durS": 3,
+      "sent": 36,
+      "maxQueue": 1,
+      "heapPeakMB": 32.6,
+      "mbFile": 0.28,
+      "rawFrameMB": 0.49
+    }
+  ]
+}

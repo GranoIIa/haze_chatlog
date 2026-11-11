@@ -52,12 +52,12 @@ export interface CostEstimate {
  */
 export const estimateOutputBytes = (w: number, h: number, frames: number, colors: number): number => {
   const px = w * h;
-  const bpp = BPP_480P * Math.pow(Math.max(px, 1) / (480 * 270), -0.35);
+  const bpp = BPP_480P * Math.pow(Math.max(px, 1) / (480 * 270), -0.32);
   const colorFactor = Math.pow(Math.log2(Math.max(2, colors)) / 8, 0.9);
   return Math.round(px * frames * bpp * colorFactor);
 };
 /** bytes por pixel-quadro a 480×270 e 256 cores (benchmark) */
-export const BPP_480P = 0.116;
+export const BPP_480P = 0.132;
 
 export const estimateCost = (c: CostInput): CostEstimate => {
   const frames = Math.max(1, Math.floor(Math.max(0.2, c.durationS) * c.fps));

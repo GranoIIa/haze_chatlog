@@ -76,6 +76,7 @@ for (const cfg of CONFIGS) {
     await p.getByRole('button', { name: 'Aplicar' }).click();
   }
   await page.locator('select').filter({ hasText: 'FPS' }).first().selectOption(String(cfg.fps));
+  await page.getByLabel('Cores do GIF').selectOption(String(cfg.colors || 256));
   await page.evaluate((FPSV) => { Object.assign(window.__gif, { sent: 0, done: 0, prog: 0, maxQueue: 0, heapPeak: 0 }); window.__fps = FPSV; }, cfg.fps);
   const t0 = Date.now();
   await page.getByRole('button', { name: /Converter Vídeo para GIF/ }).click();
