@@ -46,8 +46,9 @@ Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinh
 
 ### Produtividade
 - **Barra do mouse** (teclas `1–4`): Texto chat, Enquadrar foto, Mover camada, Posicionar luz. A roda do mouse dá zoom na foto ou muda o tamanho do elemento.
-- **Desfazer / Refazer** (`Ctrl+Z` / `Ctrl+Y`), com agrupamento de arrastes.
-- **Salvamento automático** de todas as configurações neste navegador.
+- **Desfazer / Refazer** (`Ctrl+Z` / `Ctrl+Y`) para tudo: texto, estilo, luz, câmera, elementos de RP, **camadas de imagem** e **troca ou remoção da foto de fundo**. Arrastes e sliders contam como um passo só.
+- **Salvamento automático** neste navegador: configurações, camadas de imagem e a **foto de fundo** voltam ao recarregar a página.
+- **Projeto `.haze`:** 💾 *Salvar projeto* guarda a cena inteira (foto, camadas, chat, ajustes) num arquivo que você abre em qualquer navegador com 📂 *Abrir projeto*. Nada é rasterizado: textos e elementos continuam editáveis. Arquivos inválidos ou de versão futura são recusados com mensagem clara, sem apagar o que está na tela.
 - **Exportar PNG 2×** (`Ctrl+S`), **copiar imagem** (`Ctrl+C`) e **Lote (ZIP)** que aplica o chat, a cena e os elementos a várias fotos.
 
 | Atalho | Ação |
@@ -67,6 +68,7 @@ Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinh
 
 - **Processamento em Web Worker** (`gifWorker.ts`) com buffers transferíveis: a interface não congela.
 - **Corte** (início e fim), FPS, velocidade (0,5× a 2×) e formato original ou 1:1.
+- **Captura confiável:** se o vídeo não conseguir posicionar um quadro, a conversão para com uma mensagem clara em vez de exportar um quadro repetido.
 - **Presets para Discord:** banner de perfil, avatar animado e emoji.
 - **Chat do Editor sobre o GIF:** use o texto, os personagens e o estilo criados no Editor; arraste o texto no preview do vídeo, ajuste posição e tamanho e, se quiser, **revele as linhas aos poucos** (efeito de digitação).
 - **Marca d'água** de texto opcional.
@@ -114,6 +116,8 @@ src/
 │   ├── chatParser.ts / chatRenderer.ts   # parser e renderizador do chat
 │   ├── chatStore.ts                      # chat compartilhado com o GIF Lab
 │   ├── canvasLayerRenderer.ts            # desenho e alças dos elementos de RP
+│   ├── projectFile.ts                    # arquivo de projeto .haze (validação, salvar, abrir)
+│   ├── videoSeek.ts                      # posicionamento do vídeo com retries
 │   ├── rpPresets.ts / rpStickers.ts      # presets cinemáticos e adesivos
 │   ├── photoFilters.ts                   # retoque fotográfico
 │   └── gifEncoder.ts

@@ -95,3 +95,42 @@ export const clearLayersDb = async () => {
     });
   } catch (_) { /* sem IndexedDB: nada a limpar */ }
 };
+
+// ---- Foto de fundo (mesmo banco: meta['background'] = id, blobs[id] = arquivo) ----
+
+/** Grava a foto de fundo atual (ou remove, com id nulo) e apaga o arquivo da foto anterior. */
+export const saveBackgroundToDb = async (
+  id: string | null,
+  blob: Blob | null,
+  storedId: { current: string | null }
+) => {
+  const db = await openLayersDb();
+  try {
+    const tx = db.transaction(['meta', 'blobs'], 'readwrite');
+    const bs = tx.objectStore('blobs');
+    if (storedId.current && storedId.current !== id) bs.delete(storedId.current);
+    if (id && blob) {
+      if (storedId.current !== id) bs.put(blob, id);
+      tx.objectStore('meta').put(id, 'background');
+    } else {
+      tx.objectStore('meta').delete('background');
+    }
+    await txDone(tx);
+    storedId.current = id && blob ? id : null;
+  } finally {
+    db.close();
+  }
+};
+
+export const loadBackgroundFromDb = async (): Promise<{ id: string; blob: Blob } | null> => {
+  const db = await openLayersDb();
+  try {
+    const tx = db.transaction(['meta', 'blobs'], 'readonly');
+    const id = await reqResult(tx.objectStore('meta').get('background'));
+    if (typeof id !== 'string') return null;
+    const blob = await reqResult(tx.objectStore('blobs').get(id));
+    return blob instanceof Blob ? { id, blob } : null;
+  } finally {
+    db.close();
+  }
+};

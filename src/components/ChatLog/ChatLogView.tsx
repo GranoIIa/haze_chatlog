@@ -25,7 +25,12 @@ import {
 import { STORAGE_KEY, loadSaved, RESOLUTION_PRESETS, MIN_RES, MAX_RES, drawFittedImage, sanitizeCanvasLayers, num, bool, str, type FitMode, type MouseTool, type ImageLayer } from '../../utils/editorSettings';
 import { DEFAULT_LIGHTING, LIGHT_SOURCES, LIGHT_BLENDS, LIGHTING_PRESETS, LIGHT_POSITIONS, hexToRgba, sanitizeLighting, drawPhotographicLight, drawLightGizmo, type LightSource, type Lighting } from '../../utils/lighting';
 import { NO_EFFECTS, DEFAULT_CAMERA, CAMERA_PRESET_EFFECTS, EFFECT_LABELS, sanitizeCamera, getNoiseCanvas, applyFilmEffects, drawCameraOverlay, type CameraPreset, type EffectKey, type CameraState } from '../../utils/cameraFx';
-import { saveLayersToDb, loadLayersFromDb, clearLayersDb } from '../../utils/layerStorage';
+import {
+  saveLayersToDb, loadLayersFromDb, clearLayersDb, saveBackgroundToDb, loadBackgroundFromDb
+} from '../../utils/layerStorage';
+import {
+  buildProjectBlob, parseProjectFile, ProjectError, ProjectScene, ProjectAsset, PROJECT_EXTENSION
+} from '../../utils/projectFile';
 
 export const ChatLogView: React.FC = () => {
   // Container Ref para escopo de eventos globais (ex: paste em abas inativas)
@@ -44,6 +49,12 @@ export const ChatLogView: React.FC = () => {
 
   // Estado da Imagem
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [bgId, setBgId] = useState<string | null>(null);   // identifica a foto de fundo atual (histórico e projeto)
+  const [bgReady, setBgReady] = useState(false);           // true depois de restaurar a foto salva
+  const bgBlobs = useRef<Map<string, Blob>>(new Map());    // fotos já usadas na sessão (para desfazer)
+  const bgNames = useRef<Map<string, string>>(new Map());
+  const storedBgId = useRef<string | null>(null);          // foto já gravada no IndexedDB
+  const projectInputRef = useRef<HTMLInputElement | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({ width: 1280, height: 720 });
   const [darkening, setDarkening] = useState<number>(num(saved.darkening, 0.15));
   const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
@@ -274,23 +285,23 @@ export const ChatLogView: React.FC = () => {
   const loadedImageRef = useRef<HTMLImageElement | null>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
 
-  // Carregar imagem de forma segura com createObjectURL e liberação prévia
-  const handleImageUpload = (file: File) => {
-    if (!file.type.startsWith('image/')) return;
-
+  // Define a foto de fundo a partir de um arquivo (libera a URL da foto anterior)
+  const setBackgroundFromBlob = (blob: Blob, id: string, onLoaded?: () => void) => {
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
       currentBlobUrlRef.current = null;
     }
-
-    const objectUrl = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(blob);
     currentBlobUrlRef.current = objectUrl;
 
     const img = new Image();
     img.onload = () => {
+      if (currentBlobUrlRef.current !== objectUrl) return; // chegou outra foto depois
       loadedImageRef.current = img;
       setImageDimensions({ width: img.naturalWidth || 1280, height: img.naturalHeight || 720 });
       setImageSrc(objectUrl);
+      setBgId(id);
+      onLoaded?.();
     };
     img.onerror = () => {
       if (currentBlobUrlRef.current === objectUrl) {
@@ -299,6 +310,25 @@ export const ChatLogView: React.FC = () => {
       }
     };
     img.src = objectUrl;
+  };
+
+  const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    const id = `BG${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    bgBlobs.current.set(id, file);
+    bgNames.current.set(id, file.name || 'fundo');
+    setBackgroundFromBlob(file, id);
+  };
+
+  const clearBackground = () => {
+    if (currentBlobUrlRef.current) {
+      URL.revokeObjectURL(currentBlobUrlRef.current);
+      currentBlobUrlRef.current = null;
+    }
+    loadedImageRef.current = null;
+    setImageSrc(null);
+    setBgId(null);
+    setImageDimensions({ width: 1280, height: 720 });
   };
 
   // Limpeza de recursos ao desmontar componente
@@ -667,6 +697,89 @@ export const ChatLogView: React.FC = () => {
     outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers
   ]);
 
+  // ---- Projeto (.haze): salva e reabre a cena inteira, sem rasterizar nada ----
+  const exportProject = async () => {
+    try {
+      const { layers: imgLayers, bgId: currentBg, ...scene } = snapshotRef.current;
+      const assets = new Map<string, ProjectAsset>();
+      let background: { assetId: string; name: string } | null = null;
+
+      const bgBlob = currentBg ? bgBlobs.current.get(currentBg) : undefined;
+      if (currentBg && bgBlob) {
+        const name = bgNames.current.get(currentBg) ?? 'fundo';
+        assets.set(currentBg, { id: currentBg, name, mime: bgBlob.type, blob: bgBlob });
+        background = { assetId: currentBg, name };
+      }
+      for (const l of imgLayers) {
+        const blob = layerBlobs.current.get(l.blobId);
+        if (blob && !assets.has(l.blobId)) assets.set(l.blobId, { id: l.blobId, name: l.name, mime: blob.type, blob });
+      }
+
+      const out = await buildProjectBlob({
+        scene: scene as unknown as ProjectScene,
+        background,
+        imageLayers: imgLayers.filter(l => assets.has(l.blobId)),
+        assets
+      });
+      const url = URL.createObjectURL(out);
+      const link = document.createElement('a');
+      const d = new Date();
+      const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+      link.download = `haze-projeto-${stamp}${PROJECT_EXTENSION}`;
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      showNotice('Projeto salvo! Abra-o depois em "Abrir projeto".');
+    } catch (err) {
+      showNotice('Não foi possível salvar o projeto.', 'error');
+    }
+  };
+
+  const importProject = async (file: File) => {
+    try {
+      // 1) lê e valida tudo ANTES de mexer na sessão atual
+      const data = await parseProjectFile(file);
+      const decoded = new Map<string, HTMLImageElement>();
+      for (const asset of data.assets.values()) {
+        decoded.set(asset.id, await loadImageFromFile(asset.blob as File).catch(() => {
+          throw new ProjectError(`A imagem "${asset.name}" do projeto está corrompida.`);
+        }));
+      }
+      if (!window.confirm('Abrir este projeto substitui o que está no editor agora. Continuar?')) return;
+
+      // 2) aplica
+      layerBlobs.current.clear();
+      layerImgs.current.clear();
+      storedBlobIds.current.clear();
+      data.imageLayers.forEach(l => {
+        const asset = data.assets.get(l.blobId)!;
+        layerBlobs.current.set(l.blobId, asset.blob);
+        layerImgs.current.set(l.id, decoded.get(l.blobId)!);
+      });
+      if (data.background) {
+        const a = data.assets.get(data.background.assetId)!;
+        bgBlobs.current.set(a.id, a.blob);
+        bgNames.current.set(a.id, data.background.name);
+      }
+      setLayers([]);
+      applySnapshot(JSON.stringify({
+        ...data.scene,
+        layers: data.imageLayers,
+        bgId: data.background ? data.background.assetId : null
+      }));
+      setSelectedLayerId(null);
+      setSelectedCanvasLayerId(null);
+      resetHistory();
+      if (data.warnings.length) {
+        showNotice(`Projeto aberto com avisos: ${data.warnings.join('; ')}.`, 'error');
+      } else {
+        showNotice('Projeto aberto!');
+      }
+    } catch (err) {
+      showNotice(err instanceof ProjectError ? err.message : 'Não foi possível abrir o projeto.', 'error');
+    }
+  };
+
   const clearSavedData = async () => {
     if (!window.confirm('Apagar as configurações e camadas salvas e restaurar o padrão?')) return;
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
@@ -976,6 +1089,51 @@ export const ChatLogView: React.FC = () => {
   };
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
 
+  // Descarta o histórico (ex.: após restaurar do armazenamento ou abrir um projeto)
+  const resetHistory = () => {
+    pastRef.current = [];
+    futureRef.current = [];
+    committedRef.current = null;
+    syncHistCount();
+  };
+
+  // Restaura a foto de fundo salva ao abrir o app
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const bg = await loadBackgroundFromDb();
+        if (cancelled) return;
+        if (bg && !loadedImageRef.current) {
+          bgBlobs.current.set(bg.id, bg.blob);
+          bgNames.current.set(bg.id, 'fundo');
+          storedBgId.current = bg.id;
+          setBackgroundFromBlob(bg.blob, bg.id, resetHistory);
+        }
+      } catch (_) {
+        /* sem IndexedDB: a foto só vale nesta sessão */
+      } finally {
+        if (!cancelled) setBgReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Salva a foto de fundo (com debounce) quando ela muda
+  useEffect(() => {
+    if (!bgReady) return;
+    const t = setTimeout(() => {
+      const blob = bgId ? bgBlobs.current.get(bgId) ?? null : null;
+      saveBackgroundToDb(bgId, blob, storedBgId).catch((err) => {
+        if (err instanceof Error && err.message === 'IndexedDB indisponível') return;
+        showNotice(err?.name === 'QuotaExceededError'
+          ? 'Armazenamento cheio: a foto de fundo não foi salva neste navegador.'
+          : 'Não foi possível salvar a foto de fundo.', 'error');
+      });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [bgId, bgReady]);
+
   // Restaura as camadas salvas ao abrir o app
   useEffect(() => {
     let cancelled = false;
@@ -1000,7 +1158,7 @@ export const ChatLogView: React.FC = () => {
         const ok = savedLayers.filter(l => imgsByBlob.has(l.blobId));
         blobs.forEach((b, id) => { layerBlobs.current.set(id, b); storedBlobIds.current.add(id); });
         ok.forEach(l => layerImgs.current.set(l.id, imgsByBlob.get(l.blobId)!));
-        if (ok.length) setLayers(prev => (prev.length ? prev : ok));
+        if (ok.length) { setLayers(prev => (prev.length ? prev : ok)); resetHistory(); }
       } catch (_) {
         /* sem IndexedDB (ex.: janela privada): o app segue sem salvar camadas */
       } finally {
@@ -1047,7 +1205,8 @@ export const ChatLogView: React.FC = () => {
     darkening, adjustments, rawText, fontSize, fontFamily, lineHeightFactor,
     strokeEnabled, strokeWidth, strokeColor, bgEnabled, bgColor, bgOpacity,
     maxWidthPercent, shadowEnabled, censorStyle, showTimestamps, chatPos, characters,
-    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers
+    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers,
+    layers, bgId
   };
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
@@ -1134,7 +1293,7 @@ export const ChatLogView: React.FC = () => {
     darkening, adjustments, rawText, fontSize, fontFamily, lineHeightFactor,
     strokeEnabled, strokeWidth, strokeColor, bgEnabled, bgColor, bgOpacity,
     maxWidthPercent, shadowEnabled, censorStyle, showTimestamps, chatPos, characters,
-    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers
+    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, layers, bgId
   ]);
 
   const applySnapshot = (json: string) => {
@@ -1150,7 +1309,24 @@ export const ChatLogView: React.FC = () => {
     setPanX(s.panX); setPanY(s.panY); setZoom(s.zoom);
     setLighting(sanitizeLighting(s.lighting));
     setCamera(sanitizeCamera(s.camera));
-    setCanvasLayers(sanitizeCanvasLayers(s.canvasLayers));
+    const restoredCanvasLayers = sanitizeCanvasLayers(s.canvasLayers);
+    setCanvasLayers(restoredCanvasLayers);
+    setSelectedCanvasLayerId(cur => (cur && restoredCanvasLayers.some(l => l.id === cur) ? cur : null));
+
+    // camadas de imagem (só as que ainda têm a imagem carregada na sessão)
+    const restoredLayers: ImageLayer[] = Array.isArray(s.layers)
+      ? s.layers.filter((l: any) => l && typeof l.id === 'string' && layerImgs.current.has(l.id))
+      : [];
+    setLayers(restoredLayers);
+    setSelectedLayerId(cur => (cur && restoredLayers.some(l => l.id === cur) ? cur : null));
+
+    // foto de fundo
+    const targetBg: string | null = typeof s.bgId === 'string' ? s.bgId : null;
+    if (targetBg !== snapshotRef.current.bgId) {
+      const blob = targetBg ? bgBlobs.current.get(targetBg) : undefined;
+      if (targetBg && blob) setBackgroundFromBlob(blob, targetBg);
+      else clearBackground();
+    }
     if (s.outputRes) { setCustomW(String(s.outputRes.w)); setCustomH(String(s.outputRes.h)); }
   };
 
@@ -1322,6 +1498,31 @@ export const ChatLogView: React.FC = () => {
           </button>
         </div>
 
+        {/* Projeto: salvar e abrir a cena inteira */}
+        <input
+          ref={projectInputRef}
+          type="file"
+          accept=".haze,.zip,application/zip"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importProject(f); }}
+        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportProject}
+            title="Salva a cena inteira (foto, camadas, chat, ajustes) num arquivo .haze editável"
+            className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10"
+          >
+            💾 Salvar projeto
+          </button>
+          <button
+            onClick={() => projectInputRef.current?.click()}
+            title="Abre um arquivo .haze salvo antes"
+            className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-[#1E2638] text-slate-300 hover:border-emerald-500/40"
+          >
+            📂 Abrir projeto
+          </button>
+        </div>
+
         {showShortcuts && (
           <div role="region" aria-label="Atalhos de teclado" className="p-3 rounded-xl bg-[#121722] border border-emerald-500/30 text-[11px] text-slate-300 space-y-1">
             {[
@@ -1467,6 +1668,15 @@ export const ChatLogView: React.FC = () => {
               </p>
             </div>
           </div>
+
+          {imageSrc && (
+            <button
+              onClick={clearBackground}
+              className="mt-2 w-full py-1 rounded-lg text-[11px] text-slate-400 hover:text-rose-300 border border-[#1E2638] hover:border-rose-500/40"
+            >
+              Remover foto de fundo
+            </button>
+          )}
 
           <div className="mt-3 pt-3 border-t border-[#1E2638] flex items-center justify-between text-xs">
             <span className="text-slate-400">Escurecimento</span>
