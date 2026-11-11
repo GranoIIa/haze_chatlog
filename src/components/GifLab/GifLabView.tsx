@@ -616,6 +616,7 @@ export const GifLabView: React.FC = () => {
             <input
               type="file"
               ref={fileInputRef}
+              data-testid="video-input"
               onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0])}
               accept="video/mp4,video/webm,video/quicktime,video/*"
               className="hidden"

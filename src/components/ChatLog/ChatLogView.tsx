@@ -1501,6 +1501,7 @@ export const ChatLogView: React.FC = () => {
         {/* Projeto: salvar e abrir a cena inteira */}
         <input
           ref={projectInputRef}
+          data-testid="project-input"
           type="file"
           accept=".haze,.zip,application/zip"
           className="hidden"
@@ -1558,6 +1559,7 @@ export const ChatLogView: React.FC = () => {
             </p>
             <input
               ref={batchInputRef}
+              data-testid="batch-input"
               type="file"
               multiple
               accept="image/*"
@@ -1652,6 +1654,7 @@ export const ChatLogView: React.FC = () => {
             <input
               type="file"
               ref={fileInputRef}
+              data-testid="bg-input"
               onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
               accept="image/*"
               className="hidden"
@@ -1802,6 +1805,7 @@ export const ChatLogView: React.FC = () => {
 
           <input
             ref={layerInputRef}
+            data-testid="layer-input"
             type="file"
             accept="image/*"
             multiple
@@ -2490,6 +2494,7 @@ export const ChatLogView: React.FC = () => {
         >
           <canvas
             ref={previewCanvasRef}
+            data-testid="preview-canvas"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
