@@ -41,7 +41,7 @@ Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinh
 - **Presets cinemáticos:** Bodycam AXON, Weazel News, FLIR Águia, Dashcam, CCTV e Ficha Criminal.
 - **Adesivos forenses:** fita policial, distintivos LSPD/BCSO, marcadores de evidência, perfuração de tiro, mira tática, tarja de censura e carimbo.
 - **Texto livre**, com fonte, cor, sombra e contorno.
-- **Alças no preview** para mover, redimensionar e girar; rotação com `Shift` em passos de 15°. Cada elemento tem opacidade, mesclagem, travar, duplicar e ordem.
+- **Alças no preview** para mover, redimensionar e girar; rotação com `Shift` em passos de 15°. Cada elemento tem opacidade, mesclagem, travar, duplicar, ordem e a opção de ficar **abaixo do texto do chat**.
 - **Camadas de imagem** (logos, molduras, marcas d'água), **salvas no navegador** (IndexedDB).
 
 ### Produtividade
@@ -68,7 +68,7 @@ Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinh
 - **Processamento em Web Worker** (`gifWorker.ts`) com buffers transferíveis: a interface não congela.
 - **Corte** (início e fim), FPS, velocidade (0,5× a 2×) e formato original ou 1:1.
 - **Presets para Discord:** banner de perfil, avatar animado e emoji.
-- **Chat do Editor sobre o GIF:** use o texto, os personagens e o estilo criados no Editor; arraste o texto no preview do vídeo e ajuste posição e tamanho.
+- **Chat do Editor sobre o GIF:** use o texto, os personagens e o estilo criados no Editor; arraste o texto no preview do vídeo, ajuste posição e tamanho e, se quiser, **revele as linhas aos poucos** (efeito de digitação).
 - **Marca d'água** de texto opcional.
 
 ---
