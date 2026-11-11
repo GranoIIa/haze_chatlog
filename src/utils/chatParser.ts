@@ -116,8 +116,10 @@ export function parseChatLine(line: string): ParsedLine {
     type = 'yellow';
   } else if (/\bdiz\b\s*\(\s*(?:sussurrando|sussurando)\s*\)/i.test(low)) {
     type = 'darkgrey';
+  } else if (/\bdiz\b\s*\(\s*(?:r[aá]dio)\s*\)/i.test(low)) {
+    type = 'blue';
   } else if (/\bdiz\b\s*\(\s*baixo\s*\)/i.test(low)) {
-    type = 'darkgrey';
+    type = 'grey';
   } else if (/\bdiz\b\s*\(\s*gritando\s*\)/i.test(low) || /\bgrita\b/i.test(low)) {
     type = 'white';
   }

@@ -10,7 +10,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   return (
     <header className="sticky top-0 z-50 bg-[#0B0E14]/90 backdrop-blur-md border-b border-[#1E2638] px-4 lg:px-8 py-3 transition-all">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         
         {/* Brand Group */}
         <div className="flex items-center gap-3">
@@ -32,7 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           </div>
         </div>
 
-        {/* Navigation Tabs (Switcher das 3 Ferramentas) */}
+        {/* Navigation Tabs (Switcher das 2 Ferramentas) */}
         <nav className="flex items-center p-1 rounded-xl bg-[#121722] border border-[#1E2638] shadow-inner">
           <button
             onClick={() => setActiveTab('chatlog')}
@@ -43,21 +43,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             }`}
           >
             <MessageSquareText className="w-4 h-4" />
-            <span>Chat Log Creator</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('canvas')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'canvas'
-                ? 'bg-emerald-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-            }`}
-          >
-            <Palette className="w-4 h-4" />
-            <span>RP Canvas Studio</span>
+            <span>Editor RP</span>
             <span className="text-[9px] px-1.5 py-0.2 bg-emerald-950/80 text-emerald-300 rounded font-mono border border-emerald-400/30">
-              CANVA
+              CHAT + CANVAS
             </span>
           </button>
 

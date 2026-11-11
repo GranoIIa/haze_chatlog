@@ -191,13 +191,13 @@ describe('Tier 1: Features 01 to 05 Coverage', () => {
   // Feature 3: Dead Code & Dependency Hygiene
   // =========================================================================
 
-  test('T1_F03_01_PackageJsonDependencies: Clean dependencies without dead jszip packages', () => {
+  test('T1_F03_01_PackageJsonDependencies: jszip is a real dependency (used by batch ZIP export), without redundant @types', () => {
     const pkgPath = path.resolve(process.cwd(), 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
     assert('react' in pkg.dependencies, 'react must be in dependencies');
     assert('lucide-react' in pkg.dependencies, 'lucide-react must be in dependencies');
-    assert(!('jszip' in (pkg.dependencies || {})), 'jszip should not be in dependencies');
+    assert('jszip' in (pkg.dependencies || {}), 'jszip must be in dependencies (batch ZIP export)');
     assert(!('@types/jszip' in (pkg.devDependencies || {})), '@types/jszip should not be in devDependencies');
   });
 

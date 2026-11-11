@@ -26,10 +26,18 @@ describe('Tier 1: Features 06 to 10 Coverage', () => {
     assertEqual(parsed.messageText?.trim(), 'A gente não tem tempo.');
   });
 
-  test('T1_F06_02_WhisperSpeakerExtraction: Isolates speaker name and identifies whisper tone', () => {
-    const parsed = parseChatLine('Sarah Miller diz (baixo): Fale baixo.');
-    assertEqual(parsed.speaker, 'Sarah Miller');
-    assertEqual(parsed.type, 'darkgrey');
+  test('T1_F06_02_WhisperSpeakerExtraction: Isolates speaker name and identifies whisper and low tones', () => {
+    const whisper = parseChatLine('Sarah Miller diz (sussurrando): Fale baixo.');
+    assertEqual(whisper.speaker, 'Sarah Miller');
+    assertEqual(whisper.type, 'darkgrey');
+
+    // "baixo" usa cinza claro (igual à versão original), distinto do sussurro
+    const low = parseChatLine('Sarah Miller diz (baixo): Fale baixo.');
+    assertEqual(low.speaker, 'Sarah Miller');
+    assertEqual(low.type, 'grey');
+
+    const radio = parseChatLine('Sarah Miller diz (rádio): Unidade 12.');
+    assertEqual(radio.type, 'blue');
   });
 
   test('T1_F06_03_ShoutSpeakerExtraction: Isolates speaker tag for shout commands', () => {

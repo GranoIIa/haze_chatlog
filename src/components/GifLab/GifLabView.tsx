@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { 
   Film, Upload, Scissors, Gauge, Download, Sparkles, AlertCircle, 
   CheckCircle2, Play, Pause, RefreshCw, Eye, X, Square, Maximize2, Clock
 } from 'lucide-react';
 import type { DiscordPreset } from '../../types';
+import { renderChatText } from '../../utils/chatRenderer';
+import { getSharedChat, subscribeSharedChat } from '../../utils/chatStore';
 
 export type CropMode = 'original' | 'square';
 
@@ -24,6 +26,24 @@ export const GifLabView: React.FC = () => {
   const [targetWidth, setTargetWidth] = useState<number>(480);
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
   const [watermark, setWatermark] = useState<string>('');
+
+  // Chat Log sobre o GIF: usa o texto e o estilo criados na aba Chat Log
+  const sharedChat = useSyncExternalStore(subscribeSharedChat, getSharedChat);
+  const [includeChat, setIncludeChat] = useState<boolean>(false);
+  const [chatXPct, setChatXPct] = useState<number>(3);   // posição do chat em % do quadro
+  const [chatYPct, setChatYPct] = useState<number>(6);
+  const [chatScalePct, setChatScalePct] = useState<number>(100); // multiplicador do tamanho do texto
+  const [videoBox, setVideoBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const overlayRef = useRef<HTMLCanvasElement | null>(null);
+  const chatDragRef = useRef<{ offX: number; offY: number } | null>(null);
+  const chatPosInitRef = useRef<boolean>(false);
+
+  // Posição do chat no GIF = mesma posição relativa do canvas do Chat Log
+  const syncChatPosition = () => {
+    if (!sharedChat) return;
+    setChatXPct(Math.round((sharedChat.style.chatPos.x / sharedChat.refWidth) * 1000) / 10);
+    setChatYPct(Math.round((sharedChat.style.chatPos.y / sharedChat.refHeight) * 1000) / 10);
+  };
 
   // Processamento e Worker
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -53,6 +73,84 @@ export const GifLabView: React.FC = () => {
   useEffect(() => {
     resultGifUrlRef.current = resultGifUrl;
   }, [resultGifUrl]);
+
+  // Mede o vídeo exibido para alinhar a camada de preview do chat
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) { setVideoBox({ w: 0, h: 0 }); return; }
+    const measure = () => setVideoBox({ w: v.clientWidth, h: v.clientHeight });
+    measure();
+    v.addEventListener('loadedmetadata', measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(v);
+    return () => { v.removeEventListener('loadedmetadata', measure); ro.disconnect(); };
+  }, [videoSrc]);
+
+  // Área do quadro final dentro do vídeo exibido (no modo 1:1 é o recorte central)
+  const previewFrame = () => {
+    const { w, h } = videoBox;
+    if (cropMode === 'square') {
+      const side = Math.min(w, h);
+      return { x: (w - side) / 2, y: (h - side) / 2, w: side, h: side };
+    }
+    return { x: 0, y: 0, w, h };
+  };
+
+  // Desenha o chat sobre o preview do vídeo (mesma função usada nos quadros do GIF)
+  useEffect(() => {
+    const cv = overlayRef.current;
+    if (!cv) return;
+    cv.width = videoBox.w;
+    cv.height = videoBox.h;
+    const ctx = cv.getContext('2d');
+    if (!ctx || !videoBox.w || !videoBox.h) return;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!includeChat || !sharedChat) return;
+    const fr = previewFrame();
+    const sc = (fr.w / sharedChat.refWidth) * (chatScalePct / 100);
+    ctx.save();
+    ctx.translate(fr.x, fr.y);
+    ctx.beginPath();
+    ctx.rect(0, 0, fr.w, fr.h);
+    ctx.clip();
+    renderChatText(ctx, fr.w, fr.h, sc, {
+      ...sharedChat.style,
+      chatPos: { x: ((chatXPct / 100) * fr.w) / sc, y: ((chatYPct / 100) * fr.h) / sc }
+    });
+    ctx.restore();
+    if (cropMode === 'square') {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.8)';
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(fr.x + 0.5, fr.y + 0.5, fr.w - 1, fr.h - 1);
+      ctx.restore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeChat, sharedChat, chatXPct, chatYPct, chatScalePct, videoBox, cropMode]);
+
+  const chatPointerPct = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const cv = overlayRef.current!;
+    const rect = cv.getBoundingClientRect();
+    const fr = previewFrame();
+    const px = (e.clientX - rect.left) * (cv.width / rect.width) - fr.x;
+    const py = (e.clientY - rect.top) * (cv.height / rect.height) - fr.y;
+    return { x: (px / fr.w) * 100, y: (py / fr.h) * 100 };
+  };
+
+  const onChatPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!includeChat || e.button !== 0) return;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+    const p = chatPointerPct(e);
+    chatDragRef.current = { offX: p.x - chatXPct, offY: p.y - chatYPct };
+  };
+  const onChatPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const d = chatDragRef.current;
+    if (!d) return;
+    const p = chatPointerPct(e);
+    setChatXPct(Math.round(Math.max(0, Math.min(95, p.x - d.offX)) * 10) / 10);
+    setChatYPct(Math.round(Math.max(0, Math.min(95, p.y - d.offY)) * 10) / 10);
+  };
+  const onChatPointerEnd = () => { chatDragRef.current = null; };
 
   // Função utilitária para revogação segura de Object URLs (Feature 21)
   const safeRevokeUrl = (url: string | null) => {
@@ -285,6 +383,24 @@ export const GifLabView: React.FC = () => {
     canvas.width = outWidth;
     canvas.height = outHeight;
 
+    // Chat Log sobre cada quadro: renderiza uma vez numa camada transparente e reaplica em todos
+    let chatOverlay: HTMLCanvasElement | null = null;
+    if (includeChat && sharedChat) {
+      chatOverlay = document.createElement('canvas');
+      chatOverlay.width = outWidth;
+      chatOverlay.height = outHeight;
+      const octx = chatOverlay.getContext('2d');
+      if (octx) {
+        const sc = (outWidth / sharedChat.refWidth) * (chatScalePct / 100);
+        renderChatText(octx, outWidth, outHeight, sc, {
+          ...sharedChat.style,
+          chatPos: { x: ((chatXPct / 100) * outWidth) / sc, y: ((chatYPct / 100) * outHeight) / sc }
+        });
+      } else {
+        chatOverlay = null;
+      }
+    }
+
     const clipDuration = Math.max(0.2, endTime - startTime);
     const totalFrames = Math.max(1, Math.floor(clipDuration * fps));
     const frameInterval = clipDuration / totalFrames;
@@ -359,13 +475,17 @@ export const GifLabView: React.FC = () => {
         ctx.clearRect(0, 0, outWidth, outHeight);
         ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outWidth, outHeight);
 
+        if (chatOverlay) ctx.drawImage(chatOverlay, 0, 0);
+
         // Marca d'água opcional
         if (watermark.trim()) {
+          ctx.save();
           ctx.font = 'bold 12px "Inter", sans-serif';
           ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
           ctx.shadowColor = 'rgba(0,0,0,0.8)';
           ctx.shadowBlur = 4;
           ctx.fillText(watermark, 10, outHeight - 10);
+          ctx.restore();
         }
 
         const imgData = ctx.getImageData(0, 0, outWidth, outHeight);
@@ -714,6 +834,59 @@ export const GifLabView: React.FC = () => {
               className="w-full px-3 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-white text-xs focus:border-emerald-500 focus:outline-none"
             />
           </div>
+
+          {/* Chat Log sobre o GIF */}
+          <div className="pt-3 border-t border-[#1E2638] space-y-2">
+            <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeChat}
+                disabled={!sharedChat}
+                onChange={(e) => {
+                  setIncludeChat(e.target.checked);
+                  // sincroniza com o Chat Log só na 1ª vez; depois mantém a posição que você ajustou
+                  if (e.target.checked && !chatPosInitRef.current) { chatPosInitRef.current = true; syncChatPosition(); }
+                }}
+                className="accent-emerald-500"
+              />
+              <span className="font-semibold">Incluir chat do Chat Log no GIF</span>
+            </label>
+            {!sharedChat && (
+              <p className="text-[11px] text-slate-500">Abra a aba Chat Log uma vez para carregar o chat.</p>
+            )}
+            {includeChat && sharedChat && (
+              <div className="space-y-2">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Usa o texto, os personagens e o estilo (fonte, contorno, fundo, censura) da aba Chat Log.
+                  Arraste o texto no preview do vídeo para posicioná-lo.
+                </p>
+                {([
+                  ['Posição X', chatXPct, 0, 95, 1, '%', setChatXPct],
+                  ['Posição Y', chatYPct, 0, 95, 1, '%', setChatYPct],
+                  ['Tamanho do texto', chatScalePct, 40, 400, 5, '%', setChatScalePct]
+                ] as const).map(([label, value, min, max, step, unit, setter]) => (
+                  <div key={label}>
+                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                      <span>{label}</span>
+                      <span className="font-mono text-slate-200">{value}{unit}</span>
+                    </div>
+                    <input
+                      type="range" min={min} max={max} step={step} value={value} aria-label={`Chat no GIF: ${label}`}
+                      onChange={(e) => setter(parseFloat(e.target.value))}
+                      className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                    />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={syncChatPosition}
+                  className="w-full py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                >
+                  Usar a posição do Chat Log
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Botão de Ação & Botão de Cancelar (Feature 20) */}
@@ -773,6 +946,7 @@ export const GifLabView: React.FC = () => {
 
           <div className="relative rounded-xl overflow-hidden bg-[#07090E] border border-[#1E2638] min-h-[300px] flex items-center justify-center">
             {videoSrc ? (
+              <div className="relative inline-block">
               <video
                 ref={videoRef}
                 src={videoSrc}
@@ -783,6 +957,17 @@ export const GifLabView: React.FC = () => {
                 onEnded={() => setIsPlaying(false)}
                 className="max-h-[50vh] w-auto object-contain rounded-lg"
               />
+              <canvas
+                ref={overlayRef}
+                onPointerDown={onChatPointerDown}
+                onPointerMove={onChatPointerMove}
+                onPointerUp={onChatPointerEnd}
+                onPointerCancel={onChatPointerEnd}
+                aria-label="Chat sobre o vídeo (arraste para posicionar)"
+                style={{ touchAction: 'none', pointerEvents: includeChat ? 'auto' : 'none' }}
+                className={`absolute inset-0 w-full h-full rounded-lg ${includeChat ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              />
+              </div>
             ) : (
               <div className="text-center p-6 text-slate-500">
                 <Film className="w-10 h-10 mx-auto mb-2 opacity-40 text-emerald-400" />
