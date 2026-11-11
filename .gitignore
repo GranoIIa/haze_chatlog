@@ -1,3 +1,9 @@
+# Dependências e Build Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+
 # Arquivos de mídia e vídeos pesados
 *.mp4
 *.gif

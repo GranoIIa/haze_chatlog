@@ -1,54 +1,71 @@
-# 🌲 Haze Studios — Chat Log Creator (Emerald Edition)
+# 🌲 Haze Studios — RP Creator Suite (Emerald Edition v2.0)
 
 <div align="center">
   <img src="./11_logo_transparent_1200x400.png" alt="Haze Studios" width="480">
-  <p><b>Ferramenta web leve, moderna e interativa para criação de Chat Logs cinematográficos de GTA RP.</b></p>
+  <p><b>A plataforma visual completa para a comunidade de FiveM & GTA RP: Chat Log cinematográfico, Editor Canvas de fotos com presets e Conversor de Vídeo para GIF em alta performance.</b></p>
 </div>
 
 ---
 
-## ⚡ Sobre o Projeto
+## ⚡ Sobre a Nova Versão 2.0
 
-O **Haze Chat Log Creator** foi desenvolvido para a comunidade de GTA RP, permitindo criar prints e capturas narrativas de alta qualidade com o padrão visual do design system **Lation Modern UI (Emerald Edition)**.
+O **Haze RP Studio** evoluiu de um simples criador de chatlogs para uma **suíte criativa completa de Roleplay**, unificando as melhores funcionalidades do **Canva** e do **Ezgif**, projetadas especificamente para as necessidades dos jogadores, facções e corporações de GTA RP.
 
-Diferente de soluções convencionais baseadas em compiladores pesados em runtime, esta versão foi construída 100% em **HTML5, CSS3 moderno e Vanilla JavaScript**, garantindo inicialização instantânea, alta performance e suporte nativo ao **Canvas API**.
-
----
-
-## 🚀 Principais Recursos
-
-- 💬 **Parser Inteligente de Chat RP:** Reconhece e estiliza automaticamente:
-  - `* /me` e `/do` (Ações em tom lilás/púrpura)
-  - `> /ame` (Ações menores)
-  - `!` Mensagens de sistema e notificações
-  - `$` Transações financeiras e itens entregues
-  - `(( ... ))` Conversas fora do personagem (OOC)
-  - Chamadas e mensagens de celular (Amarelo ouro)
-  - Falas normais, sussurradas e em tom baixo
-- 👥 **Gerenciamento de Personagens:** Cadastro dinâmico com identificadores coloridos e atalhos rápidos de fala.
-- 🎯 **Posicionamento por Arrastar e Soltar (Drag & Drop):** Reposicione o texto interativamente sobre a imagem em tempo real.
-- 🖼️ **Super-Sampling 2×:** Renderização em dobro da densidade de pixels para exportação de PNGs nítidos mesmo com zoom.
-- 🎨 **Filtros Fotográficos:** Granulado procedural (*grain*), vinheta, *light leak* analógico, sépia vintage, contraste e preto & branco.
-- 📦 **Exportação Individual e em Lote (ZIP):** Suporte a processamento de sessões inteiras de fotos com barra de progresso usando JSZip.
-- 📁 **Drag & Drop do Windows Explorer:** Arraste qualquer imagem diretamente para o navegador.
+Construído em **Vite + React + TypeScript + Tailwind CSS**, roda **100% no navegador (Client-Side)** com privacidade total, alta performance e custo zero de infraestrutura na Vercel.
 
 ---
 
-## 🛠️ Como Executar
+## 🚀 Os 3 Módulos da Plataforma
 
-Basta abrir o arquivo `index.html` em qualquer navegador moderno (Google Chrome, Microsoft Edge, Firefox, Brave, Safari, Opera).
+### 1. 💬 Chat Log Creator (Pro Engine)
+- **Parser Inteligente de Chat RP:** Reconhece e estiliza automaticamente ações `* /me`, `> /ame`, mensagens de sistema `!`, transações financeiras `$`, conversas `(( OOC ))`, chamadas de rádio e celular.
+- **Gerenciador de Personagens:** Cadastro dinâmico com identificadores coloridos e atalhos rápidos de fala.
+- **Drag & Drop Interativo:** Reposicione o texto livremente com o mouse sobre qualquer parte da cena.
+- **Super-Sampling 2×:** Exportação nítida em ultra definição.
+- **Filtros Fotográficos:** Granulado procedural (*Film Grain*), vinheta analógica e sépia vintage.
 
-Não é necessário instalar `node_modules`, dependências externas ou servidores HTTP.
+### 2. 🎨 RP Canvas Photo Editor (Canva Clone para RP)
+- **Presets de 1 Clique:**
+  - 📷 **Bodycam Policial (AXON Mode):** Overlay de câmera corporal com timestamp militar sincronizado, identificação do oficial e departamento policial.
+  - 📺 **Weazel News (Plantão):** Tarja de telejornal ao vivo, GC informativo e manchete dramática editável.
+  - 🛡️ **CCTV / Vigilância Urbana:** Lente de segurança com scanlines, data/hora retrô verde e indicador de câmera.
+  - 🚨 **Ficha Criminal (Mugshot):** Plaqueta de detenção policial com identificação de artigos e nome do suspeito.
+- **Stickers e Adesivos de RP:** Distintivos LSPD dourados, fitas policiais de isolamento (*"POLICE LINE DO NOT CROSS"*), perfurações de tiro, miras táticas e carimbos de "CONFIDENCIAL".
+- **Sistema de Camadas (Layers):** Controle de visibilidade, bloqueio, z-index, duplicação e opacidade.
+
+### 3. 🎬 Video to GIF Lab (Ezgif Moderno 100% no Browser)
+- **Conversão Ultra Rápida de Vídeo para GIF:** Suporta MP4, WebM e MOV direto no cliente sem fila de servidor.
+- **Corte de Duração (Trim):** Slider visual com precisão de início e fim do clipe de ação ou tiroteio.
+- **Presets de 1 Clique para Discord:**
+  - 💎 **Banner de Perfil Nitro** (< 10 MB - 540p)
+  - 👤 **Avatar Animado** (< 8 MB - 320p)
+  - 😄 **Emoji / Figurinha** (< 256 KB - 128p)
+- **Controle de FPS e Velocidade:** De 8 a 20 FPS, com ajuste de velocidade de 0.5× (Slow Motion) a 2.0×.
+- **Marca d'água:** Inserção de texto/arroba de canal sobre os frames do GIF.
 
 ---
 
-## 🌐 Publicação no GitHub Pages
+## 🛠️ Como Executar Localmente
 
-Para disponibilizar a ferramenta online gratuitamente via GitHub Pages:
-1. Vá até a aba **Settings** do seu repositório no GitHub.
-2. Acesse a seção **Pages** no menu lateral esquerdo.
-3. Em **Build and deployment > Branch**, selecione `main` (ou `master`) e a pasta `/ (root)`.
-4. Clique em **Save**. Em poucos instantes sua aplicação estará online!
+```bash
+# 1. Instalar as dependências
+npm install
+
+# 2. Iniciar o servidor de desenvolvimento
+npm run dev
+
+# 3. Gerar a versão de produção otimizada
+npm run build
+```
+
+---
+
+## 🌐 Deploy na Vercel
+
+O projeto está configurado para deploy automático na [Vercel](https://vercel.com):
+1. **Framework Preset:** Vite
+2. **Build Command:** `npm run build`
+3. **Output Directory:** `dist`
 
 ---
 
