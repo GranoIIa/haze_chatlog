@@ -60,6 +60,7 @@ async function loadTestSuites() {
 
   if (shouldLoadTier(5)) {
     await import('./tier5-editor/test_editor_modules');
+    await import('./tier5-editor/test_video_seek');
   }
 }
 

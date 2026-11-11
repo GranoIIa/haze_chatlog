@@ -6,8 +6,16 @@ import {
 import type { DiscordPreset } from '../../types';
 import { renderChatText } from '../../utils/chatRenderer';
 import { getSharedChat, subscribeSharedChat } from '../../utils/chatStore';
+import { seekWithRetry, SEEK_FAILURE_MESSAGES } from '../../utils/videoSeek';
 
 export type CropMode = 'original' | 'square';
+
+/** Falha ao posicionar o vídeo em um quadro (interrompe a conversão com mensagem clara). */
+class SeekFailure extends Error {
+  constructor(public frame: number, public total: number, public reason: string) {
+    super(`seek falhou no quadro ${frame}/${total}: ${reason}`);
+  }
+}
 
 export const GifLabView: React.FC = () => {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
@@ -247,63 +255,6 @@ export const GifLabView: React.FC = () => {
     }
   };
 
-  // Busca de tempo robusta com timeout de 2000ms contra travamentos (Feature 22)
-  const seekVideoWithTimeout = (
-    video: HTMLVideoElement,
-    targetTime: number,
-    timeoutMs: number = 2000
-  ): Promise<void> => {
-    return new Promise((resolve) => {
-      const dur = video.duration && !isNaN(video.duration) ? video.duration : targetTime;
-      const clamped = Math.max(0, Math.min(targetTime, dur));
-
-      if (Math.abs(video.currentTime - clamped) < 0.005) {
-        resolve();
-        return;
-      }
-
-      let timer: number | null = null;
-      let settled = false;
-
-      const cleanup = () => {
-        if (timer !== null) {
-          clearTimeout(timer);
-          timer = null;
-        }
-        video.removeEventListener('seeked', onSeeked);
-        video.removeEventListener('error', onError);
-      };
-
-      const onSeeked = () => {
-        if (!settled) {
-          settled = true;
-          cleanup();
-          resolve();
-        }
-      };
-
-      const onError = () => {
-        if (!settled) {
-          settled = true;
-          cleanup();
-          resolve();
-        }
-      };
-
-      timer = window.setTimeout(() => {
-        if (!settled) {
-          settled = true;
-          cleanup();
-          resolve();
-        }
-      }, timeoutMs);
-
-      video.addEventListener('seeked', onSeeked, { once: true });
-      video.addEventListener('error', onError, { once: true });
-      video.currentTime = clamped;
-    });
-  };
-
   // Cancelamento da conversão ativa via AbortController e terminate() (Feature 20)
   const handleCancel = () => {
     if (abortControllerRef.current) {
@@ -475,8 +426,14 @@ export const GifLabView: React.FC = () => {
         const frameTime = startTime + i * frameInterval;
         setStatusMessage(`Capturando quadro ${i + 1}/${totalFrames}...`);
 
-        await seekVideoWithTimeout(video, frameTime, 2000);
-        if (abortController.signal.aborted) break;
+        // Posiciona o vídeo; nunca exporta um quadro antigo se o seek falhar
+        const seek = await seekWithRetry(video, frameTime, {
+          timeoutMs: 3000, retries: 2, signal: abortController.signal
+        });
+        if (abortController.signal.aborted || seek === 'aborted') break;
+        if (seek !== 'ok') {
+          throw new SeekFailure(i + 1, totalFrames, SEEK_FAILURE_MESSAGES[seek]);
+        }
 
         // Renderizar frame recortado no canvas
         ctx.clearRect(0, 0, outWidth, outHeight);
@@ -526,7 +483,11 @@ export const GifLabView: React.FC = () => {
     } catch (err: any) {
       console.error('[Capture Loop Error]:', err);
       setIsProcessing(false);
-      setStatusMessage('Erro durante a extração de frames.');
+      setStatusMessage(
+        err instanceof SeekFailure
+          ? `Falha no quadro ${err.frame}/${err.total}: ${err.reason}. Tente um intervalo menor ou um vídeo MP4 (H.264).`
+          : 'Erro durante a extração de frames.'
+      );
       if (workerRef.current) {
         workerRef.current.terminate();
         workerRef.current = null;
