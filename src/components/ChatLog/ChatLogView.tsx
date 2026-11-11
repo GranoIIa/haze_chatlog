@@ -923,8 +923,10 @@ export const ChatLogView: React.FC = () => {
       return;
     }
 
-    // Ferramenta "Mover camada": clique seleciona e arrasta; clique no vazio deseleciona
-    if (mouseTool === 'layer') {
+    // Elementos (adesivos, presets, texto, imagens): na ferramenta "Mover camada" clique seleciona e arrasta
+    // (clique no vazio deseleciona). Na ferramenta "Texto chat" (padrão) também: clicar num elemento o move,
+    // clicar fora dele arrasta o chat, e Alt força arrastar o chat por cima de um elemento.
+    if (mouseTool === 'layer' || (mouseTool === 'chat' && !e.altKey)) {
       // a) alças (redimensionar/girar) do elemento de RP selecionado
       const selRP = canvasLayers.find(l => l.id === selectedCanvasLayerId);
       if (selRP) {
@@ -967,7 +969,8 @@ export const ChatLogView: React.FC = () => {
       }
       setSelectedLayerId(null);
       setSelectedCanvasLayerId(null);
-      return;
+      if (mouseTool === 'layer') return;
+      // ferramenta "Texto chat": clique fora de qualquer elemento segue para o arrasto do chat
     }
 
     // Ferramenta "Texto chat" (padrão): arrasta o bloco de texto
@@ -1579,6 +1582,7 @@ export const ChatLogView: React.FC = () => {
               ['Ctrl+V', 'Colar print como fundo'],
               ['Del (canvas focado)', 'Remover a camada selecionada'],
               ['1 / 2 / 3 / 4', 'Ferramenta: Texto, Foto, Camada, Luz'],
+              ['Alt + arrastar', 'Mover o chat por cima de um elemento'],
               ['Roda do mouse', 'Zoom da foto ou tamanho da camada'],
               ['F', 'Modo foco (preview maior)'],
               ['?', 'Mostrar/ocultar esta lista'],
@@ -2378,7 +2382,7 @@ export const ChatLogView: React.FC = () => {
             <div role="toolbar" aria-label="Ferramenta do mouse" className="flex flex-wrap items-center gap-1">
               <span className="text-[10px] uppercase tracking-wider text-slate-500 mr-1">Mouse</span>
               {([
-                ['chat', 'Texto chat', '1', 'Arrastar move o bloco de texto'],
+                ['chat', 'Texto chat', '1', 'Arrastar move o chat; clicar num adesivo ou camada move o elemento (Alt = mover o chat por cima)'],
                 ['photo', 'Enquadrar foto', '2', 'Arrastar desloca a foto; a roda dá zoom'],
                 ['layer', 'Mover camada', '3', 'Arrastar move a camada; a roda muda o tamanho'],
                 ['light', 'Posicionar luz', '4', 'Arrastar move a luz (ative a iluminação)']
@@ -2400,7 +2404,7 @@ export const ChatLogView: React.FC = () => {
             </div>
             <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
               <Move className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              {mouseTool === 'chat' && 'Arraste para posicionar o chat'}
+              {mouseTool === 'chat' && 'Arraste para posicionar o chat · clique num adesivo ou camada para movê-lo (Alt = chat por cima)'}
               {mouseTool === 'photo' && (
                 <>
                   Arraste para enquadrar a foto · roda do mouse = zoom

@@ -241,3 +241,93 @@ test.describe('Painel do Editor RP: estrutura', () => {
     expect(centrada.panY).toBe(0);
   });
 });
+
+test.describe('Adesivos e marcadores: mover com o mouse', () => {
+  test.beforeEach(async ({ page }) => { await openFresh(page); });
+
+  /** Posição (x, y) do elemento selecionado, lida do arquivo de projeto salvo. */
+  const posicaoDosElementos = async (page: import('@playwright/test').Page) => {
+    await settle(page, 700);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: /Salvar projeto/ }).click()
+    ]);
+    const zip = await JSZip.loadAsync(await readDownload(download));
+    const m = JSON.parse(await zip.file('manifest.json')!.async('string'));
+    return { layers: m.scene.canvasLayers as Array<{ x: number; y: number; width: number; height: number }>, chat: m.scene.chatPos as { x: number; y: number } };
+  };
+
+  test('com a ferramenta padrão, arrastar um adesivo o move (sem trocar de ferramenta)', async ({ page }) => {
+    await openSection(page, 'adesivos');
+    await page.getByRole('button', { name: /Tarja de Censura/ }).click();
+
+    const antes = await posicaoDosElementos(page);
+    expect(antes.layers).toHaveLength(1);
+
+    const canvas = page.getByTestId('preview-canvas');
+    const box = (await canvas.boundingBox())!;
+    // o adesivo nasce no centro do canvas
+    const cx = box.x + box.width * 0.5, cy = box.y + box.height * 0.5;
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx + box.width * 0.15, cy + box.height * 0.2, { steps: 8 });
+    await page.mouse.up();
+
+    const depois = await posicaoDosElementos(page);
+    expect(depois.layers[0].x).toBeGreaterThan(antes.layers[0].x + 50);
+    expect(depois.layers[0].y).toBeGreaterThan(antes.layers[0].y + 50);
+    // o chat não saiu do lugar
+    expect(depois.chat).toEqual(antes.chat);
+  });
+
+  test('clicar fora do adesivo continua movendo o chat, e Alt move o chat por cima do adesivo', async ({ page }) => {
+    await openSection(page, 'adesivos');
+    await page.getByRole('button', { name: /Tarja de Censura/ }).click();
+    const base = await posicaoDosElementos(page);
+
+    const canvas = page.getByTestId('preview-canvas');
+    const box = (await canvas.boundingBox())!;
+
+    // fora do adesivo (canto superior): move o chat
+    await page.mouse.move(box.x + box.width * 0.05, box.y + box.height * 0.1);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.25, { steps: 6 });
+    await page.mouse.up();
+    const aposChat = await posicaoDosElementos(page);
+    expect(aposChat.chat.x).toBeGreaterThan(base.chat.x + 20);
+    expect(aposChat.layers[0]).toEqual(base.layers[0]);
+
+    // Alt por cima do adesivo: move o chat, não o adesivo
+    await page.keyboard.down('Alt');
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.6, { steps: 6 });
+    await page.mouse.up();
+    await page.keyboard.up('Alt');
+    const aposAlt = await posicaoDosElementos(page);
+    expect(aposAlt.layers[0]).toEqual(base.layers[0]);
+    expect(aposAlt.chat.x).not.toBe(aposChat.chat.x);
+  });
+
+  test('o adesivo selecionado ganha alças para redimensionar', async ({ page }) => {
+    await openSection(page, 'adesivos');
+    await page.getByRole('button', { name: /Tarja de Censura/ }).click();
+    const antes = await posicaoDosElementos(page);
+    const l = antes.layers[0];
+
+    const canvas = page.getByTestId('preview-canvas');
+    const box = (await canvas.boundingBox())!;
+    const dims = await canvas.evaluate((c: HTMLCanvasElement) => ({ w: c.width, h: c.height }));
+    const sx = box.width / dims.w, sy = box.height / dims.h;
+    // canto inferior direito do adesivo
+    const hx = box.x + (l.x + l.width) * sx, hy = box.y + (l.y + l.height) * sy;
+    await page.mouse.move(hx, hy);
+    await page.mouse.down();
+    await page.mouse.move(hx + 60 * sx, hy + 30 * sy, { steps: 6 });
+    await page.mouse.up();
+
+    const depois = await posicaoDosElementos(page);
+    expect(depois.layers[0].width).toBeGreaterThan(l.width + 30);
+    expect(depois.layers[0].x).toBe(l.x); // a âncora do canto oposto não se move
+  });
+});
