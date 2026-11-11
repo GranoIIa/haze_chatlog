@@ -33,6 +33,7 @@ export const ChatLogView: React.FC = () => {
 
   // Configurações restauradas do localStorage (lidas uma única vez)
   const [saved] = useState<Record<string, any>>(loadSaved);
+  const [fontsVersion, setFontsVersion] = useState(0); // incrementa quando fontes web terminam de carregar
 
   // Modo de trabalho: foto individual ou lote (ZIP)
   const [mode, setMode] = useState<'single' | 'batch'>('single');
@@ -622,7 +623,7 @@ export const ChatLogView: React.FC = () => {
       ctx.restore();
     }
   }, [
-    layers, selectedLayerId, lightEdit, activeCharId, selectedCanvasLayerId,
+    layers, selectedLayerId, lightEdit, activeCharId, selectedCanvasLayerId, fontsVersion,
     imageSrc, imageDimensions, outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, darkening, adjustments, rawText, fontSize, fontFamily,
     lineHeightFactor, strokeEnabled, strokeWidth, strokeColor,
     bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
@@ -1059,6 +1060,20 @@ export const ChatLogView: React.FC = () => {
 
   // Modo foco (esconde os controles) e medida da área do preview para ajustar o canvas
   const [focusMode, setFocusMode] = useState(false);
+
+  // Fontes web (JetBrains Mono, Oswald...) carregam sob demanda e o canvas não redesenha sozinho:
+  // força o carregamento e redesenha quando terminarem, para o preview bater com o export.
+  useEffect(() => {
+    const fonts = (document as any).fonts as FontFaceSet | undefined;
+    if (!fonts) return;
+    const bump = () => setFontsVersion(v => v + 1);
+    ['"JetBrains Mono"', '"Share Tech Mono"', 'Oswald', 'Inter'].forEach(f => {
+      fonts.load(`bold 16px ${f}`).then(bump).catch(() => {});
+    });
+    fonts.ready.then(bump).catch(() => {});
+    fonts.addEventListener?.('loadingdone', bump);
+    return () => fonts.removeEventListener?.('loadingdone', bump);
+  }, []);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewSize, setViewSize] = useState({ w: 0, h: 0 });
   useEffect(() => {
@@ -1736,7 +1751,7 @@ export const ChatLogView: React.FC = () => {
                 className="w-full p-2 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
               >
                 <option value="Arial, Helvetica, sans-serif">Arial / GTA Standard</option>
-                <option value="ChaletLondonNineteenSixty, Arial, sans-serif">Chalet London (GTA V)</option>
+                <option value="ChaletLondonNineteenSixty, Arial, sans-serif">Chalet London (GTA V, se estiver instalada)</option>
                 <option value='"JetBrains Mono", monospace'>JetBrains Mono (Logs / OOC)</option>
                 <option value='"Trebuchet MS", sans-serif'>Trebuchet MS</option>
                 <option value="Impact, sans-serif">Impact</option>
@@ -2185,7 +2200,7 @@ export const ChatLogView: React.FC = () => {
       </div>
 
       {/* Coluna da Direita: Preview Interativo Canvas (8 cols) */}
-      <div className={`${focusMode ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'} flex flex-col gap-4 min-w-0 lg:sticky lg:top-4`}>
+      <div className={`${focusMode ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'} flex flex-col gap-4 min-w-0 lg:sticky lg:top-4 order-first lg:order-none`}>
 
         {/* Barra Superior do Canvas */}
         <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#121722] border border-[#1E2638]">
@@ -2282,7 +2297,7 @@ export const ChatLogView: React.FC = () => {
             className={`rounded-lg shadow-lg ${mouseTool === 'light' ? 'cursor-crosshair' : mouseTool === 'photo' ? 'cursor-move' : mouseTool === 'layer' ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
           />
 
-          {!imageSrc && (
+          {!imageSrc && canvasLayers.length === 0 && layers.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-6 text-center">
               <div className="p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3">
                 <Sparkles className="w-8 h-8" />

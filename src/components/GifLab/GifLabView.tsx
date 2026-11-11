@@ -30,6 +30,7 @@ export const GifLabView: React.FC = () => {
   // Chat Log sobre o GIF: usa o texto e o estilo criados na aba Chat Log
   const sharedChat = useSyncExternalStore(subscribeSharedChat, getSharedChat);
   const [includeChat, setIncludeChat] = useState<boolean>(false);
+  const [chatReveal, setChatReveal] = useState<boolean>(false); // linhas aparecem uma a uma ao longo do clipe
   const [chatXPct, setChatXPct] = useState<number>(3);   // posição do chat em % do quadro
   const [chatYPct, setChatYPct] = useState<number>(6);
   const [chatScalePct, setChatScalePct] = useState<number>(100); // multiplicador do tamanho do texto
@@ -383,23 +384,29 @@ export const GifLabView: React.FC = () => {
     canvas.width = outWidth;
     canvas.height = outHeight;
 
-    // Chat Log sobre cada quadro: renderiza uma vez numa camada transparente e reaplica em todos
-    let chatOverlay: HTMLCanvasElement | null = null;
-    if (includeChat && sharedChat) {
-      chatOverlay = document.createElement('canvas');
-      chatOverlay.width = outWidth;
-      chatOverlay.height = outHeight;
-      const octx = chatOverlay.getContext('2d');
-      if (octx) {
-        const sc = (outWidth / sharedChat.refWidth) * (chatScalePct / 100);
-        renderChatText(octx, outWidth, outHeight, sc, {
-          ...sharedChat.style,
-          chatPos: { x: ((chatXPct / 100) * outWidth) / sc, y: ((chatYPct / 100) * outHeight) / sc }
-        });
-      } else {
-        chatOverlay = null;
-      }
-    }
+    // Chat Log sobre cada quadro: renderiza numa camada transparente e reaplica em todos.
+    // Com "revelar linhas", a camada é refeita só quando entra uma linha nova.
+    const buildChatOverlay = (rawText: string): HTMLCanvasElement | null => {
+      if (!sharedChat) return null;
+      const cv = document.createElement('canvas');
+      cv.width = outWidth;
+      cv.height = outHeight;
+      const octx = cv.getContext('2d');
+      if (!octx) return null;
+      const sc = (outWidth / sharedChat.refWidth) * (chatScalePct / 100);
+      renderChatText(octx, outWidth, outHeight, sc, {
+        ...sharedChat.style,
+        rawText,
+        chatPos: { x: ((chatXPct / 100) * outWidth) / sc, y: ((chatYPct / 100) * outHeight) / sc }
+      });
+      return cv;
+    };
+    const chatLines = sharedChat ? sharedChat.style.rawText.split('\n') : [];
+    const chatLineIdx = chatLines.map((l, i) => (l.trim() ? i : -1)).filter(i => i >= 0);
+    const revealChat = !!(includeChat && sharedChat && chatReveal && chatLineIdx.length > 1);
+    let shownLines = -1;
+    let chatOverlay: HTMLCanvasElement | null =
+      includeChat && sharedChat && !revealChat ? buildChatOverlay(sharedChat.style.rawText) : null;
 
     const clipDuration = Math.max(0.2, endTime - startTime);
     const totalFrames = Math.max(1, Math.floor(clipDuration * fps));
@@ -475,6 +482,15 @@ export const GifLabView: React.FC = () => {
         ctx.clearRect(0, 0, outWidth, outHeight);
         ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outWidth, outHeight);
 
+        if (revealChat) {
+          // 80% do clipe revela as linhas; o restante mostra o chat completo
+          const t = Math.min(1, (i + 1) / Math.max(1, Math.floor(totalFrames * 0.8)));
+          const n = Math.max(1, Math.ceil(chatLineIdx.length * t));
+          if (n !== shownLines) {
+            shownLines = n;
+            chatOverlay = buildChatOverlay(chatLines.slice(0, chatLineIdx[n - 1] + 1).join('\n'));
+          }
+        }
         if (chatOverlay) ctx.drawImage(chatOverlay, 0, 0);
 
         // Marca d'água opcional
@@ -877,6 +893,15 @@ export const GifLabView: React.FC = () => {
                     />
                   </div>
                 ))}
+                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={chatReveal}
+                    onChange={(e) => setChatReveal(e.target.checked)}
+                    className="accent-emerald-500"
+                  />
+                  Revelar as linhas ao longo do clipe (efeito de digitação)
+                </label>
                 <button
                   type="button"
                   onClick={syncChatPosition}
