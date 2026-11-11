@@ -1,7 +1,7 @@
 # 🌲 Haze Studios — RP Creator Suite (Emerald Edition v2.0)
 
 <div align="center">
-  <img src="./11_logo_transparent_1200x400.png" alt="Haze Studios" width="480">
+  <img src="./docs/haze-logo-banner.png" alt="Haze Studios" width="480">
   <p><b>A plataforma visual para a comunidade de FiveM & GTA RP: um Editor de imagens com Chat Log cinematográfico, presets de câmera, adesivos forenses e iluminação, mais um conversor de Vídeo para GIF em alta performance.</b></p>
 </div>
 

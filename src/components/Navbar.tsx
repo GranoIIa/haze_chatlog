@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActiveTab } from '../types';
+import logoUrl from '../assets/haze-logo.png';
 import { MessageSquareText, Palette, Film, Sparkles, ExternalLink } from 'lucide-react';
 
 interface NavbarProps {
@@ -14,13 +15,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         
         {/* Brand Group */}
         <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-transparent border border-emerald-500/30 text-emerald-400">
-            <Sparkles className="w-5 h-5" />
-            <div className="absolute inset-0 bg-emerald-500/10 blur-sm rounded-xl"></div>
-          </div>
+          <img
+            src={logoUrl}
+            alt="Haze"
+            className="h-9 w-auto select-none"
+            draggable={false}
+          />
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg tracking-wider text-white">HAZE</span>
               <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 STUDIOS
               </span>
