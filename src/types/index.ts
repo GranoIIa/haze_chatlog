@@ -69,7 +69,7 @@ export interface CanvasLayer {
   
   // Text & Content properties
   text?: string;
-  content?: string; // Text content, sticker id, or image src (retained for CanvasEditorView compatibility)
+  content?: string; // Text content, sticker id, or image src (kept for compatibility with older saved layers)
   color?: string;
   fontSize?: number;
   fontFamily?: string;
@@ -105,7 +105,7 @@ export interface GifExportSettings {
   watermarkText?: string;
 }
 
-// Web Worker GIF Pipeline Message Protocol (PROJECT.md § Interface Contracts)
+// Web Worker GIF Pipeline Message Protocol (docs/PROJECT.md § Interface Contracts)
 export interface GifEncodeJob {
   type: 'START' | 'ADD_FRAME' | 'FINISH' | 'ABORT';
   width?: number;

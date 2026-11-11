@@ -45,7 +45,7 @@
 |---|------|-------|-------------|--------|
 | 1 | Shared Infrastructure & Type Contracts | Features 1, 2, 3: `types/index.ts`, `App.tsx`, `package.json`, `tsconfig.json` | none | DONE |
 | 2 | Chat Log Creator Polish & Text Engine | Features 4, 5, 6, 7, 8, 9, 10, 11: `chatParser.ts`, `ChatLogView.tsx` | M1 | DONE |
-| 3 | RP Canvas Studio Ergonomics & Performance | Features 12, 13, 14, 15, 16, 17: `CanvasEditorView.tsx`, `rpPresets.ts`, `photoFilters.ts` | M1 | DONE |
+| 3 | RP Canvas Studio Ergonomics & Performance | Features 12, 13, 14, 15, 16, 17: `canvasLayerRenderer.ts` (ex-CanvasEditorView, now merged into the unified Editor), `rpPresets.ts`, `photoFilters.ts` | M1 | DONE |
 | 4 | Video to GIF High-Performance Engine | Features 18, 19, 20, 21, 22, 23: `gifEncoder.ts`, `GifLabView.tsx`, worker | M1 | DONE |
 | 5 | Full-Suite UI/UX Polish, E2E & Quality Gate | Features 24, 25: Styling harmonization, verification builds, and E2E acceptance | M2, M3, M4 | DONE |
 
@@ -118,8 +118,8 @@ src/
 ├── components/
 │   ├── ChatLog/
 │   │   └── ChatLogView.tsx    # Chat log creator UI and canvas renderer
-│   ├── CanvasEditor/
-│   │   └── CanvasEditorView.tsx # RP Canvas Studio UI and layer compositor
+│   ├── RpElements/
+│   │   └── CanvasLayersSidebar.tsx # RP presets, stickers, inspector (used by the unified Editor)
 │   └── GifLab/
 │       ├── GifLabView.tsx     # Video to GIF Lab UI and video controls
 │       └── gifWorker.ts       # Background Web Worker for GIF encoding

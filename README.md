@@ -2,94 +2,125 @@
 
 <div align="center">
   <img src="./11_logo_transparent_1200x400.png" alt="Haze Studios" width="480">
-  <p><b>A plataforma visual definitiva para a comunidade de FiveM & GTA RP: Chat Log cinematográfico, Editor Canvas de fotos com presets e Conversor de Vídeo para GIF em alta performance com Web Worker.</b></p>
+  <p><b>A plataforma visual para a comunidade de FiveM & GTA RP: um Editor de imagens com Chat Log cinematográfico, presets de câmera, adesivos forenses e iluminação, mais um conversor de Vídeo para GIF em alta performance.</b></p>
 </div>
 
 ---
 
-## ⚡ Sobre a Versão 2.0 (Emerald Edition)
+## ⚡ Visão geral
 
-O **Haze RP Studio** é uma **suíte criativa completa de Roleplay**, unificando as melhores funcionalidades do **Canva**, **Photoshop** e do **Ezgif**, projetadas especificamente para as necessidades dos jogadores, facções e corporações de GTA RP.
+O **Haze RP Studio** roda **100% no navegador** (nada é enviado a servidores) e tem **duas abas**:
 
-Construído em **Vite + React 18 + TypeScript + Tailwind CSS**, roda **100% no navegador (Client-Side)** com privacidade total, alta performance e custo zero de infraestrutura na Vercel.
+| Aba | Para que serve |
+|---|---|
+| **Editor RP** (Chat Log + Canvas) | Monta a imagem final: foto, chat log, presets de câmera, adesivos, texto, luz e efeitos, tudo no mesmo canvas |
+| **Video to GIF Lab** | Converte trechos de vídeo em GIF, com o chat do Editor sobre os quadros |
 
----
-
-## 🚀 Os 3 Módulos da Plataforma
-
-### 1. 💬 Chat Log Creator (Pro Engine + Photo Lab Integrado)
-- **Parser Inteligente de Chat RP:** Reconhece e estiliza automaticamente 17 formatos de fala (`* /me`, `> /ame`, mensagens de sistema `!`, transações financeiras `$`, conversas `(( OOC ))`, rádio policial, chamadas, `/dispatch`, `/tweet`).
-- **Contorno GTA-Style (*Text Stroke*):** Contorno nítido de 1px a 2px que assegura legibilidade sobre qualquer cena.
-- **Laboratório Fotográfico de Retoque:**
-  - Presets de *Color Grading* de Los Santos (Golden Hour, Midnight Neon, Grit & Crime, San Andreas 90s).
-  - Ajustes de Brilho, Contraste, Saturação e Temperatura de cor.
-  - **Smart Sharpen:** Realce laplaciano de bordas em latarias de viaturas, armas e roupas.
-  - **Depth of Field (Bokeh):** Desfoque radial suave simulando lente profissional 50mm f/1.8.
-  - **Cinematic Letterbox (21:9):** Barras pretas anamórficas de cinema com 1 clique.
-  - **Censura Interativa:** Ferramenta para aplicar tarjas pretas ou mosaico (*pixelate*) sobre IDs de players ou trechos sensíveis.
-- **Gerenciador de Personagens:** Cadastro dinâmico com identificadores coloridos e atalhos rápidos de fala.
-- **Drag & Drop Interativo:** Reposicione o texto livremente com o mouse sobre qualquer parte da cena.
-- **Super-Sampling 2×:** Exportação nítida em ultra definição.
-
-### 2. 🎨 RP Canvas Photo Editor (O Canva Especializado de RP)
-- **Presets Cinemáticos de 1 Clique:**
-  - 📷 **Bodycam Policial (AXON Signal):** Overlay de câmera corporal com timestamp militar sincronizado, identificação do oficial e departamento.
-  - 📺 **Weazel News (Plantão):** Tarja de telejornal ao vivo, GC informativo e manchete dramática editável.
-  - 🚁 **FLIR / Câmera de Helicóptero (Águia):** Câmera térmica com tracking de veículo, altitude, azimute e radar de velocidade do alvo.
-  - 🚓 **Dashcam de Viatura Policial:** Câmera frontal de para-brisa com radar duplo de velocidade (viatura e alvo).
-  - 🛡️ **CCTV / Vigilância Urbana:** Lente de segurança com scanlines, data/hora retrô verde e indicador de câmera.
-  - 🚨 **Ficha Criminal (Mugshot):** Plaqueta de detenção policial com identificação de artigos e nome do suspeito.
-- **Adesivos & Marcadores Forenses:** Marcadores triangulares amarelos (`EVIDENCE #01`, `EVIDENCE #02`), fita policial de isolamento (*"POLICE LINE DO NOT CROSS"*), tarja preta de censura (`CENSORED`), distintivos LSPD e Sheriff BCSO, perfurações de tiro e miras táticas.
-- **Manipulação de Camadas:** Alças visuais para arrastar, redimensionar e rotacionar camadas com seleção inteligente em Z reverso (*reverse-Z hit-testing*) e cache em **Offscreen Canvas**.
-
-### 3. 🎬 Video to GIF Lab (Ezgif Moderno com Web Worker)
-- **Processamento em Segundo Plano:** Execução desacoplada da thread principal via **Web Worker dedicado** (`gifWorker.ts`) com buffers binários transferíveis (`ArrayBuffer`) — zero congelamento na interface enquanto o GIF é gerado.
-- **Corte de Duração (Trim):** Slider visual com precisão de início e fim do clipe de ação ou tiroteio.
-- **Presets de 1 Clique para Discord:**
-  - 💎 **Banner de Perfil Nitro** (< 10 MB - 540p)
-  - 👤 **Avatar Animado** (< 8 MB - 320p)
-  - 😄 **Emoji / Figurinha** (< 256 KB - 128p)
-- **Otimização LZW O(1):** Redução inteligente de paleta NeuQuant e controle de velocidade (0.5× a 2.0×).
-- **Marca d'água:** Inserção de texto/arroba de canal sobre os frames do GIF.
+Construído com **Vite + React 18 + TypeScript + Tailwind CSS**. Deploy contínuo na Vercel.
 
 ---
 
-## 🧪 Qualidade & Testes Automatizados
+## 🖼️ Editor RP
 
-O projeto conta com **288 testes ponta a ponta (E2E)** cobrindo todas as funcionalidades:
-- **Tier 1:** Comportamento de recursos e renderização de canvas.
-- **Tier 2:** Limites de memória e isolamento de módulos.
-- **Tier 3:** Integração e interoperabilidade par a par.
-- **Tier 4:** Testes de estresse adversarial e validação binária da especificação GIF89a.
+Um canvas só, uma foto de fundo só. O preview ocupa a janela, ajusta-se sozinho e tem **Modo foco** (`F`) que esconde os controles.
+
+### Chat Log
+- **Parser de chat RP** com os formatos `* /me`, `> /ame`, `$` (item/dinheiro), `#` (celular), `!` (sistema), `(( OOC ))`, rádio, `/dispatch` e tons de voz `diz (normal | sussurrando | gritando | baixo | rádio | celular)`.
+- **Botões de tom de voz e de marcadores** que inserem no cursor, usando o **personagem ativo**.
+- **Contorno estilo GTA**, caixa de fundo semitransparente, sombra, fontes, espaçamento e largura do bloco.
+- **Censura** com `||trecho||` em mosaico pixelado ou tarja preta (botão que envolve a seleção).
+- **Gerenciador de personagens** com cores e atalhos `Alt+1…9`.
+
+### Foto e cena
+- **Resolução e adaptação:** Original, 1280×720, 1920×1080, 2560×1440, 4K, 1:1, 4:5 ou personalizada; modos Cover, Contain e Esticar; pan X/Y e zoom.
+- **Retoque:** brilho, contraste, saturação, temperatura, nitidez (Smart Sharpen), Depth of Field e Letterbox 21:9, com presets de color grading.
+- **Iluminação & luz colorida:** 10 presets (Boudoir, Sunset, Cyber Purple, Golden Hour, Luar Cyan, Duo-Tone…), 5 tipos de fonte, 7 modos de mistura e arrasto da luz no preview.
+- **Câmera RP:** Bodycam (AXON), CCTV e Noite Fria com campos editáveis, mais efeitos de filme (granulado, vinheta, light leak, realce, vintage, P&B).
+
+### Elementos de RP (antigo Canvas Studio)
+- **Presets cinemáticos:** Bodycam AXON, Weazel News, FLIR Águia, Dashcam, CCTV e Ficha Criminal.
+- **Adesivos forenses:** fita policial, distintivos LSPD/BCSO, marcadores de evidência, perfuração de tiro, mira tática, tarja de censura e carimbo.
+- **Texto livre**, com fonte, cor, sombra e contorno.
+- **Alças no preview** para mover, redimensionar e girar; rotação com `Shift` em passos de 15°. Cada elemento tem opacidade, mesclagem, travar, duplicar e ordem.
+- **Camadas de imagem** (logos, molduras, marcas d'água), **salvas no navegador** (IndexedDB).
+
+### Produtividade
+- **Barra do mouse** (teclas `1–4`): Texto chat, Enquadrar foto, Mover camada, Posicionar luz. A roda do mouse dá zoom na foto ou muda o tamanho do elemento.
+- **Desfazer / Refazer** (`Ctrl+Z` / `Ctrl+Y`), com agrupamento de arrastes.
+- **Salvamento automático** de todas as configurações neste navegador.
+- **Exportar PNG 2×** (`Ctrl+S`), **copiar imagem** (`Ctrl+C`) e **Lote (ZIP)** que aplica o chat, a cena e os elementos a várias fotos.
+
+| Atalho | Ação |
+|---|---|
+| `Ctrl+Z` / `Ctrl+Y` | Desfazer / Refazer |
+| `Ctrl+S` / `Ctrl+C` | Exportar / Copiar imagem |
+| `1` `2` `3` `4` | Ferramenta do mouse |
+| `Alt+1…9` | Inserir fala do personagem nº |
+| `F` | Modo foco |
+| `Delete` (canvas focado) | Remover o elemento selecionado |
+| Setas (canvas focado) | Mover o chat 1 px (`Shift` = 10 px) |
+| `?` | Lista de atalhos |
+
+---
+
+## 🎬 Video to GIF Lab
+
+- **Processamento em Web Worker** (`gifWorker.ts`) com buffers transferíveis: a interface não congela.
+- **Corte** (início e fim), FPS, velocidade (0,5× a 2×) e formato original ou 1:1.
+- **Presets para Discord:** banner de perfil, avatar animado e emoji.
+- **Chat do Editor sobre o GIF:** use o texto, os personagens e o estilo criados no Editor; arraste o texto no preview do vídeo e ajuste posição e tamanho.
+- **Marca d'água** de texto opcional.
+
+---
+
+## 🧪 Qualidade
 
 ```bash
-# Executar a suíte de testes E2E
-npm run test:e2e
+npm run test:e2e   # suíte de testes (domínio, limites, integração e cenários)
+npx tsc --noEmit   # checagem de tipos
+npm run build      # build de produção
 ```
 
+Mais detalhes em [`docs/`](./docs).
+
 ---
 
-## 🛠️ Como Executar Localmente
+## 🛠️ Como executar localmente
 
 ```bash
-# 1. Instalar as dependências
 npm install
-
-# 2. Iniciar o servidor de desenvolvimento
-npm run dev
-
-# 3. Gerar a versão de produção otimizada
-npm run build
+npm run dev      # servidor de desenvolvimento
+npm run build    # build de produção (dist/)
 ```
-
----
 
 ## 🌐 Deploy na Vercel
 
-O repositório está pronto para deploy contínuo na [Vercel](https://vercel.com):
 1. **Framework Preset:** Vite
 2. **Build Command:** `npm run build`
 3. **Output Directory:** `dist`
+
+---
+
+## 📁 Estrutura
+
+```
+src/
+├── components/
+│   ├── ChatLog/ChatLogView.tsx        # Editor RP (canvas, painéis, interação)
+│   ├── RpElements/                    # painel de presets, adesivos e inspetor
+│   ├── GifLab/                        # conversor de vídeo para GIF + worker
+│   └── Navbar.tsx
+├── utils/
+│   ├── chatParser.ts / chatRenderer.ts   # parser e renderizador do chat
+│   ├── chatStore.ts                      # chat compartilhado com o GIF Lab
+│   ├── canvasLayerRenderer.ts            # desenho e alças dos elementos de RP
+│   ├── rpPresets.ts / rpStickers.ts      # presets cinemáticos e adesivos
+│   ├── photoFilters.ts                   # retoque fotográfico
+│   └── gifEncoder.ts
+legacy/index.html   # versão original em HTML único (referência)
+docs/               # notas de projeto e de testes
+tests/              # suíte de testes
+```
 
 ---
 

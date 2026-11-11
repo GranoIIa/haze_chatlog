@@ -10,7 +10,7 @@ import {
   drawCanvasLayer, drawLayerHandles, hitTestHandles, hitTestLayerBody, startHandleDrag, applyLayerDrag,
   EMPTY_DRAG, LayerDragState
 } from '../../utils/canvasLayerRenderer';
-import { CanvasLayersSidebar, PresetKey } from '../CanvasEditor/CanvasLayersSidebar';
+import { CanvasLayersSidebar, PresetKey } from '../RpElements/CanvasLayersSidebar';
 import { 
   PhotoAdjustments, DEFAULT_ADJUSTMENTS, applyPhotoAdjustments 
 } from '../../utils/photoFilters';
@@ -19,22 +19,6 @@ import {
   Layers, RefreshCw, Move, Clapperboard, Sun, Contrast,
   Flame, Zap, Shield, EyeOff, Palette
 } from 'lucide-react';
-
-interface RenderToken {
-  text: string;
-  isCensored: boolean;
-  color: string;
-}
-
-interface RenderRow {
-  tokens: Array<{
-    text: string;
-    isCensored: boolean;
-    color: string;
-    width: number;
-  }>;
-  totalWidth: number;
-}
 
 const STORAGE_KEY = 'haze-chatlog-v2';
 
