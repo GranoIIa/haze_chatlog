@@ -1,17 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Character, ParsedLine } from '../../types';
-import { parseChatLine, splitCensoredSegments, CHAT_COLORS, CHAR_COLORS } from '../../utils/chatParser';
+import { parseChatLine, CHAT_COLORS, CHAR_COLORS } from '../../utils/chatParser';
+import { 
+  PhotoAdjustments, DEFAULT_ADJUSTMENTS, applyPhotoAdjustments 
+} from '../../utils/photoFilters';
 import { 
   Upload, Download, Plus, Trash2, Eye, Sparkles, Sliders, Type, 
-  Layers, RefreshCw, Move, FileArchive
+  Layers, RefreshCw, Move, Clapperboard, Focus, Sun, Contrast, Droplets,
+  Flame, Zap
 } from 'lucide-react';
-import JSZip from 'jszip';
 
 export const ChatLogView: React.FC = () => {
   // Estado da Imagem
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({ width: 1280, height: 720 });
   const [darkening, setDarkening] = useState<number>(0.15);
+
+  // Ajustes de Imagem / Retoque Fotográfico (Estilo Photoshop na GPU/Canvas)
+  const [adjustments, setAdjustments] = useState<PhotoAdjustments>({ ...DEFAULT_ADJUSTMENTS });
 
   // Estado do Chat
   const [rawText, setRawText] = useState<string>(
@@ -30,10 +36,6 @@ export const ChatLogView: React.FC = () => {
   const [bgOpacity, setBgOpacity] = useState<number>(0.65);
   const [maxWidthPercent, setMaxWidthPercent] = useState<number>(85);
   const [shadowEnabled, setShadowEnabled] = useState<boolean>(true);
-
-  // Filtros Fotográficos
-  const [filterType, setFilterType] = useState<'none' | 'grain' | 'vignette' | 'vintage' | 'bw'>('grain');
-  const [filterIntensity, setFilterIntensity] = useState<number>(30);
 
   // Posicionamento do Chat (Drag & Drop)
   const [chatPos, setChatPos] = useState<{ x: number; y: number }>({ x: 40, y: 50 });
@@ -81,7 +83,6 @@ export const ChatLogView: React.FC = () => {
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
-  // Adicionar Personagem
   const addCharacter = () => {
     if (!newCharName.trim()) return;
     const randomColor = CHAR_COLORS[characters.length % CHAR_COLORS.length];
@@ -89,17 +90,15 @@ export const ChatLogView: React.FC = () => {
     setNewCharName('');
   };
 
-  // Remover Personagem
   const removeCharacter = (id: string) => {
     setCharacters(characters.filter(c => c.id !== id));
   };
 
-  // Inserir tag de fala rápida
   const insertCharSpeech = (charName: string) => {
     setRawText(prev => prev + `\n${charName} diz: `);
   };
 
-  // Renderizar o Canvas
+  // Renderizar a Cena Completa
   const drawScene = (ctx: CanvasRenderingContext2D, width: number, height: number, scale: number = 1) => {
     ctx.clearRect(0, 0, width, height);
 
@@ -107,67 +106,28 @@ export const ChatLogView: React.FC = () => {
     if (loadedImageRef.current) {
       ctx.drawImage(loadedImageRef.current, 0, 0, width, height);
     } else {
-      // Background Gradiente Placeholder
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, '#10141e');
       grad.addColorStop(1, '#080a10');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
 
-      // Grid decorativo
       ctx.strokeStyle = '#1e2638';
       ctx.lineWidth = 1;
       for (let x = 0; x < width; x += 40 * scale) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
       }
       for (let y = 0; y < height; y += 40 * scale) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
       }
     }
 
-    // 2. Escurecimento da Cena
+    // 2. Aplicar Ajustes Fotográficos de Cor e Shaders
+    applyPhotoAdjustments(ctx, width, height, adjustments);
+
+    // 3. Escurecimento da Cena
     if (darkening > 0) {
       ctx.fillStyle = `rgba(0, 0, 0, ${darkening})`;
-      ctx.fillRect(0, 0, width, height);
-    }
-
-    // 3. Filtros Fotográficos
-    if (filterType === 'grain') {
-      const grainIntensity = (filterIntensity / 100) * 0.25;
-      const grainCanvas = document.createElement('canvas');
-      grainCanvas.width = 128;
-      grainCanvas.height = 128;
-      const gCtx = grainCanvas.getContext('2d');
-      if (gCtx) {
-        const imgData = gCtx.createImageData(128, 128);
-        for (let i = 0; i < imgData.data.length; i += 4) {
-          const val = Math.random() * 255;
-          imgData.data[i] = val;
-          imgData.data[i + 1] = val;
-          imgData.data[i + 2] = val;
-          imgData.data[i + 3] = val * grainIntensity;
-        }
-        gCtx.putImageData(imgData, 0, 0);
-        ctx.fillStyle = ctx.createPattern(grainCanvas, 'repeat') || 'transparent';
-        ctx.fillRect(0, 0, width, height);
-      }
-    } else if (filterType === 'vignette') {
-      const grad = ctx.createRadialGradient(
-        width / 2, height / 2, width * 0.3,
-        width / 2, height / 2, width * 0.75
-      );
-      grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(1, `rgba(0,0,0,${filterIntensity / 100})`);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
-    } else if (filterType === 'vintage') {
-      ctx.fillStyle = `rgba(180, 120, 50, ${(filterIntensity / 100) * 0.2})`;
       ctx.fillRect(0, 0, width, height);
     }
 
@@ -194,7 +154,6 @@ export const ChatLogView: React.FC = () => {
       const parsed = parseChatLine(line);
       let textColor = CHAT_COLORS[parsed.type] || '#ffffff';
 
-      // Checa se há cor de personagem
       characters.forEach(char => {
         if (line.includes(`${char.name} diz:`)) {
           textColor = char.color;
@@ -204,7 +163,6 @@ export const ChatLogView: React.FC = () => {
       const metrics = ctx.measureText(parsed.rawText);
       const textWidth = Math.min(metrics.width, maxW);
 
-      // Fundo do texto (Caixa translúcida opcional)
       if (bgEnabled && bgOpacity > 0) {
         ctx.save();
         ctx.fillStyle = bgColor;
@@ -213,9 +171,8 @@ export const ChatLogView: React.FC = () => {
         ctx.restore();
       }
 
-      // Sombra
       if (shadowEnabled) {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
         ctx.shadowBlur = 3 * scale;
         ctx.shadowOffsetX = 1.5 * scale;
         ctx.shadowOffsetY = 1.5 * scale;
@@ -223,7 +180,6 @@ export const ChatLogView: React.FC = () => {
         ctx.shadowColor = 'transparent';
       }
 
-      // Renderiza Texto
       ctx.fillStyle = textColor;
       ctx.fillText(parsed.rawText, startX, curY, maxW);
 
@@ -231,23 +187,21 @@ export const ChatLogView: React.FC = () => {
     });
   };
 
-  // Re-desenhar preview sempre que o estado mudar
   useEffect(() => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
     canvas.width = imageDimensions.width;
     canvas.height = imageDimensions.height;
     drawScene(ctx, imageDimensions.width, imageDimensions.height, 1);
   }, [
-    imageSrc, imageDimensions, darkening, rawText, fontSize, fontFamily,
+    imageSrc, imageDimensions, darkening, adjustments, rawText, fontSize, fontFamily,
     bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
-    filterType, filterIntensity, chatPos, characters
+    chatPos, characters
   ]);
 
-  // Manipulação de Drag & Drop do Chat
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
@@ -281,10 +235,9 @@ export const ChatLogView: React.FC = () => {
 
   const handleMouseUp = () => setIsDragging(false);
 
-  // Exportação em Super-Sampling 2x (Ultra HD)
   const exportImage = () => {
     const exportCanvas = document.createElement('canvas');
-    const scale = 2; // Super-sampling 2x
+    const scale = 2;
     exportCanvas.width = imageDimensions.width * scale;
     exportCanvas.height = imageDimensions.height * scale;
 
@@ -335,12 +288,11 @@ export const ChatLogView: React.FC = () => {
                 Clique ou arraste um print do RP
               </p>
               <p className="text-[10px] text-slate-500">
-                Suporta PNG, JPG, WebP ou cole com <kbd className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[9px]">Ctrl+V</kbd>
+                PNG, JPG, WebP ou cole com <kbd className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[9px]">Ctrl+V</kbd>
               </p>
             </div>
           </div>
 
-          {/* Slider Escurecimento */}
           <div className="mt-3 pt-3 border-t border-[#1E2638] flex items-center justify-between text-xs">
             <span className="text-slate-400">Escurecimento</span>
             <div className="flex items-center gap-2 w-1/2">
@@ -360,6 +312,134 @@ export const ChatLogView: React.FC = () => {
           </div>
         </div>
 
+        {/* Laboratório Fotográfico (Retoque de Imagem estilo Photoshop) */}
+        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5" /> Retoque Fotográfico (Color Grading)
+            </span>
+            <button
+              onClick={() => setAdjustments({ ...DEFAULT_ADJUSTMENTS })}
+              className="text-[10px] text-slate-400 hover:text-emerald-400"
+            >
+              Resetar
+            </button>
+          </div>
+
+          {/* Color Grading Presets */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'golden-hour' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'golden-hour'
+                  ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Sun className="w-3.5 h-3.5 text-amber-400" /> Golden Hour</div>
+            </button>
+
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'midnight-neon' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'midnight-neon'
+                  ? 'border-sky-500 bg-sky-500/15 text-sky-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-sky-400" /> Midnight Neon</div>
+            </button>
+
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'grit-crime' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'grit-crime'
+                  ? 'border-red-500 bg-red-500/15 text-red-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Contrast className="w-3.5 h-3.5 text-red-400" /> Grit &amp; Crime</div>
+            </button>
+
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'vintage-90s' }))}
+              className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
+                adjustments.colorPreset === 'vintage-90s'
+                  ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 font-semibold'
+                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-emerald-400" /> San Andreas 90s</div>
+            </button>
+          </div>
+
+          {/* Sliders de Ajuste Fino */}
+          <div className="space-y-2 pt-1 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Brilho</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="-50" max="50" value={adjustments.brightness}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, brightness: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.brightness}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Contraste</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="-50" max="50" value={adjustments.contrast}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, contrast: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.contrast}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Nitidez (Sharpen)</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="0" max="100" value={adjustments.sharpen}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, sharpen: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.sharpen}%</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Depth of Field (Bokeh)</span>
+              <div className="flex items-center gap-2 w-1/2">
+                <input
+                  type="range" min="0" max="100" value={adjustments.depthOfField}
+                  onChange={(e) => setAdjustments(prev => ({ ...prev, depthOfField: parseInt(e.target.value) }))}
+                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                />
+                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.depthOfField}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Letterbox de Cinema */}
+          <div className="pt-2 border-t border-[#1E2638] flex items-center justify-between text-xs">
+            <button
+              onClick={() => setAdjustments(prev => ({ ...prev, letterbox: !prev.letterbox }))}
+              className={`w-full py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all font-semibold ${
+                adjustments.letterbox
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                  : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-white'
+              }`}
+            >
+              <Clapperboard className="w-4 h-4" />
+              <span>{adjustments.letterbox ? 'Letterbox 21:9 Ativo (Barras de Cinema)' : 'Ativar Letterbox 21:9 (Cinema)'}</span>
+            </button>
+          </div>
+        </div>
+
         {/* Editor de Texto do Chat */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
@@ -374,12 +454,11 @@ export const ChatLogView: React.FC = () => {
           <textarea
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            rows={7}
+            rows={6}
             className="w-full p-3 rounded-xl bg-[#0B0E14] border border-[#1E2638] text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-y"
             placeholder="Digite ou cole as falas do chat aqui..."
           />
 
-          {/* Atalhos Rápidos */}
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setRawText(prev => prev + '\n* Ele(a) ')}
@@ -458,62 +537,6 @@ export const ChatLogView: React.FC = () => {
           </div>
         </div>
 
-        {/* Ajustes de Tipografia & Filtros */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <Sliders className="w-3.5 h-3.5" /> Estilos & Filtros
-          </span>
-
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <label className="text-slate-400 block mb-1">Tamanho da Fonte</label>
-              <input
-                type="number"
-                min="12"
-                max="48"
-                value={fontSize}
-                onChange={(e) => setFontSize(parseInt(e.target.value) || 20)}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-slate-200 text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="text-slate-400 block mb-1">Filtro Visual</label>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as any)}
-                className="w-full px-2 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-slate-200 text-xs"
-              >
-                <option value="none">Nenhum</option>
-                <option value="grain">Granulado (Film Grain)</option>
-                <option value="vignette">Vinheta Escura</option>
-                <option value="vintage">Sépia Vintage</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-xs pt-1">
-            <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-              <input
-                type="checkbox"
-                checked={bgEnabled}
-                onChange={(e) => setBgEnabled(e.target.checked)}
-                className="rounded accent-emerald-500"
-              />
-              Fundo Translúcido no Texto
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-              <input
-                type="checkbox"
-                checked={shadowEnabled}
-                onChange={(e) => setShadowEnabled(e.target.checked)}
-                className="rounded accent-emerald-500"
-              />
-              Sombra Nítida
-            </label>
-          </div>
-        </div>
-
       </div>
 
       {/* Coluna da Direita: Preview Interativo Canvas (8 cols) */}
@@ -543,7 +566,7 @@ export const ChatLogView: React.FC = () => {
         </div>
 
         {/* Viewport do Canvas */}
-        <div className="relative rounded-2xl overflow-hidden bg-[#07090E] border border-[#1E2638] flex items-center justify-center p-2 min-h-[500px] shadow-2xl">
+        <div className="relative rounded-2xl overflow-hidden bg-[#07090E] border border-[#1E2638] flex items-center justify-center p-2 min-h-[520px] shadow-2xl">
           <canvas
             ref={previewCanvasRef}
             onMouseDown={handleMouseDown}
@@ -559,11 +582,11 @@ export const ChatLogView: React.FC = () => {
                 <Sparkles className="w-8 h-8" />
               </div>
               <h3 className="text-sm font-bold text-white mb-1">
-                Visualização Interativa de Chat Log
+                Visualização Interativa de Chat Log &amp; Retoque
               </h3>
               <p className="text-xs text-slate-400 max-w-sm">
                 Arraste um print do seu jogo para cá ou cole com Ctrl+V.
-                Você pode reposicionar os textos arrastando-os na tela.
+                Use os controles de retoque fotográfico para dar aspecto de cinema.
               </p>
             </div>
           )}

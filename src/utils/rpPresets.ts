@@ -11,12 +11,10 @@ export const RP_PRESETS = {
       officerName: 'OFC. J. MILLER #402',
       department: 'LSPD MISSION ROW',
       showDate: true,
-      showBattery: true,
       recDot: true
     },
     draw: (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
       ctx.save();
-      
       const now = new Date();
       const dateStr = now.toISOString().replace('T', ' ').substring(0, 19) + 'Z';
       const fontSize = Math.max(14, Math.round(width * 0.018));
@@ -52,7 +50,7 @@ export const RP_PRESETS = {
       ctx.fillStyle = '#e2e8f0';
       ctx.fillText(`${data.officerName} | ${data.department}`, leftMargin, topMargin + fontSize * 1.4);
 
-      // Subtle bodycam lens distortion vignette
+      // Subtle lens distortion vignette
       const gradient = ctx.createRadialGradient(
         width / 2, height / 2, width * 0.35,
         width / 2, height / 2, width * 0.7
@@ -78,13 +76,12 @@ export const RP_PRESETS = {
     },
     draw: (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
       ctx.save();
-      
       const bannerHeight = Math.round(height * 0.18);
       const startY = height - bannerHeight - Math.round(height * 0.04);
       
       // Live Badge (Top-Left)
       const badgeH = Math.round(bannerHeight * 0.28);
-      ctx.fillStyle = '#dc2626'; // Vermelho forte
+      ctx.fillStyle = '#dc2626';
       ctx.fillRect(width * 0.05, startY - badgeH, width * 0.22, badgeH);
       
       ctx.font = `bold ${Math.round(badgeH * 0.6)}px "Inter", sans-serif`;
@@ -97,7 +94,6 @@ export const RP_PRESETS = {
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(width * 0.05, startY, logoBoxW, bannerHeight);
       
-      // Yellow accent line
       ctx.fillStyle = '#f59e0b';
       ctx.fillRect(width * 0.05, startY, logoBoxW, 4);
 
@@ -136,6 +132,118 @@ export const RP_PRESETS = {
     }
   },
 
+  flir: {
+    id: 'flir',
+    name: 'FLIR / Câmera de Helicóptero (Águia)',
+    description: 'Câmera térmica aérea com HUD tático, mira de rastreamento e telemetria',
+    defaultData: {
+      unitName: 'AIR SUPPORT — AIR-01',
+      targetSpeed: '94 MPH',
+      altitude: '1,420 FT',
+      heading: 'HDG 210° SW'
+    },
+    draw: (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
+      ctx.save();
+      const fontSize = Math.max(14, Math.round(width * 0.016));
+      ctx.font = `bold ${fontSize}px "Share Tech Mono", monospace`;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+      ctx.shadowBlur = 4;
+
+      const m = Math.round(width * 0.05);
+
+      // Top Info
+      ctx.textAlign = 'left';
+      ctx.fillText(`FLIR THERMAL [WHOT]`, m, m);
+      ctx.fillText(`${data.unitName}`, m, m + fontSize * 1.5);
+
+      ctx.textAlign = 'right';
+      ctx.fillText(`ALT: ${data.altitude} | ${data.heading}`, width - m, m);
+      ctx.fillText(`TRK: AUTO [VEHICLE LOCK]`, width - m, m + fontSize * 1.5);
+
+      // Bottom Info
+      ctx.textAlign = 'left';
+      ctx.fillText(`TARGET SPD: ${data.targetSpeed}`, m, height - m);
+      ctx.fillText(`GPS: 34.0522 N, -118.2437 W`, m, height - m - fontSize * 1.5);
+
+      // Center Tactic Crosshair Reticle
+      const cx = width / 2;
+      const cy = height / 2;
+      const r = Math.round(width * 0.06);
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      
+      // Tracking Box
+      ctx.strokeRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.strokeRect(cx - 6, cy - 6, 12, 12);
+
+      // Cross ticks
+      ctx.beginPath();
+      ctx.moveTo(cx - r - 20, cy);
+      ctx.lineTo(cx - r, cy);
+      ctx.moveTo(cx + r, cy);
+      ctx.lineTo(cx + r + 20, cy);
+      ctx.moveTo(cx, cy - r - 20);
+      ctx.lineTo(cx, cy - r);
+      ctx.moveTo(cx, cy + r);
+      ctx.lineTo(cx, cy + r + 20);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+  },
+
+  dashcam: {
+    id: 'dashcam',
+    name: 'Dashcam de Viatura Policial',
+    description: 'Câmera frontal de viatura com radar de velocidade e viatura',
+    defaultData: {
+      patrolUnit: 'UNIT 2-LINCOLN-14',
+      patrolSpeed: '68 MPH',
+      targetSpeed: '112 MPH [FAST]',
+      agency: 'LOS SANTOS POLICE DEPT'
+    },
+    draw: (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
+      ctx.save();
+      const fontSize = Math.max(14, Math.round(width * 0.016));
+      ctx.font = `bold ${fontSize}px "Share Tech Mono", monospace`;
+      ctx.fillStyle = '#facc15'; // Amarelo clássico de radar
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+      ctx.shadowBlur = 4;
+
+      const m = Math.round(width * 0.04);
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('pt-BR');
+
+      // Top Line
+      ctx.textAlign = 'left';
+      ctx.fillText(`${data.agency} • ${data.patrolUnit}`, m, m + fontSize);
+
+      ctx.textAlign = 'right';
+      ctx.fillText(`${timeStr}  FRONT-REC [●]`, width - m, m + fontSize);
+
+      // Bottom Radar Box
+      const boxW = Math.round(width * 0.4);
+      const boxH = Math.round(height * 0.1);
+      const boxX = (width - boxW) / 2;
+      const boxY = height - boxH - m;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(boxH * 0.35)}px "Share Tech Mono", monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`PATROL: ${data.patrolSpeed}   TARGET: ${data.targetSpeed}`, width / 2, boxY + boxH * 0.65);
+
+      ctx.restore();
+    }
+  },
+
   cctv: {
     id: 'cctv',
     name: 'CCTV / Câmera de Vigilância',
@@ -146,18 +254,16 @@ export const RP_PRESETS = {
     },
     draw: (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
       ctx.save();
-      
       const now = new Date();
       const dateStr = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
       const fontSize = Math.max(16, Math.round(width * 0.022));
 
-      // Scanline effect
+      // Scanlines
       ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
       for (let y = 0; y < height; y += 4) {
         ctx.fillRect(0, y, width, 2);
       }
 
-      // CCTV HUD Text in Neon Green / Retro Yellow
       ctx.font = `bold ${fontSize}px "Share Tech Mono", monospace`;
       ctx.fillStyle = '#4ade80';
       ctx.shadowColor = 'rgba(74, 222, 128, 0.6)';
@@ -177,32 +283,11 @@ export const RP_PRESETS = {
       ctx.strokeStyle = '#4ade80';
       ctx.lineWidth = 3;
       
-      // Top Left
       ctx.beginPath();
-      ctx.moveTo(margin, margin + cornerLen);
-      ctx.lineTo(margin, margin);
-      ctx.lineTo(margin + cornerLen, margin);
-      ctx.stroke();
-
-      // Top Right
-      ctx.beginPath();
-      ctx.moveTo(width - margin - cornerLen, margin);
-      ctx.lineTo(width - margin, margin);
-      ctx.lineTo(width - margin, margin + cornerLen);
-      ctx.stroke();
-
-      // Bottom Left
-      ctx.beginPath();
-      ctx.moveTo(margin, height - margin - cornerLen);
-      ctx.lineTo(margin, height - margin);
-      ctx.lineTo(margin + cornerLen, height - margin);
-      ctx.stroke();
-
-      // Bottom Right
-      ctx.beginPath();
-      ctx.moveTo(width - margin - cornerLen, height - margin);
-      ctx.lineTo(width - margin, height - margin);
-      ctx.lineTo(width - margin, height - margin - cornerLen);
+      ctx.moveTo(margin, margin + cornerLen); ctx.lineTo(margin, margin); ctx.lineTo(margin + cornerLen, margin);
+      ctx.moveTo(width - margin - cornerLen, margin); ctx.lineTo(width - margin, margin); ctx.lineTo(width - margin, margin + cornerLen);
+      ctx.moveTo(margin, height - margin - cornerLen); ctx.lineTo(margin, height - margin); ctx.lineTo(margin + cornerLen, height - margin);
+      ctx.moveTo(width - margin - cornerLen, height - margin); ctx.lineTo(width - margin, height - margin); ctx.lineTo(width - margin, height - margin - cornerLen);
       ctx.stroke();
 
       ctx.restore();
@@ -221,42 +306,34 @@ export const RP_PRESETS = {
     },
     draw: (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
       ctx.save();
-      
-      // Plaqueta na parte inferior central
       const boardW = Math.round(width * 0.55);
       const boardH = Math.round(height * 0.22);
       const boardX = (width - boardW) / 2;
       const boardY = height - boardH - Math.round(height * 0.05);
 
-      // Background board with shadow
       ctx.fillStyle = '#090d16';
       ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
       ctx.shadowBlur = 15;
       ctx.shadowOffsetY = 8;
       ctx.fillRect(boardX, boardY, boardW, boardH);
 
-      // Border
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 4;
       ctx.strokeRect(boardX, boardY, boardW, boardH);
 
-      // Header Department
       ctx.fillStyle = '#cbd5e1';
       ctx.font = `bold ${Math.round(boardH * 0.12)}px "Inter", sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(data.policeDept, width / 2, boardY + boardH * 0.2);
 
-      // White Chalk-style Suspect Name
       ctx.fillStyle = '#f8fafc';
       ctx.font = `900 ${Math.round(boardH * 0.22)}px "Oswald", sans-serif`;
       ctx.fillText(data.suspectName, width / 2, boardY + boardH * 0.48);
 
-      // Booking ID
       ctx.fillStyle = '#f59e0b';
       ctx.font = `bold ${Math.round(boardH * 0.14)}px "JetBrains Mono", monospace`;
       ctx.fillText(`REGISTRO: ${data.bookingId}`, width / 2, boardY + boardH * 0.68);
 
-      // Charges
       ctx.fillStyle = '#94a3b8';
       ctx.font = `600 ${Math.round(boardH * 0.11)}px "Inter", sans-serif`;
       ctx.fillText(data.charges, width / 2, boardY + boardH * 0.86);

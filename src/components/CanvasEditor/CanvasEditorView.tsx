@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
 import { RP_STICKERS } from '../../utils/rpStickers';
+import { PhotoAdjustments, DEFAULT_ADJUSTMENTS, applyPhotoAdjustments } from '../../utils/photoFilters';
 import { 
   Palette, Type, Image as ImageIcon, Sparkles, Layers, Eye, EyeOff, 
-  Lock, Unlock, Trash2, ArrowUp, ArrowDown, Download, ShieldAlert,
-  Camera, Tv, ShieldCheck, Crosshair
+  Trash2, ArrowUp, ArrowDown, Download, ShieldAlert,
+  Camera, Tv, ShieldCheck, Crosshair, Plane, Car, Sliders, Clapperboard, Sun
 } from 'lucide-react';
 
 export const CanvasEditorView: React.FC = () => {
@@ -31,7 +32,9 @@ export const CanvasEditorView: React.FC = () => {
   const [canvasDimensions, setCanvasDimensions] = useState<{ width: number; height: number }>({ width: 1280, height: 720 });
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
 
-  // Dragging state inside canvas
+  // Retoque Fotográfico
+  const [adjustments, setAdjustments] = useState<PhotoAdjustments>({ ...DEFAULT_ADJUSTMENTS });
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
@@ -40,7 +43,6 @@ export const CanvasEditorView: React.FC = () => {
 
   const selectedLayer = layers.find(l => l.id === selectedLayerId);
 
-  // Manipular upload de imagem de fundo
   const handleBgUpload = (file: File) => {
     if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
@@ -55,7 +57,6 @@ export const CanvasEditorView: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  // Adicionar Texto Livre
   const addTextLayer = () => {
     const newLayer: CanvasLayer = {
       id: `text-${Date.now()}`,
@@ -80,9 +81,10 @@ export const CanvasEditorView: React.FC = () => {
     setSelectedLayerId(newLayer.id);
   };
 
-  // Adicionar Preset de RP
-  const applyPreset = (presetKey: 'bodycam' | 'weazel' | 'cctv' | 'mugshot') => {
-    const preset = RP_PRESETS[presetKey];
+  const applyPreset = (presetKey: 'bodycam' | 'weazel' | 'flir' | 'dashcam' | 'cctv' | 'mugshot') => {
+    const preset = (RP_PRESETS as any)[presetKey];
+    if (!preset) return;
+
     const newLayer: CanvasLayer = {
       id: `preset-${Date.now()}`,
       type: 'preset',
@@ -95,27 +97,39 @@ export const CanvasEditorView: React.FC = () => {
       opacity: 1,
       visible: true,
       locked: false,
-      presetType: presetKey,
+      presetType: presetKey as any,
       presetData: { ...preset.defaultData }
     };
     setLayers(prev => [...prev, newLayer]);
     setSelectedLayerId(newLayer.id);
   };
 
-  // Adicionar Sticker de RP
   const addSticker = (stickerId: string) => {
     const sticker = RP_STICKERS.find(s => s.id === stickerId);
     if (!sticker) return;
 
+    let defaultW = 120;
+    let defaultH = 120;
+    if (sticker.id === 'crime-tape') {
+      defaultW = 550;
+      defaultH = 45;
+    } else if (sticker.id === 'censored-bar') {
+      defaultW = 280;
+      defaultH = 50;
+    } else if (sticker.id.startsWith('evidence-marker')) {
+      defaultW = 80;
+      defaultH = 90;
+    }
+
     const newLayer: CanvasLayer = {
       id: `sticker-${Date.now()}`,
       type: 'sticker',
-      name: `Sticker: ${sticker.name}`,
+      name: `Adesivo: ${sticker.name}`,
       content: sticker.id,
-      x: canvasDimensions.width / 2 - 100,
-      y: canvasDimensions.height / 2 - 40,
-      width: sticker.id === 'crime-tape' ? 500 : 120,
-      height: sticker.id === 'crime-tape' ? 40 : 120,
+      x: canvasDimensions.width / 2 - defaultW / 2,
+      y: canvasDimensions.height / 2 - defaultH / 2,
+      width: defaultW,
+      height: defaultH,
       rotation: 0,
       opacity: 1,
       visible: true,
@@ -125,7 +139,6 @@ export const CanvasEditorView: React.FC = () => {
     setSelectedLayerId(newLayer.id);
   };
 
-  // Reordenar Camadas
   const moveLayer = (id: string, direction: 'up' | 'down') => {
     const idx = layers.findIndex(l => l.id === id);
     if (idx === -1) return;
@@ -140,17 +153,15 @@ export const CanvasEditorView: React.FC = () => {
     }
   };
 
-  // Excluir Camada
   const deleteLayer = (id: string) => {
     setLayers(prev => prev.filter(l => l.id !== id));
     if (selectedLayerId === id) setSelectedLayerId(null);
   };
 
-  // Desenhar todo o Canvas
   const renderCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
     canvas.width = canvasDimensions.width;
@@ -163,24 +174,20 @@ export const CanvasEditorView: React.FC = () => {
     } else {
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // Grid suave
       ctx.strokeStyle = '#1e293b';
       ctx.lineWidth = 1;
       for (let x = 0; x < canvas.width; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
       }
       for (let y = 0; y < canvas.height; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
       }
     }
 
-    // 2. Renderizar Camadas ordenadas por z-index (índice do array)
+    // 2. Retoque Fotográfico na Foto de Fundo
+    applyPhotoAdjustments(ctx, canvas.width, canvas.height, adjustments);
+
+    // 3. Renderizar Camadas
     layers.forEach(layer => {
       if (!layer.visible) return;
 
@@ -188,7 +195,7 @@ export const CanvasEditorView: React.FC = () => {
       ctx.globalAlpha = layer.opacity;
 
       if (layer.type === 'preset' && layer.presetType) {
-        const renderer = RP_PRESETS[layer.presetType];
+        const renderer = (RP_PRESETS as any)[layer.presetType];
         if (renderer) {
           renderer.draw(ctx, canvas.width, canvas.height, layer.presetData || {});
         }
@@ -209,7 +216,6 @@ export const CanvasEditorView: React.FC = () => {
         ctx.fillText(layer.content, layer.x, layer.y + (layer.fontSize || 32));
       }
 
-      // Caixa de seleção se for a camada selecionada
       if (layer.id === selectedLayerId && layer.type !== 'preset') {
         ctx.strokeStyle = '#10b981';
         ctx.lineWidth = 2;
@@ -223,9 +229,8 @@ export const CanvasEditorView: React.FC = () => {
 
   useEffect(() => {
     renderCanvas();
-  }, [layers, selectedLayerId, canvasDimensions, backgroundImage]);
+  }, [layers, selectedLayerId, canvasDimensions, backgroundImage, adjustments]);
 
-  // Arraste da camada selecionada dentro do canvas
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || !selectedLayer || selectedLayer.locked || selectedLayer.type === 'preset') return;
@@ -236,7 +241,6 @@ export const CanvasEditorView: React.FC = () => {
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
 
-    // Checa colisão com a camada selecionada
     if (
       mouseX >= selectedLayer.x - 10 &&
       mouseX <= selectedLayer.x + selectedLayer.width + 10 &&
@@ -267,7 +271,6 @@ export const CanvasEditorView: React.FC = () => {
 
   const handleMouseUp = () => setIsDragging(false);
 
-  // Exportar Arte Final
   const exportCanvasImage = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -283,69 +286,143 @@ export const CanvasEditorView: React.FC = () => {
       {/* Coluna Esquerda: Ferramentas & Presets (4 cols) */}
       <div className="lg:col-span-4 space-y-4">
         
-        {/* Presets de 1 Clique (O Grande Diferencial de RP) */}
+        {/* Presets de 1 Clique (RP) */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" /> Presets de 1 Clique (RP)
+              <Sparkles className="w-3.5 h-3.5" /> Presets Cinemáticos de RP
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => applyPreset('bodycam')}
-              className="p-3 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-emerald-500/50 text-left transition-all group"
+              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-emerald-500/50 text-left transition-all"
             >
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-1">
-                <Camera className="w-4 h-4" /> Bodycam
+              <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs mb-0.5">
+                <Camera className="w-3.5 h-3.5" /> Bodycam AXON
               </div>
-              <p className="text-[10px] text-slate-400 line-clamp-2">
-                Overlay AXON com timestamp militar e identificação do oficial.
-              </p>
+              <p className="text-[10px] text-slate-400">Timestamp militar e nome do oficial.</p>
             </button>
 
             <button
               onClick={() => applyPreset('weazel')}
-              className="p-3 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-amber-500/50 text-left transition-all group"
+              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-amber-500/50 text-left transition-all"
             >
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-xs mb-1">
-                <Tv className="w-4 h-4" /> Weazel News
+              <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs mb-0.5">
+                <Tv className="w-3.5 h-3.5" /> Weazel News
               </div>
-              <p className="text-[10px] text-slate-400 line-clamp-2">
-                Tarja de telejornal ao vivo, GC e manchete dramática.
-              </p>
+              <p className="text-[10px] text-slate-400">Tarja de telejornal ao vivo e GC.</p>
+            </button>
+
+            <button
+              onClick={() => applyPreset('flir')}
+              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-sky-500/50 text-left transition-all"
+            >
+              <div className="flex items-center gap-1.5 text-sky-400 font-bold text-xs mb-0.5">
+                <Plane className="w-3.5 h-3.5" /> FLIR Águia (Helicóptero)
+              </div>
+              <p className="text-[10px] text-slate-400">Visão aérea térmica com tracking.</p>
+            </button>
+
+            <button
+              onClick={() => applyPreset('dashcam')}
+              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-yellow-500/50 text-left transition-all"
+            >
+              <div className="flex items-center gap-1.5 text-yellow-400 font-bold text-xs mb-0.5">
+                <Car className="w-3.5 h-3.5" /> Dashcam Viatura
+              </div>
+              <p className="text-[10px] text-slate-400">Câmera de viatura com radar de velocidade.</p>
             </button>
 
             <button
               onClick={() => applyPreset('cctv')}
-              className="p-3 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-green-500/50 text-left transition-all group"
+              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-green-500/50 text-left transition-all"
             >
-              <div className="flex items-center gap-2 text-green-400 font-bold text-xs mb-1">
-                <ShieldCheck className="w-4 h-4" /> CCTV
+              <div className="flex items-center gap-1.5 text-green-400 font-bold text-xs mb-0.5">
+                <ShieldCheck className="w-3.5 h-3.5" /> CCTV Segurança
               </div>
-              <p className="text-[10px] text-slate-400 line-clamp-2">
-                Câmera de vigilância, scanlines e data retrô verde.
-              </p>
+              <p className="text-[10px] text-slate-400">Câmera de vigilância e scanlines.</p>
             </button>
 
             <button
               onClick={() => applyPreset('mugshot')}
-              className="p-3 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-red-500/50 text-left transition-all group"
+              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-red-500/50 text-left transition-all"
             >
-              <div className="flex items-center gap-2 text-red-400 font-bold text-xs mb-1">
-                <ShieldAlert className="w-4 h-4" /> Ficha Criminal
+              <div className="flex items-center gap-1.5 text-red-400 font-bold text-xs mb-0.5">
+                <ShieldAlert className="w-3.5 h-3.5" /> Ficha Criminal
               </div>
-              <p className="text-[10px] text-slate-400 line-clamp-2">
-                Plaqueta de identificação de detenção policial (Mugshot).
-              </p>
+              <p className="text-[10px] text-slate-400">Plaqueta policial de detenção.</p>
             </button>
           </div>
         </div>
 
-        {/* Stickers & Assets de RP */}
+        {/* Retoque da Foto (Photoshop no Navegador) */}
+        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5" /> Ajustes Fotográficos &amp; Foco
+            </span>
+            <button
+              onClick={() => setAdjustments({ ...DEFAULT_ADJUSTMENTS })}
+              className="text-[10px] text-slate-400 hover:text-emerald-400"
+            >
+              Resetar
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span className="text-slate-400 block mb-1">Brilho</span>
+              <input
+                type="range" min="-50" max="50" value={adjustments.brightness}
+                onChange={(e) => setAdjustments(prev => ({ ...prev, brightness: parseInt(e.target.value) }))}
+                className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+              />
+            </div>
+            <div>
+              <span className="text-slate-400 block mb-1">Contraste</span>
+              <input
+                type="range" min="-50" max="50" value={adjustments.contrast}
+                onChange={(e) => setAdjustments(prev => ({ ...prev, contrast: parseInt(e.target.value) }))}
+                className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+              />
+            </div>
+            <div>
+              <span className="text-slate-400 block mb-1">Nitidez (Sharpen)</span>
+              <input
+                type="range" min="0" max="100" value={adjustments.sharpen}
+                onChange={(e) => setAdjustments(prev => ({ ...prev, sharpen: parseInt(e.target.value) }))}
+                className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+              />
+            </div>
+            <div>
+              <span className="text-slate-400 block mb-1">Depth of Field (Bokeh)</span>
+              <input
+                type="range" min="0" max="100" value={adjustments.depthOfField}
+                onChange={(e) => setAdjustments(prev => ({ ...prev, depthOfField: parseInt(e.target.value) }))}
+                className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => setAdjustments(prev => ({ ...prev, letterbox: !prev.letterbox }))}
+            className={`w-full py-1.5 px-3 rounded-lg border flex items-center justify-center gap-1.5 text-xs font-semibold transition-all ${
+              adjustments.letterbox
+                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-white'
+            }`}
+          >
+            <Clapperboard className="w-3.5 h-3.5" />
+            <span>{adjustments.letterbox ? 'Letterbox 21:9 Ativo' : 'Letterbox 21:9 de Cinema'}</span>
+          </button>
+        </div>
+
+        {/* Stickers & Adesivos Forenses */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <Palette className="w-3.5 h-3.5" /> Stickers & Adesivos de RP
+            <Palette className="w-3.5 h-3.5" /> Adesivos &amp; Marcadores Forenses
           </span>
 
           <div className="grid grid-cols-2 gap-2">
@@ -353,7 +430,7 @@ export const CanvasEditorView: React.FC = () => {
               <button
                 key={sticker.id}
                 onClick={() => addSticker(sticker.id)}
-                className="px-3 py-2 rounded-lg bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] text-xs text-slate-300 flex items-center justify-between transition-colors"
+                className="px-2.5 py-1.5 rounded-lg bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] text-xs text-slate-300 flex items-center justify-between transition-colors"
               >
                 <span className="truncate">{sticker.name}</span>
                 <span className="text-[10px] text-emerald-400 font-mono">+Add</span>
@@ -384,18 +461,15 @@ export const CanvasEditorView: React.FC = () => {
           </div>
         </div>
 
-        {/* Gerenciador de Camadas (Layers Panel) */}
+        {/* Gerenciador de Camadas */}
         <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" /> Camadas do Projeto
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono">
-              {layers.length} camadas
+              <Layers className="w-3.5 h-3.5" /> Camadas ({layers.length})
             </span>
           </div>
 
-          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {[...layers].reverse().map((layer) => {
               const isSelected = layer.id === selectedLayerId;
               return (
@@ -408,7 +482,7 @@ export const CanvasEditorView: React.FC = () => {
                       : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:bg-slate-800/40'
                   }`}
                 >
-                  <span className="truncate max-w-[150px]">{layer.name}</span>
+                  <span className="truncate max-w-[140px]">{layer.name}</span>
 
                   <div className="flex items-center gap-1">
                     <button
@@ -417,40 +491,24 @@ export const CanvasEditorView: React.FC = () => {
                         setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, visible: !l.visible } : l));
                       }}
                       className="p-1 hover:text-white"
-                      title={layer.visible ? 'Ocultar' : 'Mostrar'}
                     >
                       {layer.visible ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-slate-600" />}
                     </button>
-
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveLayer(layer.id, 'up');
-                      }}
+                      onClick={(e) => { e.stopPropagation(); moveLayer(layer.id, 'up'); }}
                       className="p-1 hover:text-white"
-                      title="Subir Camada"
                     >
                       <ArrowUp className="w-3 h-3" />
                     </button>
-
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveLayer(layer.id, 'down');
-                      }}
+                      onClick={(e) => { e.stopPropagation(); moveLayer(layer.id, 'down'); }}
                       className="p-1 hover:text-white"
-                      title="Descer Camada"
                     >
                       <ArrowDown className="w-3 h-3" />
                     </button>
-
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteLayer(layer.id);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); deleteLayer(layer.id); }}
                       className="p-1 hover:text-red-400"
-                      title="Excluir"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -461,56 +519,11 @@ export const CanvasEditorView: React.FC = () => {
           </div>
         </div>
 
-        {/* Ajustes da Camada Selecionada */}
-        {selectedLayer && selectedLayer.type === 'text' && (
-          <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-              Propriedades do Texto
-            </span>
-            <input
-              type="text"
-              value={selectedLayer.content || ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setLayers(prev => prev.map(l => l.id === selectedLayer.id ? { ...l, content: val } : l));
-              }}
-              className="w-full px-3 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-white"
-            />
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <label className="text-slate-400 block mb-1">Tamanho</label>
-                <input
-                  type="number"
-                  value={selectedLayer.fontSize || 32}
-                  onChange={(e) => {
-                    const sz = parseInt(e.target.value) || 20;
-                    setLayers(prev => prev.map(l => l.id === selectedLayer.id ? { ...l, fontSize: sz } : l));
-                  }}
-                  className="w-full px-2 py-1 rounded bg-[#0B0E14] border border-[#1E2638] text-white text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-slate-400 block mb-1">Cor</label>
-                <input
-                  type="color"
-                  value={selectedLayer.color || '#ffffff'}
-                  onChange={(e) => {
-                    const clr = e.target.value;
-                    setLayers(prev => prev.map(l => l.id === selectedLayer.id ? { ...l, color: clr } : l));
-                  }}
-                  className="w-full h-7 rounded bg-[#0B0E14] border border-[#1E2638] cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
       </div>
 
       {/* Coluna Direita: Viewport Canvas (8 cols) */}
       <div className="lg:col-span-8 flex flex-col gap-4">
         
-        {/* Barra de Ações Superior */}
         <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#121722] border border-[#1E2638]">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Crosshair className="w-4 h-4 text-emerald-400" />
@@ -525,8 +538,7 @@ export const CanvasEditorView: React.FC = () => {
           </button>
         </div>
 
-        {/* Viewport Principal */}
-        <div className="relative rounded-2xl overflow-hidden bg-[#07090E] border border-[#1E2638] flex items-center justify-center p-2 min-h-[520px] shadow-2xl">
+        <div className="relative rounded-2xl overflow-hidden bg-[#07090E] border border-[#1E2638] flex items-center justify-center p-2 min-h-[540px] shadow-2xl">
           <canvas
             ref={canvasRef}
             onMouseDown={handleMouseDown}
