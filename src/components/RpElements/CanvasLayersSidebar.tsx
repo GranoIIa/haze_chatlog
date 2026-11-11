@@ -215,6 +215,16 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                   </div>
                 </div>
 
+                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedLayer.aboveChat === false}
+                    onChange={(e) => updateSelectedLayer({ aboveChat: e.target.checked ? false : true })}
+                    className="accent-emerald-500"
+                  />
+                  Desenhar abaixo do texto do chat
+                </label>
+
                 {/* Ações Rápidas da Camada */}
                 <div className="flex items-center gap-1.5 pt-1">
                   <button

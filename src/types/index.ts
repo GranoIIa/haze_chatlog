@@ -65,6 +65,8 @@ export interface CanvasLayer {
   opacity: number;
   visible: boolean;
   locked?: boolean;
+  /** false = desenhado abaixo do texto do chat (padrão: acima) */
+  aboveChat?: boolean;
   blendMode?: GlobalCompositeOperation;
   
   // Text & Content properties
