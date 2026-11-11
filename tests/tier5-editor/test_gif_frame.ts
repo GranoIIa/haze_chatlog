@@ -42,7 +42,13 @@ describe('Tier 5: Quadro do GIF', () => {
     assert(near(g.dw, 1080), 'largura total');
     assert(near(g.dh, 607.5), 'altura proporcional');
     assert(near(g.dy, (1080 - 607.5) / 2), 'centralizado na vertical');
-    assertEqual(g.fillBackground, true);
+    assertEqual(g.fillBackground, 'black');
+  });
+
+  test('T5_GIF_07_BlurMode: contain + desfoque tem a mesma geometria, com fundo desfocado', () => {
+    const g = computeGifFrame(1920, 1080, 'original', 480, { w: 1080, h: 1080 }, 'blur');
+    assertEqual(g.fillBackground, 'blur');
+    assert(near(g.dw, 1080));
   });
 
   test('T5_GIF_05_StretchDeforms: esticar ocupa o quadro inteiro', () => {

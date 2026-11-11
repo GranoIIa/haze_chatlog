@@ -200,14 +200,14 @@ test.describe('GIF Lab: resolução e adaptação', () => {
     const caixa = await page.getByTestId('gif-preview-frame').boundingBox();
     expect(Math.abs(caixa!.width - caixa!.height)).toBeLessThan(2);
 
-    await painel.getByRole('button', { name: 'Contain' }).click();
+    await painel.getByRole('button', { name: 'Contain', exact: true }).click();
     await converter(page);
     const contain = await medir(page);
     expect([contain.w, contain.h]).toEqual([200, 200]);
     expect(Math.max(...contain.canto)).toBeLessThan(8);      // faixa preta no topo
     expect(Math.max(...contain.centro)).toBeGreaterThan(20); // vídeo no meio
 
-    await painel.getByRole('button', { name: 'Cover' }).click();
+    await painel.getByRole('button', { name: 'Cover', exact: true }).click();
     await converter(page);
     const cover = await medir(page);
     expect([cover.w, cover.h]).toEqual([200, 200]);

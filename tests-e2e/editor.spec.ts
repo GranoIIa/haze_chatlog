@@ -210,6 +210,8 @@ test.describe('Painel do Editor RP: estrutura', () => {
     await expect(page.getByLabel('Zoom da foto')).toHaveCount(0);
 
     await setBackground(page, 800, 400, [90, 90, 160]);
+    // numa resolução 1:1 a foto larga (Cover) tem folga na horizontal para ser movida
+    await page.getByRole('button', { name: '1:1 Square' }).click();
     await page.getByRole('button', { name: 'Enquadrar foto' }).click();
     const canvas = page.getByTestId('preview-canvas');
     const box = (await canvas.boundingBox())!;
@@ -231,10 +233,10 @@ test.describe('Painel do Editor RP: estrutura', () => {
     // o deslocamento foi guardado na cena (vai no arquivo de projeto)
     const cena = await lerCena();
     expect(cena.panX).toBeGreaterThan(5);
-    expect(cena.panY).toBeGreaterThan(2);
+    expect(cena.panY).toBe(0); // sem folga na vertical: a foto não foge do quadro
 
     // e há como centralizar de novo sem sliders
-    await page.getByRole('button', { name: 'Centralizar foto' }).click();
+    await page.getByTestId('framing-readout').getByRole('button', { name: 'Centralizar foto' }).click();
     await settle(page, 700);
     const centrada = await lerCena();
     expect(centrada.panX).toBe(0);
@@ -400,5 +402,86 @@ test.describe('Presets de RP: alinhamento', () => {
     expect(r.vermelho).toBeGreaterThan(r.area * 0.5);          // o selo vermelho está lá
     expect(r.branco).toBeGreaterThan(40);                      // e o texto branco "AO VIVO" também
     expect(r.brancoNaBorda).toBeLessThan(5);                   // sem texto cortado na borda da tarja
+  });
+});
+
+test.describe('Adaptação da foto (Cover / Contain / Desfoque / Esticar)', () => {
+  const preparar = async (page: import('@playwright/test').Page) => {
+    await openFresh(page);
+    await setBackground(page, 400, 200, [200, 60, 60]); // foto larga, vermelha
+    await openSection(page, 'resolucao');
+  };
+  const quadrado = (page: import('@playwright/test').Page) => page.getByRole('button', { name: '1:1 Square' }).click();
+  const modo = (page: import('@playwright/test').Page, nome: string) =>
+    page.getByTestId('fit-modes').getByRole('button', { name: nome, exact: true });
+  const alphaCantos = (page: import('@playwright/test').Page) => page.getByTestId('preview-canvas').evaluate((c: HTMLCanvasElement) => {
+    const cx = c.getContext('2d')!;
+    return [[1, 1], [c.width - 2, 1], [1, c.height - 2], [c.width - 2, c.height - 2]].map(([x, y]) => cx.getImageData(x, y, 1, 1).data[3]);
+  });
+
+  test('com a resolução "Original" os modos ficam desativados e explicam por quê', async ({ page }) => {
+    await preparar(page);
+    await expect(modo(page, 'Cover')).toBeDisabled();
+    await expect(page.getByTestId('fit-modes')).toContainText('não há o que adaptar');
+    await quadrado(page);
+    await expect(modo(page, 'Cover')).toBeEnabled();
+    await expect(modo(page, 'Contain + desfoque')).toBeEnabled();
+  });
+
+  test('cover preenche, contain faz faixas pretas e desfoque usa a própria foto', async ({ page }) => {
+    await preparar(page);
+    await quadrado(page);
+
+    await modo(page, 'Cover').click();
+    expect((await canvasPixel(page, 0.5, 0.02))[0]).toBeGreaterThan(150); // foto até a borda
+
+    await modo(page, 'Contain').click();
+    expect((await canvasPixel(page, 0.5, 0.02)).every(v => v < 8)).toBe(true); // faixa preta
+    expect((await canvasPixel(page, 0.5, 0.5))[0]).toBeGreaterThan(150);
+
+    await modo(page, 'Contain + desfoque').click();
+    const faixa = await canvasPixel(page, 0.5, 0.02);
+    expect(faixa[0]).toBeGreaterThan(60);        // avermelhada, não preta
+    expect(faixa[0]).toBeGreaterThan(faixa[2] + 30);
+    expect((await canvasPixel(page, 0.5, 0.5))[0]).toBeGreaterThan(150);
+  });
+
+  test('arrastar a foto nunca deixa buracos transparentes nem a faz fugir do quadro', async ({ page }) => {
+    await preparar(page);
+    await quadrado(page);
+    await modo(page, 'Cover').click();
+    await page.keyboard.press('2'); // ferramenta "Enquadrar foto"
+    const cv = page.getByTestId('preview-canvas');
+    const box = (await cv.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 - 600, box.y + box.height / 2 - 400, { steps: 8 });
+    await page.mouse.up();
+    expect(await alphaCantos(page)).toEqual([255, 255, 255, 255]);
+    // volta ao centro pelo botão
+    await page.getByTestId('framing-readout').getByRole('button', { name: 'Centralizar foto' }).click();
+    await expect(page.getByTestId('framing-readout')).toContainText('100%');
+  });
+
+  test('zoom menor que 100% em Cover não deixa o fundo transparente', async ({ page }) => {
+    await preparar(page);
+    await quadrado(page);
+    await modo(page, 'Cover').click();
+    await page.keyboard.press('2');
+    const box = (await page.getByTestId('preview-canvas').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    for (let i = 0; i < 12; i++) await page.mouse.wheel(0, 200);
+    await expect(page.getByTestId('framing-readout')).not.toContainText('100%');
+    expect(await alphaCantos(page)).toEqual([255, 255, 255, 255]);
+  });
+
+  test('trocar o modo volta o enquadramento ao padrão e o modo persiste ao recarregar', async ({ page }) => {
+    await preparar(page);
+    await quadrado(page);
+    await modo(page, 'Contain + desfoque').click();
+    await settle(page);
+    await page.reload();
+    await openSection(page, 'resolucao');
+    await expect(modo(page, 'Contain + desfoque')).toHaveAttribute('aria-pressed', 'true');
   });
 });

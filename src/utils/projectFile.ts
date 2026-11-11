@@ -15,7 +15,7 @@ import { DEFAULT_ADJUSTMENTS, PhotoAdjustments } from './photoFilters';
 import { sanitizeLighting, Lighting } from './lighting';
 import { sanitizeCamera, CameraState } from './cameraFx';
 import {
-  sanitizeCanvasLayers, FitMode, ImageLayer, MIN_RES, MAX_RES
+  sanitizeCanvasLayers, FitMode, isFitMode, ImageLayer, MIN_RES, MAX_RES
 } from './editorSettings';
 
 export const PROJECT_FORMAT = 'haze-project';
@@ -161,7 +161,7 @@ export function normalizeScene(raw: any): ProjectScene {
     chatPos: { x: clamp(r.chatPos?.x, 0, 20_000, 40), y: clamp(r.chatPos?.y, 0, 20_000, 50) },
     characters,
     outputRes,
-    fitMode: r.fitMode === 'contain' || r.fitMode === 'stretch' ? r.fitMode : 'cover',
+    fitMode: isFitMode(r.fitMode) ? r.fitMode : 'cover',
     panX: clamp(r.panX, -100, 100, 0),
     panY: clamp(r.panY, -100, 100, 0),
     zoom: clamp(r.zoom, 25, 400, 100),

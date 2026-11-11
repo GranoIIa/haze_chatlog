@@ -25,7 +25,7 @@ export interface GifFrameGeometry {
   outWidth: number; outHeight: number;
   /** origem no vídeo */ sx: number; sy: number; sw: number; sh: number;
   /** destino no quadro */ dx: number; dy: number; dw: number; dh: number;
-  /** pinta o fundo de preto antes (modo contain) */ fillBackground: boolean;
+  /** pinta o fundo antes: preto (contain) ou a própria imagem desfocada (blur) */ fillBackground: false | 'black' | 'blur';
 }
 
 /**
@@ -53,12 +53,12 @@ export const computeGifFrame = (
   if (fit === 'stretch') {
     return { outWidth: w, outHeight: h, sx: 0, sy: 0, sw: vw, sh: vh, dx: 0, dy: 0, dw: w, dh: h, fillBackground: false };
   }
-  const s = fit === 'cover' ? Math.max(w / vw, h / vh) : Math.min(w / vw, h / vh);
+  const s = fit === 'cover' ? Math.max(w / vw, h / vh) : Math.min(w / vw, h / vh); // contain e blur
   if (fit === 'cover') {
     // recorta só a parte visível do vídeo
     const sw = w / s, sh = h / s;
     return { outWidth: w, outHeight: h, sx: (vw - sw) / 2, sy: (vh - sh) / 2, sw, sh, dx: 0, dy: 0, dw: w, dh: h, fillBackground: false };
   }
   const dw = vw * s, dh = vh * s;
-  return { outWidth: w, outHeight: h, sx: 0, sy: 0, sw: vw, sh: vh, dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh, fillBackground: true };
+  return { outWidth: w, outHeight: h, sx: 0, sy: 0, sw: vw, sh: vh, dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh, fillBackground: fit === 'blur' ? 'blur' : 'black' };
 };

@@ -442,7 +442,17 @@ export const GifLabView: React.FC = () => {
 
         // Renderizar frame recortado no canvas
         ctx.clearRect(0, 0, outWidth, outHeight);
-        if (geo.fillBackground) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, outWidth, outHeight); }
+        if (geo.fillBackground) {
+          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, outWidth, outHeight);
+          if (geo.fillBackground === 'blur') {
+            // faixas com o próprio quadro ampliado e desfocado
+            const k = Math.max(outWidth / vw, outHeight / vh);
+            ctx.save();
+            ctx.filter = `blur(${Math.round(Math.max(outWidth, outHeight) / 40)}px) brightness(0.65)`;
+            ctx.drawImage(video, (outWidth - vw * k) / 2, (outHeight - vh * k) / 2, vw * k, vh * k);
+            ctx.restore();
+          }
+        }
         ctx.drawImage(video, sx, sy, sw, sh, dx, dy, dw, dh);
 
         if (revealChat) {
@@ -825,8 +835,8 @@ export const GifLabView: React.FC = () => {
             <p className="text-xs text-haze-faint">Máximo {GIF_MAX_RES}px por lado. Tamanhos grandes geram GIFs pesados (o Discord limita o envio).</p>
             <div>
               <span className="text-xs text-haze-muted block mb-1">Modo de adaptação do vídeo</span>
-              <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Modo de adaptação do vídeo">
-                {([['cover', 'Cover'], ['contain', 'Contain'], ['stretch', 'Esticar']] as const).map(([key, label]) => (
+              <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Modo de adaptação do vídeo">
+                {([['cover', 'Cover'], ['contain', 'Contain'], ['blur', 'Contain + desfoque'], ['stretch', 'Esticar']] as const).map(([key, label]) => (
                   <button
                     key={key} type="button" aria-pressed={fitMode === key} disabled={!outSize}
                     onClick={() => setFitMode(key)}
@@ -1087,7 +1097,7 @@ export const GifLabView: React.FC = () => {
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
                 className={outSize ? 'w-full h-full rounded-lg' : 'max-h-[50vh] w-auto object-contain rounded-lg'}
-                style={outSize ? { objectFit: fitMode === 'stretch' ? 'fill' : fitMode, background: '#000' } : undefined}
+                style={outSize ? { objectFit: fitMode === 'stretch' ? 'fill' : fitMode === 'blur' ? 'contain' : fitMode, background: '#000' } : undefined}
               />
               <canvas
                 ref={overlayRef}

@@ -12,7 +12,7 @@ import {
   sanitizeCamera, CAMERA_PRESET_EFFECTS, NO_EFFECTS, drawCameraOverlay, DEFAULT_CAMERA
 } from '../../src/utils/cameraFx';
 import {
-  sanitizeCanvasLayers, drawFittedImage, num, bool, str
+  sanitizeCanvasLayers, drawFittedImage, fitGeometry, isFitMode, num, bool, str
 } from '../../src/utils/editorSettings';
 import {
   hitTestHandles, hitTestLayerBody, startHandleDrag, applyLayerDrag
@@ -165,6 +165,37 @@ describe('Tier 5: Editor modules', () => {
     const ctx = ctxOf(1000, 1000);
     drawFittedImage(ctx, img, 1000, 1000, 'contain', 0, 0, 100);
     assertEqual(callsOf(ctx, 'fillRect').length, 1); // fundo preto das barras do contain
+  });
+
+  test('T5_SET_04_PanClamp: a foto não foge do quadro e não deixa buracos', () => {
+    // cover 800x400 em 1000x1000: 2000x1000 -> só dá para andar na horizontal (até 50%)
+    let g = fitGeometry(800, 400, 1000, 1000, 'cover', 300, 300, 100);
+    assertApprox(g.panX, 50); assertApprox(g.panY, 0);
+    assertApprox(g.dx, 0); // encostou na borda esquerda
+    assert(g.dx <= 0 && g.dx + g.dw >= 1000, 'cobre o quadro inteiro');
+    // contain: foto menor que o quadro só anda dentro dele
+    g = fitGeometry(800, 400, 1000, 1000, 'contain', 0, 90, 100);
+    assertApprox(g.panY, 25); assertApprox(g.dy + g.dh, 1000);
+    // com zoom 200% o limite cresce
+    g = fitGeometry(800, 400, 1000, 1000, 'cover', -999, 0, 200);
+    assertApprox(g.dx, 0 - (g.dw - 1000));
+  });
+
+  test('T5_SET_05_FitModeBlurAndGaps: modo desfoque e fundo quando sobra espaço', () => {
+    assert(isFitMode('blur') && isFitMode('cover') && !isFitMode('zoom'));
+    const img = { naturalWidth: 800, naturalHeight: 400 } as any;
+    // desfoque: aplica filtro e desenha a foto duas vezes (fundo ampliado + foto inteira)
+    let ctx = ctxOf(1000, 1000);
+    drawFittedImage(ctx, img, 1000, 1000, 'blur', 0, 0, 100);
+    assertEqual(callsOf(ctx, 'drawImage').length, 2);
+    // cover com zoom < 100: sobra espaço, então pinta o fundo (sem buracos transparentes)
+    ctx = ctxOf(1000, 1000);
+    drawFittedImage(ctx, img, 1000, 1000, 'cover', 0, 0, 60);
+    assertEqual(callsOf(ctx, 'fillRect').length, 1);
+    // cover normal cobre tudo: sem fundo extra
+    ctx = ctxOf(1000, 1000);
+    drawFittedImage(ctx, img, 1000, 1000, 'cover', 0, 0, 100);
+    assertEqual(callsOf(ctx, 'fillRect').length, 0);
   });
 
   // ---------------- canvasLayerRenderer ----------------

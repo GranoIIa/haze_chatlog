@@ -15,7 +15,9 @@ export const loadSaved = (): Record<string, any> => {
   }
 };
 
-export type FitMode = 'cover' | 'contain' | 'stretch';
+export type FitMode = 'cover' | 'contain' | 'blur' | 'stretch';
+export const FIT_MODES: ReadonlyArray<FitMode> = ['cover', 'contain', 'blur', 'stretch'];
+export const isFitMode = (v: unknown): v is FitMode => FIT_MODES.includes(v as FitMode);
 export type MouseTool = 'chat' | 'photo' | 'layer' | 'light';
 
 // Posição em frações do canvas (0–1) e largura em % da largura do canvas:
@@ -46,6 +48,31 @@ export const RESOLUTION_PRESETS: Array<{ label: string; size: { w: number; h: nu
 export const MIN_RES = 64;
 export const MAX_RES = 7680;
 
+/** Retângulo (dx, dy, dw, dh) onde a foto é desenhada, já com o deslocamento limitado para a foto nunca "fugir" do quadro. */
+export const fitGeometry = (
+  iw: number, ih: number, w: number, h: number,
+  mode: FitMode, panXPct: number, panYPct: number, zoomPct: number
+) => {
+  const zoom = Math.max(0.1, zoomPct / 100);
+  let sx: number, sy: number;
+  if (mode === 'stretch') {
+    sx = (w / iw) * zoom;
+    sy = (h / ih) * zoom;
+  } else {
+    const s = (mode === 'cover' ? Math.max(w / iw, h / ih) : Math.min(w / iw, h / ih)) * zoom;
+    sx = s;
+    sy = s;
+  }
+  const dw = iw * sx;
+  const dh = ih * sy;
+  // folga em % do quadro: foto maior que o quadro só pode andar até a borda; menor, só dentro do quadro
+  const limX = (Math.abs(dw - w) / 2 / w) * 100;
+  const limY = (Math.abs(dh - h) / 2 / h) * 100;
+  const px = Math.max(-limX, Math.min(limX, panXPct));
+  const py = Math.max(-limY, Math.min(limY, panYPct));
+  return { dx: (w - dw) / 2 + (px / 100) * w, dy: (h - dh) / 2 + (py / 100) * h, dw, dh, panX: px, panY: py };
+};
+
 // Desenha a imagem na área de saída respeitando modo de adaptação, pan (% da área) e zoom.
 export const drawFittedImage = (
   ctx: CanvasRenderingContext2D,
@@ -60,21 +87,18 @@ export const drawFittedImage = (
   const iw = img.naturalWidth || img.width;
   const ih = img.naturalHeight || img.height;
   if (!iw || !ih) return;
-  const zoom = Math.max(0.1, zoomPct / 100);
-  let sx: number, sy: number;
-  if (mode === 'stretch') {
-    sx = (w / iw) * zoom;
-    sy = (h / ih) * zoom;
-  } else {
-    const s = (mode === 'cover' ? Math.max(w / iw, h / ih) : Math.min(w / iw, h / ih)) * zoom;
-    sx = s;
-    sy = s;
-  }
-  const dw = iw * sx;
-  const dh = ih * sy;
-  const dx = (w - dw) / 2 + (panXPct / 100) * w;
-  const dy = (h - dh) / 2 + (panYPct / 100) * h;
-  if (mode === 'contain') {
+  const { dx, dy, dw, dh } = fitGeometry(iw, ih, w, h, mode, panXPct, panYPct, zoomPct);
+  const gaps = dw < w - 0.5 || dh < h - 0.5;
+  if (mode === 'blur') {
+    // faixas preenchidas com a própria foto ampliada e desfocada (em vez de preto)
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    const s = Math.max(w / iw, h / ih);
+    ctx.save();
+    ctx.filter = `blur(${Math.round(Math.max(w, h) / 40)}px) brightness(0.65)`;
+    ctx.drawImage(img, (w - iw * s) / 2, (h - ih * s) / 2, iw * s, ih * s);
+    ctx.restore();
+  } else if (mode === 'contain' || gaps) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
   }

@@ -26,7 +26,7 @@ import {
   Flame, Zap, Shield, EyeOff, Palette, Crop, MousePointer2, Lightbulb
 } from 'lucide-react';
 
-import { STORAGE_KEY, loadSaved, RESOLUTION_PRESETS, MIN_RES, MAX_RES, drawFittedImage, sanitizeCanvasLayers, num, bool, str, type FitMode, type MouseTool, type ImageLayer } from '../../utils/editorSettings';
+import { STORAGE_KEY, loadSaved, RESOLUTION_PRESETS, MIN_RES, MAX_RES, drawFittedImage, fitGeometry, isFitMode, sanitizeCanvasLayers, num, bool, str, type FitMode, type MouseTool, type ImageLayer } from '../../utils/editorSettings';
 import { DEFAULT_LIGHTING, LIGHT_SOURCES, LIGHT_BLENDS, LIGHTING_PRESETS, LIGHT_POSITIONS, hexToRgba, sanitizeLighting, drawPhotographicLight, drawLightGizmo, type LightSource, type Lighting } from '../../utils/lighting';
 import { NO_EFFECTS, DEFAULT_CAMERA, CAMERA_PRESET_EFFECTS, EFFECT_LABELS, sanitizeCamera, getNoiseCanvas, applyFilmEffects, drawCameraOverlay, type CameraPreset, type EffectKey, type CameraState } from '../../utils/cameraFx';
 import {
@@ -108,9 +108,7 @@ export const ChatLogView: React.FC = () => {
       ? { w: Math.min(MAX_RES, saved.outputRes.w), h: Math.min(MAX_RES, saved.outputRes.h) }
       : null
   );
-  const [fitMode, setFitMode] = useState<FitMode>(
-    saved.fitMode === 'contain' || saved.fitMode === 'stretch' ? saved.fitMode : 'cover'
-  );
+  const [fitMode, setFitMode] = useState<FitMode>(isFitMode(saved.fitMode) ? saved.fitMode : 'cover');
   const [panX, setPanX] = useState<number>(num(saved.panX, 0));
   const [panY, setPanY] = useState<number>(num(saved.panY, 0));
   const [zoom, setZoom] = useState<number>(num(saved.zoom, 100));
@@ -282,6 +280,16 @@ export const ChatLogView: React.FC = () => {
   };
 
   const resetFraming = () => { setPanX(0); setPanY(0); setZoom(100); };
+
+  /** Deslocamento da foto já limitado ao que cabe no quadro atual. */
+  const effectivePan = () => {
+    const img = loadedImageRef.current;
+    if (!img) return { panX, panY };
+    const g = fitGeometry(img.naturalWidth || img.width, img.naturalHeight || img.height, canvasDims.width, canvasDims.height, fitMode, panX, panY, zoom);
+    return { panX: g.panX, panY: g.panY };
+  };
+  // trocar o modo recomeça do enquadramento padrão (o ajuste antigo não faz sentido no modo novo)
+  const chooseFitMode = (m: FitMode) => { if (m !== fitMode) { setFitMode(m); setPanX(0); setPanY(0); setZoom(100); } };
 
   // Refs de Canvas e Imagem
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -926,7 +934,8 @@ export const ChatLogView: React.FC = () => {
 
     // Ferramenta "Enquadrar foto": arrastar desloca a foto dentro da resolução (pan)
     if (mouseTool === 'photo') {
-      photoDragRef.current = { x: pointerX, y: pointerY, panX, panY };
+      const eff = effectivePan(); // parte do deslocamento que realmente aparece (sem "folga" invisível)
+      photoDragRef.current = { x: pointerX, y: pointerY, panX: eff.panX, panY: eff.panY };
       layerDragRef.current = null;
       lightDragRef.current = null;
       setIsDragging(true);
@@ -1016,8 +1025,15 @@ export const ChatLogView: React.FC = () => {
 
     const pd = photoDragRef.current;
     if (pd) {
-      setPanX(Math.round(Math.max(-100, Math.min(100, pd.panX + ((pointerX - pd.x) / canvas.width) * 100))));
-      setPanY(Math.round(Math.max(-100, Math.min(100, pd.panY + ((pointerY - pd.y) / canvas.height) * 100))));
+      const img = loadedImageRef.current;
+      const nx = pd.panX + ((pointerX - pd.x) / canvas.width) * 100;
+      const ny = pd.panY + ((pointerY - pd.y) / canvas.height) * 100;
+      if (img) {
+        const g = fitGeometry(img.naturalWidth || img.width, img.naturalHeight || img.height, canvas.width, canvas.height, fitMode, nx, ny, zoom);
+        setPanX(Math.round(g.panX * 10) / 10); setPanY(Math.round(g.panY * 10) / 10);
+      } else {
+        setPanX(Math.round(Math.max(-100, Math.min(100, nx)))); setPanY(Math.round(Math.max(-100, Math.min(100, ny))));
+      }
       return;
     }
 
@@ -1818,15 +1834,22 @@ export const ChatLogView: React.FC = () => {
             </button>
           </div>
 
-          <div>
+          <div data-testid="fit-modes">
             <span className="text-xs text-haze-muted block mb-1">Modo de adaptação da foto</span>
-            <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Modo de adaptação">
-              {([['cover', 'Cover'], ['contain', 'Contain'], ['stretch', 'Esticar']] as const).map(([key, label]) => (
+            <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Modo de adaptação">
+              {([
+                ['cover', 'Cover', 'Preenche o quadro, recortando o excesso'],
+                ['contain', 'Contain', 'Mostra a foto inteira, com faixas pretas'],
+                ['blur', 'Contain + desfoque', 'Foto inteira; as faixas usam a própria foto desfocada'],
+                ['stretch', 'Esticar', 'Ocupa o quadro todo (pode deformar)']
+              ] as const).map(([key, label, hint]) => (
                 <button
                   key={key}
+                  title={hint}
                   aria-pressed={fitMode === key}
-                  onClick={() => setFitMode(key)}
-                  className={`py-1.5 rounded-lg text-xs border transition-colors ${
+                  disabled={!outputRes}
+                  onClick={() => chooseFitMode(key)}
+                  className={`py-1.5 rounded-lg text-xs border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                     fitMode === key ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
                   }`}
                 >
@@ -1834,7 +1857,28 @@ export const ChatLogView: React.FC = () => {
                 </button>
               ))}
             </div>
+            <p className="text-xs text-haze-faint mt-1.5 leading-relaxed">
+              {outputRes
+                ? { cover: 'Preenche o quadro, recortando o excesso.', contain: 'Mostra a foto inteira, com faixas pretas.', blur: 'Foto inteira; as faixas usam a própria foto desfocada.', stretch: 'Ocupa o quadro todo (pode deformar a foto).' }[fitMode]
+                : 'Com a resolução "Original" o quadro tem o tamanho da foto, então não há o que adaptar. Escolha uma resolução acima.'}
+            </p>
           </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-haze-border text-xs" data-testid="framing-readout">
+            <span className="text-haze-muted">
+              Enquadramento: zoom <span className="font-mono text-haze-text">{zoom}%</span>
+              {(Math.round(effectivePan().panX) !== 0 || Math.round(effectivePan().panY) !== 0) && <> · deslocada <span className="font-mono text-haze-text">{Math.round(effectivePan().panX)}%, {Math.round(effectivePan().panY)}%</span></>}
+            </span>
+            <button
+              type="button"
+              onClick={resetFraming}
+              disabled={zoom === 100 && panX === 0 && panY === 0}
+              className="px-2.5 py-1 rounded-lg border border-haze-border text-haze-soft hover:border-haze-accent/40 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Centralizar foto
+            </button>
+          </div>
+          <p className="text-xs text-haze-faint leading-relaxed">Para mover ou dar zoom, use a ferramenta "Enquadrar foto" (tecla 2): arraste a foto e use a roda do mouse.</p>
         </div>
         </EditorSection>
 
