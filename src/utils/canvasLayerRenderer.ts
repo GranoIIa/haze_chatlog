@@ -91,7 +91,7 @@ export function drawLayerHandles(ctx: CanvasRenderingContext2D, layer: CanvasLay
   ctx.translate(layer.x + halfW, layer.y + halfH);
   if (layer.rotation) ctx.rotate((layer.rotation * Math.PI) / 180);
 
-  ctx.strokeStyle = '#10b981';
+  ctx.strokeStyle = '#34D399';
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 4]);
   ctx.strokeRect(-halfW, -halfH, layer.width, layer.height);

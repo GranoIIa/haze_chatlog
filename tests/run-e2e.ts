@@ -63,6 +63,7 @@ async function loadTestSuites() {
     await import('./tier5-editor/test_video_seek');
     await import('./tier5-editor/test_project_file');
     await import('./tier5-editor/test_dialog_sections');
+    await import('./tier5-editor/test_palette');
   }
 }
 

@@ -608,12 +608,12 @@ export const GifLabView: React.FC = () => {
       <div className="lg:col-span-4 space-y-4">
         
         {/* Upload de Vídeo com Drag & Drop HTML5 */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Film className="w-3.5 h-3.5" /> Vídeo / Clipe de RP
             </span>
-            <span className="text-[11px] font-mono text-slate-400">
+            <span className="text-xs font-mono text-haze-muted">
               {videoDuration > 0 ? `${videoDuration.toFixed(1)}s` : 'MP4, WebM'}
             </span>
           </div>
@@ -626,8 +626,8 @@ export const GifLabView: React.FC = () => {
             onDrop={handleDrop}
             className={`group cursor-pointer border-2 border-dashed rounded-xl p-4 text-center transition-all ${
               isDragging 
-                ? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/30 scale-[1.01]' 
-                : 'border-[#1E2638] hover:border-emerald-500/50 bg-[#0B0E14]/40 hover:bg-emerald-500/[0.02]'
+                ? 'border-haze-accent bg-haze-accent/10 ring-2 ring-haze-accent/30 scale-[1.01]' 
+                : 'border-haze-border hover:border-haze-accent/50 bg-haze-field/40 hover:bg-haze-accent/[0.02]'
             }`}
           >
             <input
@@ -641,15 +641,15 @@ export const GifLabView: React.FC = () => {
             <div className="flex flex-col items-center gap-2">
               <div className={`p-2.5 rounded-full transition-colors ${
                 isDragging 
-                  ? 'bg-emerald-500/20 text-emerald-400' 
-                  : 'bg-slate-800/60 text-slate-400 group-hover:text-emerald-400'
+                  ? 'bg-haze-accent/20 text-haze-accent' 
+                  : 'bg-haze-raised/60 text-haze-muted group-hover:text-haze-accent-hover'
               }`}>
                 <Upload className="w-5 h-5" />
               </div>
-              <p className="text-xs font-medium text-slate-300">
+              <p className="text-xs font-medium text-haze-soft">
                 {isDragging ? 'Solte o arquivo de vídeo aqui...' : 'Arraste ou selecione um clipe de RP'}
               </p>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[11px] text-haze-faint">
                 MP4, WebM • 100% no navegador sem limite de tamanho
               </p>
             </div>
@@ -657,19 +657,19 @@ export const GifLabView: React.FC = () => {
         </div>
 
         {/* Trim & Corte de Duração com scrub imediato */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Scissors className="w-3.5 h-3.5" /> Corte de Tempo (Trim)
             </span>
-            <span className="text-[11px] font-mono text-emerald-400">
+            <span className="text-xs font-mono text-haze-accent">
               Duração: {(endTime - startTime).toFixed(1)}s
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <label className="text-slate-400 block mb-1">Início (Segundos)</label>
+              <label className="text-haze-muted block mb-1">Início (Segundos)</label>
               <input
                 type="number"
                 min="0"
@@ -677,12 +677,12 @@ export const GifLabView: React.FC = () => {
                 step="0.1"
                 value={startTime}
                 onChange={(e) => handleStartTimeChange(parseFloat(e.target.value) || 0)}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs font-mono focus:border-haze-accent focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="text-slate-400 block mb-1">Fim (Segundos)</label>
+              <label className="text-haze-muted block mb-1">Fim (Segundos)</label>
               <input
                 type="number"
                 min={startTime + 0.2}
@@ -690,19 +690,19 @@ export const GifLabView: React.FC = () => {
                 step="0.1"
                 value={endTime}
                 onChange={(e) => handleEndTimeChange(parseFloat(e.target.value) || 5)}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs font-mono focus:border-haze-accent focus:outline-none"
               />
             </div>
           </div>
         </div>
 
         {/* Presets Rápidos Discord & Configurações de Dimensão */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" /> Presets Discord (1-Clique)
             </span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+            <span className="text-[11px] uppercase font-mono px-1.5 py-0.5 rounded bg-haze-raised text-haze-muted">
               {cropMode === 'square' ? '1:1 Quadrado' : 'Original'}
             </span>
           </div>
@@ -713,12 +713,12 @@ export const GifLabView: React.FC = () => {
               onClick={() => applyPreset('banner')}
               className={`p-2 rounded-lg border text-center text-xs transition-colors ${
                 selectedPreset === 'banner'
-                  ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                  : 'bg-[#0B0E14] hover:bg-slate-800 border-[#1E2638] text-slate-300'
+                  ? 'bg-haze-accent/20 border-haze-accent text-white'
+                  : 'bg-haze-field hover:bg-haze-raised border-haze-border text-haze-soft'
               }`}
             >
-              <div className="font-bold text-emerald-400 text-[11px]">Banner Nitro</div>
-              <div className="text-[9px] text-slate-400">540p (Original)</div>
+              <div className="font-bold text-haze-accent text-xs">Banner Nitro</div>
+              <div className="text-[11px] text-haze-muted">540p (Original)</div>
             </button>
 
             <button
@@ -726,12 +726,12 @@ export const GifLabView: React.FC = () => {
               onClick={() => applyPreset('avatar')}
               className={`p-2 rounded-lg border text-center text-xs transition-colors ${
                 selectedPreset === 'avatar'
-                  ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                  : 'bg-[#0B0E14] hover:bg-slate-800 border-[#1E2638] text-slate-300'
+                  ? 'bg-haze-accent/20 border-haze-accent text-white'
+                  : 'bg-haze-field hover:bg-haze-raised border-haze-border text-haze-soft'
               }`}
             >
-              <div className="font-bold text-emerald-400 text-[11px]">Avatar 1:1</div>
-              <div className="text-[9px] text-slate-400">320x320</div>
+              <div className="font-bold text-haze-accent text-xs">Avatar 1:1</div>
+              <div className="text-[11px] text-haze-muted">320x320</div>
             </button>
 
             <button
@@ -739,18 +739,18 @@ export const GifLabView: React.FC = () => {
               onClick={() => applyPreset('emoji')}
               className={`p-2 rounded-lg border text-center text-xs transition-colors ${
                 selectedPreset === 'emoji'
-                  ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                  : 'bg-[#0B0E14] hover:bg-slate-800 border-[#1E2638] text-slate-300'
+                  ? 'bg-haze-accent/20 border-haze-accent text-white'
+                  : 'bg-haze-field hover:bg-haze-raised border-haze-border text-haze-soft'
               }`}
             >
-              <div className="font-bold text-emerald-400 text-[11px]">Emoji 1:1</div>
-              <div className="text-[9px] text-slate-400">&lt;256KB (128p)</div>
+              <div className="font-bold text-haze-accent text-xs">Emoji 1:1</div>
+              <div className="text-[11px] text-haze-muted">&lt;256KB (128p)</div>
             </button>
           </div>
 
           {/* Aviso de Tamanho para Presets de Emoji (Feature 23) */}
           {durationExceedsEmoji && (
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 text-[11px] text-amber-300">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-300">
               <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" />
               <span>
                 <strong>Atenção ao limite de 256 KB:</strong> Duração atual de {(endTime - startTime).toFixed(1)}s pode exceder o limite do Discord para emojis. Recomendado: ≤ 2.5s a 10 FPS.
@@ -760,15 +760,15 @@ export const GifLabView: React.FC = () => {
 
           {/* Modo de Corte / Aspect Ratio */}
           <div className="pt-1">
-            <label className="text-slate-400 block mb-1 text-xs">Formato de Recorte</label>
+            <label className="text-haze-muted block mb-1 text-xs">Formato de Recorte</label>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
                 onClick={() => setCropMode('original')}
                 className={`py-1.5 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-xs transition-colors ${
                   cropMode === 'original'
-                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold'
-                    : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-slate-200'
+                    ? 'bg-haze-accent/20 border-haze-accent text-haze-accent font-bold'
+                    : 'bg-haze-field border-haze-border text-haze-muted hover:text-haze-text'
                 }`}
               >
                 <Maximize2 className="w-3.5 h-3.5" /> Proporção Original
@@ -778,8 +778,8 @@ export const GifLabView: React.FC = () => {
                 onClick={() => setCropMode('square')}
                 className={`py-1.5 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-xs transition-colors ${
                   cropMode === 'square'
-                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold'
-                    : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-slate-200'
+                    ? 'bg-haze-accent/20 border-haze-accent text-haze-accent font-bold'
+                    : 'bg-haze-field border-haze-border text-haze-muted hover:text-haze-text'
                 }`}
               >
                 <Square className="w-3.5 h-3.5" /> 1:1 Quadrado
@@ -790,11 +790,11 @@ export const GifLabView: React.FC = () => {
           {/* FPS e Velocidade */}
           <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div>
-              <label className="text-slate-400 block mb-1">FPS (Quadros/s)</label>
+              <label className="text-haze-muted block mb-1">FPS (Quadros/s)</label>
               <select
                 value={fps}
                 onChange={(e) => setFps(parseInt(e.target.value))}
-                className="w-full px-2 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-white text-xs focus:border-emerald-500 focus:outline-none"
+                className="w-full px-2 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs focus:border-haze-accent focus:outline-none"
               >
                 <option value={8}>8 FPS (Leve)</option>
                 <option value={10}>10 FPS (Discord Emoji)</option>
@@ -805,11 +805,11 @@ export const GifLabView: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-slate-400 block mb-1">Velocidade</label>
+              <label className="text-haze-muted block mb-1">Velocidade</label>
               <select
                 value={speedMultiplier}
                 onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
-                className="w-full px-2 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-white text-xs focus:border-emerald-500 focus:outline-none"
+                className="w-full px-2 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs focus:border-haze-accent focus:outline-none"
               >
                 <option value={0.5}>0.5× (Slow Motion)</option>
                 <option value={1}>1.0× (Normal)</option>
@@ -820,19 +820,19 @@ export const GifLabView: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-slate-400 block mb-1 text-xs">Marca d'água de texto (Opcional)</label>
+            <label className="text-haze-muted block mb-1 text-xs">Marca d'água de texto (Opcional)</label>
             <input
               type="text"
               value={watermark}
               onChange={(e) => setWatermark(e.target.value)}
               placeholder="ex: @HazeRP ou discord.gg/..."
-              className="w-full px-3 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-white text-xs focus:border-emerald-500 focus:outline-none"
+              className="w-full px-3 py-1.5 rounded-lg bg-haze-field border border-haze-border text-white text-xs focus:border-haze-accent focus:outline-none"
             />
           </div>
 
           {/* Chat Log sobre o GIF */}
-          <div className="pt-3 border-t border-[#1E2638] space-y-2">
-            <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+          <div className="pt-3 border-t border-haze-border space-y-2">
+            <label className="flex items-center gap-2 text-xs text-haze-text cursor-pointer">
               <input
                 type="checkbox"
                 checked={includeChat}
@@ -842,16 +842,16 @@ export const GifLabView: React.FC = () => {
                   // sincroniza com o Chat Log só na 1ª vez; depois mantém a posição que você ajustou
                   if (e.target.checked && !chatPosInitRef.current) { chatPosInitRef.current = true; syncChatPosition(); }
                 }}
-                className="accent-emerald-500"
+                className="accent-haze-accent"
               />
               <span className="font-semibold">Incluir chat do Chat Log no GIF</span>
             </label>
             {!sharedChat && (
-              <p className="text-[11px] text-slate-500">Abra a aba Chat Log uma vez para carregar o chat.</p>
+              <p className="text-xs text-haze-faint">Abra a aba Chat Log uma vez para carregar o chat.</p>
             )}
             {includeChat && sharedChat && (
               <div className="space-y-2">
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-xs text-haze-faint leading-relaxed">
                   Usa o texto, os personagens e o estilo (fonte, contorno, fundo, censura) da aba Chat Log.
                   Arraste o texto no preview do vídeo para posicioná-lo.
                 </p>
@@ -861,30 +861,30 @@ export const GifLabView: React.FC = () => {
                   ['Tamanho do texto', chatScalePct, 40, 400, 5, '%', setChatScalePct]
                 ] as const).map(([label, value, min, max, step, unit, setter]) => (
                   <div key={label}>
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <div className="flex justify-between text-xs text-haze-muted mb-1">
                       <span>{label}</span>
-                      <span className="font-mono text-slate-200">{value}{unit}</span>
+                      <span className="font-mono text-haze-text">{value}{unit}</span>
                     </div>
                     <input
                       type="range" min={min} max={max} step={step} value={value} aria-label={`Chat no GIF: ${label}`}
                       onChange={(e) => setter(parseFloat(e.target.value))}
-                      className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                      className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                     />
                   </div>
                 ))}
-                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs text-haze-soft cursor-pointer">
                   <input
                     type="checkbox"
                     checked={chatReveal}
                     onChange={(e) => setChatReveal(e.target.checked)}
-                    className="accent-emerald-500"
+                    className="accent-haze-accent"
                   />
                   Revelar as linhas ao longo do clipe (efeito de digitação)
                 </label>
                 <button
                   type="button"
                   onClick={syncChatPosition}
-                  className="w-full py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                  className="w-full py-1.5 rounded-lg border border-haze-border text-xs text-haze-soft hover:border-haze-accent/40"
                 >
                   Usar a posição do Chat Log
                 </button>
@@ -905,14 +905,14 @@ export const GifLabView: React.FC = () => {
               onActiveCharChange={setGifActiveCharId}
               showCharacters
             />
-            <p className="text-[11px] text-slate-500 leading-relaxed px-1">
+            <p className="text-xs text-haze-faint leading-relaxed px-1">
               Este é o mesmo texto da aba Editor RP: o que você muda aqui também muda lá.
               {includeChat ? '' : ' Marque "Incluir chat do Chat Log no GIF" nas opções acima para vê-lo no vídeo.'}
             </p>
           </EditorSection>
           </div>
         ) : (
-          <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] text-[11px] text-slate-500">
+          <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border text-xs text-haze-faint">
             Diálogos &amp; Ações: abra a aba Editor RP uma vez para carregar o chat.
           </div>
         )}
@@ -923,7 +923,7 @@ export const GifLabView: React.FC = () => {
             type="button"
             onClick={generateGif}
             disabled={!videoSrc || isProcessing}
-            className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+            className="w-full py-3 px-4 rounded-xl bg-haze-accent hover:bg-haze-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-haze-on-accent font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-haze-accent/20 transition-all cursor-pointer"
           >
             {isProcessing ? (
               <>
@@ -949,7 +949,7 @@ export const GifLabView: React.FC = () => {
           )}
 
           {statusMessage && (
-            <p className="text-[11px] text-center font-mono text-slate-400">
+            <p className="text-xs text-center font-mono text-haze-muted">
               {statusMessage}
             </p>
           )}
@@ -961,18 +961,18 @@ export const GifLabView: React.FC = () => {
       <div className="lg:col-span-8 flex flex-col gap-4">
         
         {/* Player de Vídeo Original com controles interativos (Feature 22) */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5 text-emerald-400" /> Preview do Clipe Original
+            <span className="text-xs font-bold uppercase tracking-wider text-haze-soft flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-haze-accent" /> Preview do Clipe Original
             </span>
-            <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
-              <Clock className="w-3 h-3 text-emerald-400" />
+            <span className="text-xs font-mono text-haze-muted flex items-center gap-1">
+              <Clock className="w-3 h-3 text-haze-accent" />
               {formatTime(currentTime)} / {formatTime(videoDuration)}
             </span>
           </div>
 
-          <div className="relative rounded-xl overflow-hidden bg-[#07090E] border border-[#1E2638] min-h-[300px] flex items-center justify-center">
+          <div className="relative rounded-xl overflow-hidden bg-haze-stage border border-haze-border min-h-[300px] flex items-center justify-center">
             {videoSrc ? (
               <div className="relative inline-block">
               <video
@@ -997,8 +997,8 @@ export const GifLabView: React.FC = () => {
               />
               </div>
             ) : (
-              <div className="text-center p-6 text-slate-500">
-                <Film className="w-10 h-10 mx-auto mb-2 opacity-40 text-emerald-400" />
+              <div className="text-center p-6 text-haze-faint">
+                <Film className="w-10 h-10 mx-auto mb-2 opacity-40 text-haze-accent" />
                 <p className="text-xs">Faça upload ou arraste um vídeo para iniciar.</p>
               </div>
             )}
@@ -1011,7 +1011,7 @@ export const GifLabView: React.FC = () => {
                 <button
                   type="button"
                   onClick={togglePlay}
-                  className="p-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 transition-colors"
+                  className="p-2 rounded-lg bg-haze-accent/20 hover:bg-haze-accent/30 text-haze-accent border border-haze-accent/40 transition-colors"
                   title={isPlaying ? 'Pausar' : 'Reproduzir'}
                 >
                   {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -1025,19 +1025,19 @@ export const GifLabView: React.FC = () => {
                     step="0.05"
                     value={currentTime}
                     onChange={(e) => handleTimelineScrub(parseFloat(e.target.value) || 0)}
-                    className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-[#0B0E14] rounded-lg border border-[#1E2638]"
+                    className="w-full accent-haze-accent cursor-pointer h-1.5 bg-haze-field rounded-lg border border-haze-border"
                   />
                 </div>
 
-                <span className="text-[11px] font-mono text-slate-400 min-w-[70px] text-right">
+                <span className="text-xs font-mono text-haze-muted min-w-[70px] text-right">
                   {formatTime(currentTime)}
                 </span>
               </div>
 
               {/* Indicadores Visuais da Faixa de Trim */}
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
+              <div className="flex items-center justify-between text-[11px] font-mono text-haze-faint px-1">
                 <span>Início Trim: {formatTime(startTime)}</span>
-                <span className="text-emerald-400 font-bold">Faixa Ativa: {(endTime - startTime).toFixed(1)}s</span>
+                <span className="text-haze-accent font-bold">Faixa Ativa: {(endTime - startTime).toFixed(1)}s</span>
                 <span>Fim Trim: {formatTime(endTime)}</span>
               </div>
             </div>
@@ -1046,14 +1046,14 @@ export const GifLabView: React.FC = () => {
 
         {/* Card do GIF Renderizado */}
         {resultGifUrl && (
-          <div className="p-4 rounded-2xl bg-[#121722] border border-emerald-500/40 shadow-xl space-y-3">
+          <div className="p-4 rounded-2xl bg-haze-panel border border-haze-accent/40 shadow-xl space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <CheckCircle2 className="w-4 h-4 text-haze-accent" />
                 <span className="text-xs font-bold uppercase tracking-wider text-white">
                   GIF Gerado com Sucesso!
                 </span>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-haze-accent/20 text-haze-accent">
                   {gifSizeMb} MB
                 </span>
               </div>
@@ -1061,13 +1061,13 @@ export const GifLabView: React.FC = () => {
               <a
                 href={resultGifUrl}
                 download={`haze-clip-${Date.now()}.gif`}
-                className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all"
+                className="px-4 py-1.5 rounded-lg bg-haze-accent hover:bg-haze-accent-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-md shadow-haze-accent/20 transition-all"
               >
                 <Download className="w-4 h-4" /> Baixar GIF
               </a>
             </div>
 
-            <div className="rounded-xl overflow-hidden bg-[#07090E] border border-[#1E2638] flex items-center justify-center p-2">
+            <div className="rounded-xl overflow-hidden bg-haze-stage border border-haze-border flex items-center justify-center p-2">
               <img
                 src={resultGifUrl}
                 alt="GIF Result"

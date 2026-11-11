@@ -9,8 +9,8 @@
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #0b0e14;
-  color: #f1f5f9;
+  background-color: rgb(var(--haze-bg));
+  color: rgb(var(--haze-text));
   overflow-x: hidden;
 }
 
@@ -21,32 +21,38 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0e14;
+  background: rgb(var(--haze-bg));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e2638;
+  background: rgb(var(--haze-border-strong));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #10b981;
+  background: rgb(var(--haze-accent));
+}
+
+/* Foco visível e consistente (teclado) */
+:focus-visible {
+  outline: 2px solid rgb(var(--haze-accent));
+  outline-offset: 2px;
 }
 
 /* Glassmorphism & Glow Effects */
 .glass-panel {
-  background: rgba(18, 23, 34, 0.85);
+  background: rgb(var(--haze-panel) / 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #1e2638;
+  border: 1px solid rgb(var(--haze-border));
 }
 
 .emerald-glow {
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 25px rgb(var(--haze-accent) / 0.2);
 }
 
 .emerald-glow-sm {
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 10px rgb(var(--haze-accent) / 0.25);
 }
 
 /* Seções recolhíveis do Editor RP: o cartão interno perde a moldura e o título (que passa a ser da seção) */
@@ -57,6 +63,7 @@ body {
   padding: 0;
   border-radius: 0;
 }
-.accordion-body .section-title {
+.accordion-body .section-title,
+.accordion-body .section-badge {
   display: none;
 }

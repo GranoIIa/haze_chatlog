@@ -94,6 +94,12 @@ Mais detalhes em [`docs/`](./docs).
 
 ---
 
+## 🎨 Tema
+
+As cores da interface vêm de **um único arquivo**: [`src/theme/palette.js`](./src/theme/palette.js) (paleta *Esmeralda refinada*: grafite neutro, texto com contraste AA e um só acento verde para a ação principal e os estados ativos). O `tailwind.config.js` gera as variáveis CSS (`--haze-*`) e as classes (`bg-haze-panel`, `text-haze-muted`, `border-haze-border`...) a partir dele; para trocar o tema, edite só esse arquivo. Os contrastes mínimos são verificados por testes (`tests/tier5-editor/test_palette.ts`).
+
+---
+
 ## 🛠️ Como executar localmente
 
 ```bash

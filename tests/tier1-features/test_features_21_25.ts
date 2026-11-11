@@ -203,7 +203,9 @@ describe('Tier 1: Features 21 to 25 Coverage', () => {
     const twPath = path.resolve(process.cwd(), 'tailwind.config.js');
     const content = fs.readFileSync(twPath, 'utf8');
 
-    assert(content.includes('emerald') || content.includes('#10b981') || content.includes('#10B981'));
+    // o tema esmeralda agora vem da paleta única (acento verde), consumida pelo tailwind.config.js
+    const palette = fs.readFileSync(path.resolve(process.cwd(), 'src/theme/palette.js'), 'utf8').toLowerCase();
+    assert(content.includes('palette') && palette.includes('accent: \'#34d399\''));
   });
 
   test('T1_F24_02_NavbarTabActiveIndicator: Active tab styling indicates emerald highlight', () => {
@@ -234,7 +236,8 @@ describe('Tier 1: Features 21 to 25 Coverage', () => {
     const appPath = path.resolve(process.cwd(), 'src/App.tsx');
     const content = fs.readFileSync(appPath, 'utf8');
 
-    assert(content.includes('text-slate') || content.includes('text-white') || content.includes('text-emerald'));
+    // textos com tokens do tema (contrastes garantidos por tests/tier5-editor/test_palette.ts)
+    assert(content.includes('text-haze-') || content.includes('text-white'));
   });
 
   // =========================================================================

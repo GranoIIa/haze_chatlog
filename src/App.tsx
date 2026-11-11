@@ -9,7 +9,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('chatlog');
 
   return (
-    <div className="min-h-screen bg-[#0B0E14] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-haze-bg text-haze-text flex flex-col">
       {/* Top Navbar */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -24,7 +24,7 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[#1E2638] bg-[#07090E] py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-haze-border bg-haze-stage py-4 text-center text-xs text-haze-faint">
         <img src={logoUrl} alt="Haze" className="h-6 w-auto mx-auto mb-2 opacity-70" draggable={false} />
         <p>
           Haze Studios &copy; {new Date().getFullYear()} — Criado com carinho para a comunidade FiveM & GTA RP.

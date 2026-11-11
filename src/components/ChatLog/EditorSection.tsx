@@ -45,7 +45,7 @@ interface EditorSectionProps {
  * pelo CSS `.accordion-body` (index.css).
  */
 export const EditorSection: React.FC<EditorSectionProps> = ({ id, title, badge, open, onToggle, children }) => (
-  <section data-section={id} className="rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md">
+  <section data-section={id} className="rounded-2xl bg-haze-panel border border-haze-border shadow-md">
     <h3 className="m-0">
       <button
         type="button"
@@ -55,12 +55,12 @@ export const EditorSection: React.FC<EditorSectionProps> = ({ id, title, badge, 
         onClick={() => onToggle(id)}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left rounded-2xl hover:bg-white/[0.02]"
       >
-        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400">
-          <span aria-hidden className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>▸</span>
-          {title}
+        <span className="flex items-center gap-2 min-w-0 text-xs font-semibold uppercase tracking-wider text-haze-text">
+          <span aria-hidden className={`inline-block text-haze-accent transition-transform ${open ? 'rotate-90' : ''}`}>▸</span>
+          <span className="truncate">{title}</span>
         </span>
         {badge !== undefined && badge !== null && (
-          <span className="text-[11px] font-mono text-slate-400 truncate">{badge}</span>
+          <span className="text-xs font-mono text-haze-muted shrink-0">{badge}</span>
         )}
       </button>
     </h3>

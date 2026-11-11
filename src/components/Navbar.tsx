@@ -10,7 +10,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   return (
-    <header className="sticky top-0 z-50 bg-[#0B0E14]/90 backdrop-blur-md border-b border-[#1E2638] px-4 lg:px-8 py-3 transition-all">
+    <header className="sticky top-0 z-50 bg-haze-bg/90 backdrop-blur-md border-b border-haze-border px-4 lg:px-8 py-3 transition-all">
       <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         
         {/* Brand Group */}
@@ -23,30 +23,30 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           />
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <span className="px-2 py-0.5 text-[11px] font-black uppercase tracking-wider rounded-md bg-haze-accent/15 text-haze-accent border border-haze-accent/30">
                 STUDIOS
               </span>
-              <span className="text-xs font-semibold text-emerald-400/80 font-mono">v2.0 PRO</span>
+              <span className="text-xs font-semibold text-haze-accent/80 font-mono">v2.0 PRO</span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
+            <p className="text-xs text-haze-muted hidden sm:block">
               The Ultimate RP Creator Suite — Feito para a comunidade de Roleplay
             </p>
           </div>
         </div>
 
         {/* Navigation Tabs (Switcher das 2 Ferramentas) */}
-        <nav className="flex items-center p-1 rounded-xl bg-[#121722] border border-[#1E2638] shadow-inner">
+        <nav className="flex items-center p-1 rounded-xl bg-haze-panel border border-haze-border shadow-inner">
           <button
             onClick={() => setActiveTab('chatlog')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'chatlog'
-                ? 'bg-emerald-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                ? 'bg-haze-accent text-haze-on-accent font-bold shadow-lg shadow-haze-accent/20'
+                : 'text-haze-muted hover:text-white hover:bg-haze-raised/40'
             }`}
           >
             <MessageSquareText className="w-4 h-4" />
-            <span>Editor RP</span>
-            <span className="text-[9px] px-1.5 py-0.2 bg-emerald-950/80 text-emerald-300 rounded font-mono border border-emerald-400/30">
+            <span className="whitespace-nowrap">Editor RP</span>
+            <span className="text-[11px] hidden xl:inline-block px-1.5 py-0.5 bg-haze-accent/10 text-haze-accent rounded font-mono border border-haze-accent/30">
               CHAT + CANVAS
             </span>
           </button>
@@ -55,13 +55,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             onClick={() => setActiveTab('giflab')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'giflab'
-                ? 'bg-emerald-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                ? 'bg-haze-accent text-haze-on-accent font-bold shadow-lg shadow-haze-accent/20'
+                : 'text-haze-muted hover:text-white hover:bg-haze-raised/40'
             }`}
           >
             <Film className="w-4 h-4" />
-            <span>Video to GIF Lab</span>
-            <span className="text-[9px] px-1.5 py-0.2 bg-emerald-950/80 text-emerald-300 rounded font-mono border border-emerald-400/30">
+            <span className="whitespace-nowrap">Video to GIF Lab</span>
+            <span className="text-[11px] hidden xl:inline-block px-1.5 py-0.5 bg-haze-accent/10 text-haze-accent rounded font-mono border border-haze-accent/30">
               EZGIF
             </span>
           </button>
@@ -69,15 +69,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
 
         {/* Right Info */}
         <div className="hidden lg:flex items-center gap-3">
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#121722] border border-[#1E2638] text-xs text-slate-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-haze-panel border border-haze-border text-xs text-haze-soft">
+            <span className="w-2 h-2 rounded-full bg-haze-accent animate-pulse"></span>
             <span>100% Client-Side</span>
           </div>
           <a
             href="https://github.com/GranoIIa/haze_chatlog"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-haze-muted hover:text-haze-accent-hover transition-colors"
           >
             <span>GitHub</span>
             <ExternalLink className="w-3.5 h-3.5" />

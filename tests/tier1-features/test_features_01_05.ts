@@ -226,12 +226,15 @@ describe('Tier 1: Features 01 to 05 Coverage', () => {
     assert(pkg.scripts.build.includes('tsc'));
   });
 
-  test('T1_F03_05_TailwindPaletteCleanliness: tailwind.config.js defines Emerald Edition palette', () => {
+  test('T1_F03_05_TailwindPaletteCleanliness: tailwind.config.js usa a paleta única (src/theme/palette.js) com acento esmeralda e fundo escuro', () => {
     const twPath = path.resolve(process.cwd(), 'tailwind.config.js');
     const twContent = fs.readFileSync(twPath, 'utf8');
+    assert(twContent.includes("src/theme/palette.js"), 'tailwind.config.js deve importar a paleta única');
 
-    assert(twContent.includes('#10B981') || twContent.includes('#10b981') || twContent.includes('emerald'), 'Emerald color token present');
-    assert(twContent.includes('#0B0E14') || twContent.includes('#0b0e14') || twContent.includes('11, 14, 20'), 'Dark background token present');
+    const palettePath = path.resolve(process.cwd(), 'src/theme/palette.js');
+    const palette = fs.readFileSync(palettePath, 'utf8').toLowerCase();
+    assert(palette.includes("accent: '#34d399'"), 'Emerald accent token present');
+    assert(palette.includes("bg: '#0e1014'"), 'Dark background token present');
   });
 
   // =========================================================================

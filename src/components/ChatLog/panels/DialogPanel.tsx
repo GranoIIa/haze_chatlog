@@ -63,19 +63,19 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
       onClick={() => insert(text())}
       title={tip}
       style={{ color, borderColor: `${color}55` }}
-      className="px-2 py-1.5 rounded-lg border bg-[#0B0E14] hover:bg-slate-800 text-[11px] font-semibold transition-colors"
+      className="px-2 py-1.5 rounded-lg border bg-haze-field hover:bg-haze-raised text-xs font-semibold transition-colors"
     >
       {label}
     </button>
   );
 
   return (
-    <div data-testid={testId} className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+    <div data-testid={testId} className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
       <div className="flex items-center justify-between">
-        <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+        <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
           <Type className="w-3.5 h-3.5" /> Diálogos &amp; Ações
         </span>
-        <span className="text-[10px] text-slate-500">* /me, &gt; /ame, $ din, (( ooc ))</span>
+        <span className="text-[11px] text-haze-faint">* /me, &gt; /ame, $ din, (( ooc ))</span>
       </div>
 
       <textarea
@@ -84,7 +84,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
         onChange={(e) => onChange(e.target.value)}
         rows={6}
         aria-label="Texto do chat"
-        className="w-full p-3 rounded-xl bg-[#0B0E14] border border-[#1E2638] text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-y"
+        className="w-full p-3 rounded-xl bg-haze-field border border-haze-border text-xs font-mono text-haze-text focus:outline-none focus:border-haze-accent focus:ring-1 focus:ring-haze-accent transition-all resize-y"
         placeholder="Digite ou cole as falas do chat aqui..."
       />
 
@@ -96,7 +96,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
               type="button"
               aria-pressed={c.id === activeChar?.id}
               onClick={() => onActiveCharChange?.(c.id)}
-              className="px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all"
+              className="px-2.5 py-1 rounded-lg border text-xs font-medium transition-all"
               style={{
                 color: c.color,
                 borderColor: c.id === activeChar?.id ? c.color : `${c.color}40`,
@@ -110,7 +110,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
       )}
 
       <div>
-        <span className="text-[11px] text-slate-400 block mb-1.5">
+        <span className="text-xs text-haze-muted block mb-1.5">
           Tom de voz · fala de <strong style={{ color: activeChar?.color }}>{activeChar?.name ?? 'Personagem'}</strong>
         </span>
         <div className="grid grid-cols-3 gap-1.5">
@@ -121,7 +121,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
               onClick={() => insert(speechPrefix(activeChar?.name ?? '', tone))}
               title={`${tip} (“diz (${tone}):”)`}
               style={{ color, borderColor: `${color}55` }}
-              className={`px-2 py-1.5 rounded-lg border bg-[#0B0E14] hover:bg-slate-800 text-[11px] transition-colors ${tone === 'gritando' ? 'font-extrabold' : 'font-semibold'}`}
+              className={`px-2 py-1.5 rounded-lg border bg-haze-field hover:bg-haze-raised text-xs transition-colors ${tone === 'gritando' ? 'font-extrabold' : 'font-semibold'}`}
             >
               {label}
             </button>
@@ -130,7 +130,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
       </div>
 
       <div>
-        <span className="text-[11px] text-slate-400 block mb-1.5">Ações e marcadores</span>
+        <span className="text-xs text-haze-muted block mb-1.5">Ações e marcadores</span>
         <div className="grid grid-cols-4 gap-1.5">
           {marker('* /me', () => `* ${activeChar?.name ?? 'Personagem'} `, 'Ação do personagem ativo', '#cc99ff')}
           {marker('> /ame', () => '> ', 'Ação sobre o personagem', '#cc99ff')}
@@ -144,7 +144,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
           type="button"
           onClick={() => { const [s, e] = selection(); apply(censorSelection(value, s, e)); }}
           title="Selecione um trecho no editor e clique para censurar; sem seleção insere um marcador"
-          className="mt-1.5 w-full px-2 py-1.5 rounded-lg border border-red-400/30 bg-red-950/40 hover:bg-red-900/50 text-red-300 text-[11px] font-semibold transition-colors"
+          className="mt-1.5 w-full px-2 py-1.5 rounded-lg border border-red-400/30 bg-red-950/40 hover:bg-red-900/50 text-red-300 text-xs font-semibold transition-colors"
         >
           ||Censurar seleção||
         </button>

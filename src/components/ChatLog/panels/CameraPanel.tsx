@@ -13,10 +13,10 @@ interface CameraPanelProps {
 /** Presets de câmera RP (Bodycam, CCTV, Noite Fria), campos editáveis e efeitos de filme. */
 export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, activeCharName }) => {
   return (
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Câmera RP &amp; Efeitos</span>
-            <span className="text-[11px] font-mono text-slate-300">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text">Câmera RP &amp; Efeitos</span>
+            <span className="section-badge text-xs font-mono text-haze-soft">
               {({ none: 'Padrão', bodycam: 'Bodycam', cctv: 'CCTV', noir: 'Noite Fria' } as const)[camera.preset]}
             </span>
           </div>
@@ -31,8 +31,8 @@ export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, act
                   const next: CameraPreset = camera.preset === key && key !== 'none' ? 'none' : key;
                   setCamera(c => ({ ...c, preset: next, effects: { ...CAMERA_PRESET_EFFECTS[next] } }));
                 }}
-                className={`py-1.5 rounded-lg text-[11px] border transition-colors ${
-                  camera.preset === key ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/50' : 'border-[#1E2638] text-slate-300 hover:border-emerald-500/30'
+                className={`py-1.5 rounded-lg text-xs border transition-colors ${
+                  camera.preset === key ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
                 }`}
               >
                 {label}
@@ -48,12 +48,12 @@ export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, act
             const setCustom = (patch: Partial<CameraState['custom']>) =>
               setCamera(c => ({ ...c, custom: { ...c.custom, ...patch } }));
             const field = (label: string, key: keyof CameraState['custom'], placeholder: string) => (
-              <label key={key} className="text-[11px] text-slate-400">
+              <label key={key} className="text-xs text-haze-muted">
                 {label}
                 <input
                   type="text" maxLength={48} value={camera.custom[key]} placeholder={placeholder}
                   onChange={(e) => setCustom({ [key]: e.target.value } as Partial<CameraState['custom']>)}
-                  className="mt-1 w-full p-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-[11px] text-slate-200 font-mono placeholder:text-slate-600"
+                  className="mt-1 w-full p-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text font-mono placeholder:text-haze-faint"
                 />
               </label>
             );
@@ -66,7 +66,7 @@ export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, act
                   {field('Oficial', 'bodycamOfficer', activeCharName ?? 'M. MENDOZA')}
                   <button
                     onClick={() => setCustom({ bodycamDate: nowDate, bodycamTime: nowTime })}
-                    className="col-span-2 py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                    className="col-span-2 py-1.5 rounded-lg border border-haze-border text-xs text-haze-soft hover:border-haze-accent/40"
                   >
                     Usar data e hora de agora
                   </button>
@@ -82,7 +82,7 @@ export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, act
                   <div className="col-span-2">{field('Informação (canto superior)', 'cctvLocation', 'PAL 25FPS · 1080P · LIVE')}</div>
                   <button
                     onClick={() => setCustom({ cctvDate: nowDate, cctvTime: nowTime })}
-                    className="col-span-2 py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                    className="col-span-2 py-1.5 rounded-lg border border-haze-border text-xs text-haze-soft hover:border-haze-accent/40"
                   >
                     Usar data e hora de agora
                   </button>
@@ -94,10 +94,10 @@ export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, act
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] text-slate-400">Efeitos de filme</span>
+              <span className="text-xs text-haze-muted">Efeitos de filme</span>
               <button
                 onClick={() => setCamera(c => ({ ...c, effects: { ...NO_EFFECTS } }))}
-                className="text-[11px] text-slate-300 hover:text-emerald-300 underline-offset-2 hover:underline"
+                className="text-xs text-haze-soft hover:text-haze-accent-hover underline-offset-2 hover:underline"
               >
                 Limpar
               </button>
@@ -108,8 +108,8 @@ export const CameraPanel: React.FC<CameraPanelProps> = ({ camera, setCamera, act
                   key={key}
                   aria-pressed={camera.effects[key]}
                   onClick={() => setCamera(c => ({ ...c, effects: { ...c.effects, [key]: !c.effects[key] } }))}
-                  className={`py-1.5 rounded-lg text-[11px] border transition-colors ${
-                    camera.effects[key] ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/50' : 'border-[#1E2638] text-slate-300 hover:border-emerald-500/30'
+                  className={`py-1.5 rounded-lg text-xs border transition-colors ${
+                    camera.effects[key] ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
                   }`}
                 >
                   {label}

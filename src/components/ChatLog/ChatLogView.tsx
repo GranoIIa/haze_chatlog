@@ -23,7 +23,7 @@ import {
 import { 
   Upload, Download, Plus, Trash2, Sparkles, Sliders, Type, 
   Layers, RefreshCw, Move, Clapperboard, Sun, Contrast,
-  Flame, Zap, Shield, EyeOff, Palette
+  Flame, Zap, Shield, EyeOff, Palette, Crop, MousePointer2, Lightbulb
 } from 'lucide-react';
 
 import { STORAGE_KEY, loadSaved, RESOLUTION_PRESETS, MIN_RES, MAX_RES, drawFittedImage, sanitizeCanvasLayers, num, bool, str, type FitMode, type MouseTool, type ImageLayer } from '../../utils/editorSettings';
@@ -1485,7 +1485,7 @@ export const ChatLogView: React.FC = () => {
         {notice && (
           <div className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-xl border ${
             notice.kind === 'ok'
-              ? 'bg-emerald-500 text-slate-950 border-emerald-300'
+              ? 'bg-haze-accent text-haze-on-accent border-haze-accent'
               : 'bg-rose-950 text-rose-200 border-rose-500/50'
           }`}>
             {notice.text}
@@ -1497,7 +1497,7 @@ export const ChatLogView: React.FC = () => {
       <div className={focusMode ? 'hidden' : 'lg:col-span-4 xl:col-span-3 space-y-4 min-w-0'}>
 
         {/* Alternador de modo: Foto individual / Lote (ZIP) */}
-        <div role="tablist" aria-label="Modo de trabalho" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#121722] border border-[#1E2638]">
+        <div role="tablist" aria-label="Modo de trabalho" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-haze-panel border border-haze-border">
           {([['single', 'Foto individual'], ['batch', 'Lote (ZIP)']] as const).map(([key, label]) => (
             <button
               key={key}
@@ -1505,7 +1505,7 @@ export const ChatLogView: React.FC = () => {
               aria-selected={mode === key}
               onClick={() => setMode(key)}
               className={`py-2 rounded-lg text-xs font-semibold transition-colors ${
-                mode === key ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                mode === key ? 'bg-haze-accent/15 text-haze-accent border border-haze-accent/40' : 'text-haze-muted hover:text-haze-text border border-transparent'
               }`}
             >
               {label}
@@ -1520,7 +1520,7 @@ export const ChatLogView: React.FC = () => {
             disabled={histCount.past === 0}
             aria-label="Desfazer (Ctrl+Z)"
             title="Desfazer (Ctrl+Z)"
-            className="flex-1 py-1.5 rounded-lg text-[11px] border border-[#1E2638] text-slate-300 hover:border-emerald-500/40 disabled:opacity-35 disabled:cursor-not-allowed"
+            className="flex-1 py-1.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 disabled:opacity-35 disabled:cursor-not-allowed"
           >
             ↶ Desfazer{histCount.past ? ` (${histCount.past})` : ''}
           </button>
@@ -1529,7 +1529,7 @@ export const ChatLogView: React.FC = () => {
             disabled={histCount.future === 0}
             aria-label="Refazer (Ctrl+Y)"
             title="Refazer (Ctrl+Y)"
-            className="flex-1 py-1.5 rounded-lg text-[11px] border border-[#1E2638] text-slate-300 hover:border-emerald-500/40 disabled:opacity-35 disabled:cursor-not-allowed"
+            className="flex-1 py-1.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 disabled:opacity-35 disabled:cursor-not-allowed"
           >
             Refazer ↷
           </button>
@@ -1538,7 +1538,7 @@ export const ChatLogView: React.FC = () => {
             aria-expanded={showShortcuts}
             aria-label="Atalhos de teclado"
             title="Atalhos de teclado (?)"
-            className="px-3 py-1.5 rounded-lg text-[11px] border border-[#1E2638] text-slate-300 hover:border-emerald-500/40"
+            className="px-3 py-1.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40"
           >
             ⌨
           </button>
@@ -1557,21 +1557,21 @@ export const ChatLogView: React.FC = () => {
           <button
             onClick={exportProject}
             title="Salva a cena inteira (foto, camadas, chat, ajustes) num arquivo .haze editável"
-            className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10"
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold border border-haze-accent/40 text-haze-accent hover:bg-haze-accent/10"
           >
             💾 Salvar projeto
           </button>
           <button
             onClick={() => projectInputRef.current?.click()}
             title="Abre um arquivo .haze salvo antes"
-            className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-[#1E2638] text-slate-300 hover:border-emerald-500/40"
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold border border-haze-border text-haze-soft hover:border-haze-accent/40"
           >
             📂 Abrir projeto
           </button>
         </div>
 
         {showShortcuts && (
-          <div role="region" aria-label="Atalhos de teclado" className="p-3 rounded-xl bg-[#121722] border border-emerald-500/30 text-[11px] text-slate-300 space-y-1">
+          <div role="region" aria-label="Atalhos de teclado" className="p-3 rounded-xl bg-haze-panel border border-haze-accent/30 text-xs text-haze-soft space-y-1">
             {[
               ['Ctrl+Z', 'Desfazer (fora de campos de texto)'],
               ['Ctrl+Y / Ctrl+Shift+Z', 'Refazer'],
@@ -1589,7 +1589,7 @@ export const ChatLogView: React.FC = () => {
               ['Esc', 'Fechar / sair do modo foco']
             ].map(([k, d]) => (
               <div key={k} className="flex justify-between gap-3">
-                <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[10px] whitespace-nowrap">{k}</kbd>
+                <kbd className="px-1.5 py-0.5 rounded bg-haze-raised border border-haze-border-strong font-mono text-[11px] whitespace-nowrap">{k}</kbd>
                 <span className="text-right">{d}</span>
               </div>
             ))}
@@ -1597,9 +1597,9 @@ export const ChatLogView: React.FC = () => {
         )}
 
         {mode === 'batch' && (
-          <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Lote de fotos</span>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
+          <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text">Lote de fotos</span>
+            <p className="text-xs text-haze-muted leading-relaxed">
               Aplica o chat e os ajustes atuais a todas as fotos e baixa um .zip. Posição e tamanho do texto
               acompanham o preview ({canvasDims.width}px de largura).{' '}
               {outputRes ? `Todas saem em ${outputRes.w}×${outputRes.h}.` : 'Cada foto sai na resolução original.'}
@@ -1617,21 +1617,21 @@ export const ChatLogView: React.FC = () => {
               onClick={() => batchInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
               onDrop={(e) => { e.preventDefault(); addBatchFiles(e.dataTransfer.files); }}
-              className="cursor-pointer border-2 border-dashed border-[#1E2638] hover:border-emerald-500/50 rounded-xl p-4 text-center text-xs text-slate-300"
+              className="cursor-pointer border-2 border-dashed border-haze-border hover:border-haze-accent/50 rounded-xl p-4 text-center text-xs text-haze-soft"
             >
               Clique ou arraste várias fotos
             </div>
 
             {batchFiles.length > 0 && (
-              <ul className="max-h-40 overflow-y-auto space-y-1 text-[11px] text-slate-300">
+              <ul className="max-h-40 overflow-y-auto space-y-1 text-xs text-haze-soft">
                 {batchFiles.map((f, i) => (
-                  <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 px-2 py-1 rounded bg-[#0B0E14]">
+                  <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 px-2 py-1 rounded bg-haze-field">
                     <span className="truncate">{f.name}</span>
                     <button
                       aria-label={`Remover ${f.name}`}
                       disabled={!!batchProgress}
                       onClick={() => setBatchFiles(prev => prev.filter((_, j) => j !== i))}
-                      className="text-slate-500 hover:text-rose-400 disabled:opacity-40"
+                      className="text-haze-faint hover:text-rose-400 disabled:opacity-40"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1642,26 +1642,26 @@ export const ChatLogView: React.FC = () => {
 
             {batchProgress && (
               <div>
-                <div className="h-1.5 rounded bg-slate-800 overflow-hidden">
-                  <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(batchProgress.done / batchProgress.total) * 100}%` }} />
+                <div className="h-1.5 rounded bg-haze-raised overflow-hidden">
+                  <div className="h-full bg-haze-accent transition-all" style={{ width: `${(batchProgress.done / batchProgress.total) * 100}%` }} />
                 </div>
-                <p className="mt-1 text-[11px] text-slate-400">{batchProgress.done}/{batchProgress.total} processadas</p>
+                <p className="mt-1 text-xs text-haze-muted">{batchProgress.done}/{batchProgress.total} processadas</p>
               </div>
             )}
-            {batchError && <p role="alert" className="text-[11px] text-rose-400">{batchError}</p>}
+            {batchError && <p role="alert" className="text-xs text-rose-400">{batchError}</p>}
 
             <div className="flex gap-2">
               <button
                 onClick={generateBatchZip}
                 disabled={batchFiles.length === 0 || !!batchProgress}
-                className="flex-1 py-2 rounded-lg text-xs font-bold bg-emerald-500 text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2 rounded-lg text-xs font-bold bg-haze-accent text-black disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {batchProgress ? 'Gerando…' : `Gerar ZIP (${batchFiles.length})`}
               </button>
               <button
                 onClick={() => { setBatchFiles([]); setBatchError(null); }}
                 disabled={batchFiles.length === 0 || !!batchProgress}
-                className="px-3 py-2 rounded-lg text-xs border border-[#1E2638] text-slate-300 disabled:opacity-40"
+                className="px-3 py-2 rounded-lg text-xs border border-haze-border text-haze-soft disabled:opacity-40"
               >
                 Limpar
               </button>
@@ -1671,27 +1671,27 @@ export const ChatLogView: React.FC = () => {
 
         <button
           onClick={clearSavedData}
-          className="w-full text-[11px] text-slate-500 hover:text-slate-300 underline-offset-2 hover:underline"
+          className="w-full text-xs text-haze-faint hover:text-haze-soft underline-offset-2 hover:underline"
         >
           Restaurar configurações padrão
         </button>
 
         {/* Seções do Editor RP (na ordem do fluxo de trabalho) */}
-        <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+        <div className="flex items-center justify-between text-xs text-haze-faint px-1">
           <span>Seções do editor</span>
           <span className="flex items-center gap-3">
-            <button type="button" onClick={() => setAllSections(true)} className="hover:text-emerald-300 underline-offset-2 hover:underline">Expandir tudo</button>
-            <button type="button" onClick={() => setAllSections(false)} className="hover:text-emerald-300 underline-offset-2 hover:underline">Recolher tudo</button>
+            <button type="button" onClick={() => setAllSections(true)} className="hover:text-haze-accent-hover underline-offset-2 hover:underline">Expandir tudo</button>
+            <button type="button" onClick={() => setAllSections(false)} className="hover:text-haze-accent-hover underline-offset-2 hover:underline">Recolher tudo</button>
           </span>
         </div>
 
         <EditorSection {...sectionProps('fundo')} title="Fundo da cena" badge={`${canvasDims.width}×${canvasDims.height}px`}>
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md">
           <div className="flex items-center justify-between mb-3">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Upload className="w-3.5 h-3.5" /> Fundo da Cena
             </span>
-            <span className="text-[11px] font-mono text-slate-400">
+            <span className="section-badge text-xs font-mono text-haze-muted">
               {canvasDims.width}×{canvasDims.height}px
             </span>
           </div>
@@ -1703,8 +1703,8 @@ export const ChatLogView: React.FC = () => {
             onDrop={handleDrop}
             className={`group cursor-pointer border-2 border-dashed rounded-xl p-4 text-center transition-all ${
               isDraggingFile 
-                ? 'border-emerald-400 bg-emerald-500/10 ring-2 ring-emerald-500/30' 
-                : 'border-[#1E2638] hover:border-emerald-500/50 bg-[#0B0E14]/40 hover:bg-emerald-500/[0.02]'
+                ? 'border-haze-accent bg-haze-accent/10 ring-2 ring-haze-accent/30' 
+                : 'border-haze-border hover:border-haze-accent/50 bg-haze-field/40 hover:bg-haze-accent/[0.02]'
             }`}
           >
             <input
@@ -1716,14 +1716,14 @@ export const ChatLogView: React.FC = () => {
               className="hidden"
             />
             <div className="flex flex-col items-center gap-2">
-              <div className="p-2.5 rounded-full bg-slate-800/60 text-slate-400 group-hover:text-emerald-400 transition-colors">
+              <div className="p-2.5 rounded-full bg-haze-raised/60 text-haze-muted group-hover:text-haze-accent-hover transition-colors">
                 <Upload className="w-5 h-5" />
               </div>
-              <p className="text-xs font-medium text-slate-300">
+              <p className="text-xs font-medium text-haze-soft">
                 Clique ou arraste um print do RP
               </p>
-              <p className="text-[10px] text-slate-500">
-                PNG, JPG, WebP ou cole com <kbd className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[9px]">Ctrl+V</kbd>
+              <p className="text-[11px] text-haze-faint">
+                PNG, JPG, WebP ou cole com <kbd className="px-1 py-0.5 rounded bg-haze-raised border border-haze-border-strong font-mono text-[11px]">Ctrl+V</kbd>
               </p>
             </div>
           </div>
@@ -1731,14 +1731,14 @@ export const ChatLogView: React.FC = () => {
           {imageSrc && (
             <button
               onClick={clearBackground}
-              className="mt-2 w-full py-1 rounded-lg text-[11px] text-slate-400 hover:text-rose-300 border border-[#1E2638] hover:border-rose-500/40"
+              className="mt-2 w-full py-1 rounded-lg text-xs text-haze-muted hover:text-rose-300 border border-haze-border hover:border-rose-500/40"
             >
               Remover foto de fundo
             </button>
           )}
 
-          <div className="mt-3 pt-3 border-t border-[#1E2638] flex items-center justify-between text-xs">
-            <span className="text-slate-400">Escurecimento</span>
+          <div className="mt-3 pt-3 border-t border-haze-border flex items-center justify-between text-xs">
+            <span className="text-haze-muted">Escurecimento</span>
             <div className="flex items-center gap-2 w-1/2">
               <input
                 type="range"
@@ -1747,9 +1747,9 @@ export const ChatLogView: React.FC = () => {
                 step="0.05"
                 value={darkening}
                 onChange={(e) => setDarkening(parseFloat(e.target.value))}
-                className="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                className="w-full accent-haze-accent h-1.5 bg-haze-raised rounded-lg cursor-pointer"
               />
-              <span className="font-mono text-slate-300 text-[11px] w-8 text-right">
+              <span className="font-mono text-haze-soft text-xs w-8 text-right">
                 {Math.round(darkening * 100)}%
               </span>
             </div>
@@ -1758,10 +1758,10 @@ export const ChatLogView: React.FC = () => {
         </EditorSection>
 
         <EditorSection {...sectionProps('resolucao')} title="Resolução e adaptação" badge={outputRes ? `${outputRes.w}×${outputRes.h}` : 'Original'}>
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Resolução &amp; Adaptação</span>
-            <span className="text-[11px] font-mono text-slate-300">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text">Resolução &amp; Adaptação</span>
+            <span className="section-badge text-xs font-mono text-haze-soft">
               {outputRes ? `${outputRes.w}×${outputRes.h}` : 'Original'}
             </span>
           </div>
@@ -1776,8 +1776,8 @@ export const ChatLogView: React.FC = () => {
                   key={p.label}
                   aria-pressed={active}
                   onClick={() => changeResolution(p.size)}
-                  className={`py-1.5 rounded-lg text-[11px] border transition-colors ${
-                    active ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/50' : 'border-[#1E2638] text-slate-300 hover:border-emerald-500/30'
+                  className={`py-1.5 rounded-lg text-xs border transition-colors ${
+                    active ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
                   }`}
                 >
                   {p.label}
@@ -1791,33 +1791,33 @@ export const ChatLogView: React.FC = () => {
               type="number" min={MIN_RES} max={MAX_RES} value={customW} aria-label="Largura personalizada"
               onChange={(e) => setCustomW(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && applyCustomResolution()}
-              className="w-full p-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-slate-200 font-mono"
+              className="w-full p-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text font-mono"
             />
-            <span className="text-slate-500 text-xs">×</span>
+            <span className="text-haze-faint text-xs">×</span>
             <input
               type="number" min={MIN_RES} max={MAX_RES} value={customH} aria-label="Altura personalizada"
               onChange={(e) => setCustomH(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && applyCustomResolution()}
-              className="w-full p-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-slate-200 font-mono"
+              className="w-full p-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text font-mono"
             />
             <button
               onClick={applyCustomResolution}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/10"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-haze-accent/50 text-haze-accent hover:bg-haze-accent/10"
             >
               Aplicar
             </button>
           </div>
 
           <div>
-            <span className="text-[11px] text-slate-400 block mb-1">Modo de adaptação da foto</span>
+            <span className="text-xs text-haze-muted block mb-1">Modo de adaptação da foto</span>
             <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Modo de adaptação">
               {([['cover', 'Cover'], ['contain', 'Contain'], ['stretch', 'Esticar']] as const).map(([key, label]) => (
                 <button
                   key={key}
                   aria-pressed={fitMode === key}
                   onClick={() => setFitMode(key)}
-                  className={`py-1.5 rounded-lg text-[11px] border transition-colors ${
-                    fitMode === key ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/50' : 'border-[#1E2638] text-slate-300 hover:border-emerald-500/30'
+                  className={`py-1.5 rounded-lg text-xs border transition-colors ${
+                    fitMode === key ? 'bg-haze-accent/15 text-haze-accent border-haze-accent/50' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
                   }`}
                 >
                   {label}
@@ -1829,9 +1829,9 @@ export const ChatLogView: React.FC = () => {
         </EditorSection>
 
         <EditorSection {...sectionProps('personagens')} title="Personagens da cena" badge={`${characters.length}`}>
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" /> Personagens da Cena
             </span>
           </div>
@@ -1843,11 +1843,11 @@ export const ChatLogView: React.FC = () => {
               onChange={(e) => setNewCharName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addCharacter()}
               placeholder="Nome do personagem..."
-              className="flex-1 px-3 py-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              className="flex-1 px-3 py-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text focus:outline-none focus:border-haze-accent"
             />
             <button
               onClick={addCharacter}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center gap-1 transition-all"
+              className="px-3 py-1.5 rounded-lg bg-haze-accent hover:bg-haze-accent-hover text-haze-on-accent font-bold text-xs flex items-center gap-1 transition-all"
             >
               <Plus className="w-3.5 h-3.5" /> Add
             </button>
@@ -1868,7 +1868,7 @@ export const ChatLogView: React.FC = () => {
                 <button
                   onClick={() => insertCharSpeech(char.name)}
                   aria-pressed={char.id === activeChar?.id}
-                  className="font-medium hover:underline text-[11px]"
+                  className="font-medium hover:underline text-xs"
                   title="Define como personagem ativo e insere a fala"
                 >
                   {char.name}
@@ -1902,14 +1902,14 @@ export const ChatLogView: React.FC = () => {
         </EditorSection>
 
         <EditorSection {...sectionProps('retoque')} title="Retoque fotográfico">
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5" /> Retoque Fotográfico (Color Grading)
             </span>
             <button
               onClick={() => setAdjustments({ ...DEFAULT_ADJUSTMENTS })}
-              className="text-[10px] text-slate-400 hover:text-emerald-400"
+              className="text-[11px] text-haze-muted hover:text-haze-accent-hover"
             >
               Resetar
             </button>
@@ -1922,7 +1922,7 @@ export const ChatLogView: React.FC = () => {
               className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
                 adjustments.colorPreset === 'golden-hour'
                   ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+                  : 'border-haze-border bg-haze-field text-haze-muted hover:text-white'
               }`}
             >
               <div className="flex items-center gap-1.5"><Sun className="w-3.5 h-3.5 text-amber-400" /> Golden Hour</div>
@@ -1933,7 +1933,7 @@ export const ChatLogView: React.FC = () => {
               className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
                 adjustments.colorPreset === 'midnight-neon'
                   ? 'border-sky-500 bg-sky-500/15 text-sky-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+                  : 'border-haze-border bg-haze-field text-haze-muted hover:text-white'
               }`}
             >
               <div className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-sky-400" /> Midnight Neon</div>
@@ -1944,7 +1944,7 @@ export const ChatLogView: React.FC = () => {
               className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
                 adjustments.colorPreset === 'grit-crime'
                   ? 'border-red-500 bg-red-500/15 text-red-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+                  : 'border-haze-border bg-haze-field text-haze-muted hover:text-white'
               }`}
             >
               <div className="flex items-center gap-1.5"><Contrast className="w-3.5 h-3.5 text-red-400" /> Grit &amp; Crime</div>
@@ -1954,73 +1954,73 @@ export const ChatLogView: React.FC = () => {
               onClick={() => setAdjustments(prev => ({ ...prev, colorPreset: 'vintage-90s' }))}
               className={`px-2.5 py-1.5 rounded-lg border text-left text-xs transition-all ${
                 adjustments.colorPreset === 'vintage-90s'
-                  ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 font-semibold'
-                  : 'border-[#1E2638] bg-[#0B0E14] text-slate-400 hover:text-white'
+                  ? 'border-haze-accent bg-haze-accent/15 text-haze-accent font-semibold'
+                  : 'border-haze-border bg-haze-field text-haze-muted hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-emerald-400" /> San Andreas 90s</div>
+              <div className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-haze-accent" /> San Andreas 90s</div>
             </button>
           </div>
 
           {/* Sliders de Ajuste Fino */}
           <div className="space-y-2 pt-1 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Brilho</span>
+              <span className="text-haze-muted">Brilho</span>
               <div className="flex items-center gap-2 w-1/2">
                 <input
                   type="range" min="-50" max="50" value={adjustments.brightness}
                   onChange={(e) => setAdjustments(prev => ({ ...prev, brightness: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                 />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.brightness}</span>
+                <span className="font-mono text-[11px] w-6 text-right text-haze-soft">{adjustments.brightness}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Contraste</span>
+              <span className="text-haze-muted">Contraste</span>
               <div className="flex items-center gap-2 w-1/2">
                 <input
                   type="range" min="-50" max="50" value={adjustments.contrast}
                   onChange={(e) => setAdjustments(prev => ({ ...prev, contrast: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                 />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.contrast}</span>
+                <span className="font-mono text-[11px] w-6 text-right text-haze-soft">{adjustments.contrast}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Nitidez (Sharpen)</span>
+              <span className="text-haze-muted">Nitidez (Sharpen)</span>
               <div className="flex items-center gap-2 w-1/2">
                 <input
                   type="range" min="0" max="100" value={adjustments.sharpen}
                   onChange={(e) => setAdjustments(prev => ({ ...prev, sharpen: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                 />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.sharpen}%</span>
+                <span className="font-mono text-[11px] w-6 text-right text-haze-soft">{adjustments.sharpen}%</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Depth of Field (Bokeh)</span>
+              <span className="text-haze-muted">Depth of Field (Bokeh)</span>
               <div className="flex items-center gap-2 w-1/2">
                 <input
                   type="range" min="0" max="100" value={adjustments.depthOfField}
                   onChange={(e) => setAdjustments(prev => ({ ...prev, depthOfField: parseInt(e.target.value) }))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                 />
-                <span className="font-mono text-[10px] w-6 text-right text-slate-300">{adjustments.depthOfField}%</span>
+                <span className="font-mono text-[11px] w-6 text-right text-haze-soft">{adjustments.depthOfField}%</span>
               </div>
             </div>
           </div>
 
           {/* Letterbox de Cinema */}
-          <div className="pt-2 border-t border-[#1E2638] flex items-center justify-between text-xs">
+          <div className="pt-2 border-t border-haze-border flex items-center justify-between text-xs">
             <button
               onClick={() => setAdjustments(prev => ({ ...prev, letterbox: !prev.letterbox }))}
               className={`w-full py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all font-semibold ${
                 adjustments.letterbox
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                  : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-white'
+                  ? 'bg-haze-accent/20 border-haze-accent text-haze-accent'
+                  : 'bg-haze-field border-haze-border text-haze-muted hover:text-white'
               }`}
             >
               <Clapperboard className="w-4 h-4" />
@@ -2039,9 +2039,9 @@ export const ChatLogView: React.FC = () => {
         </EditorSection>
 
         <EditorSection {...sectionProps('tipografia')} title="Tipografia">
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Type className="w-3.5 h-3.5" /> Tipografia &amp; Estilo do Chat
             </span>
           </div>
@@ -2049,11 +2049,11 @@ export const ChatLogView: React.FC = () => {
           {/* Fonte & Família */}
           <div className="space-y-2 text-xs">
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Família da Fonte</label>
+              <label className="text-xs text-haze-muted block mb-1">Família da Fonte</label>
               <select
                 value={fontFamily}
                 onChange={(e) => setFontFamily(e.target.value)}
-                className="w-full p-2 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                className="w-full p-2 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text focus:outline-none focus:border-haze-accent"
               >
                 <option value="Arial, Helvetica, sans-serif">Arial / GTA Standard</option>
                 <option value="ChaletLondonNineteenSixty, Arial, sans-serif">Chalet London (GTA V, se estiver instalada)</option>
@@ -2066,9 +2066,9 @@ export const ChatLogView: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                <div className="flex justify-between text-xs text-haze-muted mb-1">
                   <span>Tamanho</span>
-                  <span className="font-mono text-slate-200">{fontSize}px</span>
+                  <span className="font-mono text-haze-text">{fontSize}px</span>
                 </div>
                 <input
                   type="range"
@@ -2076,14 +2076,14 @@ export const ChatLogView: React.FC = () => {
                   max="48"
                   value={fontSize}
                   onChange={(e) => setFontSize(parseInt(e.target.value))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                 />
               </div>
 
               <div>
-                <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                <div className="flex justify-between text-xs text-haze-muted mb-1">
                   <span>Espaçamento</span>
-                  <span className="font-mono text-slate-200">{lineHeightFactor.toFixed(2)}x</span>
+                  <span className="font-mono text-haze-text">{lineHeightFactor.toFixed(2)}x</span>
                 </div>
                 <input
                   type="range"
@@ -2092,23 +2092,23 @@ export const ChatLogView: React.FC = () => {
                   step="0.05"
                   value={lineHeightFactor}
                   onChange={(e) => setLineHeightFactor(parseFloat(e.target.value))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                 />
               </div>
             </div>
           </div>
 
           {/* Contorno GTA & Sombra */}
-          <div className="pt-2 border-t border-[#1E2638] space-y-2 text-xs">
+          <div className="pt-2 border-t border-haze-border space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+              <label className="flex items-center gap-2 cursor-pointer text-haze-soft">
                 <input
                   type="checkbox"
                   checked={strokeEnabled}
                   onChange={(e) => setStrokeEnabled(e.target.checked)}
-                  className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0"
+                  className="rounded bg-haze-raised border-haze-border-strong text-haze-accent focus:ring-0"
                 />
-                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                <Shield className="w-3.5 h-3.5 text-haze-accent" />
                 <span>Contorno Autêntico GTA</span>
               </label>
 
@@ -2118,10 +2118,10 @@ export const ChatLogView: React.FC = () => {
                     type="color"
                     value={strokeColor}
                     onChange={(e) => setStrokeColor(e.target.value)}
-                    className="w-6 h-6 rounded border border-slate-700 bg-transparent cursor-pointer"
+                    className="w-6 h-6 rounded border border-haze-border-strong bg-transparent cursor-pointer"
                     title="Cor do contorno"
                   />
-                  <span className="font-mono text-[10px] text-slate-400">{strokeWidth}px</span>
+                  <span className="font-mono text-[11px] text-haze-muted">{strokeWidth}px</span>
                 </div>
               )}
             </div>
@@ -2134,22 +2134,22 @@ export const ChatLogView: React.FC = () => {
                 step="0.5"
                 value={strokeWidth}
                 onChange={(e) => setStrokeWidth(parseFloat(e.target.value))}
-                className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
               />
             )}
           </div>
 
           {/* Fundo do Chat (Highlight Boxes) */}
-          <div className="pt-2 border-t border-[#1E2638] space-y-2 text-xs">
+          <div className="pt-2 border-t border-haze-border space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+              <label className="flex items-center gap-2 cursor-pointer text-haze-soft">
                 <input
                   type="checkbox"
                   checked={bgEnabled}
                   onChange={(e) => setBgEnabled(e.target.checked)}
-                  className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0"
+                  className="rounded bg-haze-raised border-haze-border-strong text-haze-accent focus:ring-0"
                 />
-                <Palette className="w-3.5 h-3.5 text-emerald-400" />
+                <Palette className="w-3.5 h-3.5 text-haze-accent" />
                 <span>Caixa de Fundo (Highlight)</span>
               </label>
 
@@ -2159,10 +2159,10 @@ export const ChatLogView: React.FC = () => {
                     type="color"
                     value={bgColor}
                     onChange={(e) => setBgColor(e.target.value)}
-                    className="w-6 h-6 rounded border border-slate-700 bg-transparent cursor-pointer"
+                    className="w-6 h-6 rounded border border-haze-border-strong bg-transparent cursor-pointer"
                     title="Cor do fundo"
                   />
-                  <span className="font-mono text-[10px] text-slate-400">{Math.round(bgOpacity * 100)}%</span>
+                  <span className="font-mono text-[11px] text-haze-muted">{Math.round(bgOpacity * 100)}%</span>
                 </div>
               )}
             </div>
@@ -2175,15 +2175,15 @@ export const ChatLogView: React.FC = () => {
                 step="0.05"
                 value={bgOpacity}
                 onChange={(e) => setBgOpacity(parseFloat(e.target.value))}
-                className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
               />
             )}
           </div>
 
           {/* Largura Máxima, Estilo de Censura e Timestamps */}
-          <div className="pt-2 border-t border-[#1E2638] space-y-2 text-xs">
+          <div className="pt-2 border-t border-haze-border space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Largura Máx. Chat</span>
+              <span className="text-haze-muted">Largura Máx. Chat</span>
               <div className="flex items-center gap-2 w-1/2">
                 <input
                   type="range"
@@ -2192,31 +2192,31 @@ export const ChatLogView: React.FC = () => {
                   step="5"
                   value={maxWidthPercent}
                   onChange={(e) => setMaxWidthPercent(parseInt(e.target.value))}
-                  className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                  className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                 />
-                <span className="font-mono text-[10px] text-slate-300 w-8 text-right">{maxWidthPercent}%</span>
+                <span className="font-mono text-[11px] text-haze-soft w-8 text-right">{maxWidthPercent}%</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <span className="text-slate-400">Estilo de Censura</span>
+              <span className="text-haze-muted">Estilo de Censura</span>
               <div className="flex gap-1">
                 <button
                   onClick={() => setCensorStyle('mosaic')}
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all ${
                     censorStyle === 'mosaic'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-[#0B0E14] text-slate-400 border border-[#1E2638]'
+                      ? 'bg-haze-accent/20 text-haze-accent border border-haze-accent/40'
+                      : 'bg-haze-field text-haze-muted border border-haze-border'
                   }`}
                 >
                   Mosaico
                 </button>
                 <button
                   onClick={() => setCensorStyle('solid')}
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all ${
                     censorStyle === 'solid'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-[#0B0E14] text-slate-400 border border-[#1E2638]'
+                      ? 'bg-haze-accent/20 text-haze-accent border border-haze-accent/40'
+                      : 'bg-haze-field text-haze-muted border border-haze-border'
                   }`}
                 >
                   Tarja Preta
@@ -2225,14 +2225,14 @@ export const ChatLogView: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+              <label className="flex items-center gap-2 cursor-pointer text-haze-soft">
                 <input
                   type="checkbox"
                   checked={showTimestamps}
                   onChange={(e) => setShowTimestamps(e.target.checked)}
-                  className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0"
+                  className="rounded bg-haze-raised border-haze-border-strong text-haze-accent focus:ring-0"
                 />
-                <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                <EyeOff className="w-3.5 h-3.5 text-haze-muted" />
                 <span>Exibir Timestamps [HH:MM:SS]</span>
               </label>
             </div>
@@ -2245,10 +2245,10 @@ export const ChatLogView: React.FC = () => {
         </EditorSection>
 
         <EditorSection {...sectionProps('camadas')} title="Camadas e overlays" badge={`${layers.length} camada${layers.length === 1 ? '' : 's'}`}>
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400">Camadas &amp; Overlays</span>
-            <span className="text-[11px] font-mono text-slate-300">{layers.length} camada{layers.length === 1 ? '' : 's'}</span>
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text">Camadas &amp; Overlays</span>
+            <span className="section-badge text-xs font-mono text-haze-soft">{layers.length} camada{layers.length === 1 ? '' : 's'}</span>
           </div>
 
           <input
@@ -2265,13 +2265,13 @@ export const ChatLogView: React.FC = () => {
             disabled={layers.length >= MAX_LAYERS}
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
             onDrop={(e) => { e.preventDefault(); addLayerFiles(e.dataTransfer.files); }}
-            className="w-full py-2 rounded-lg border border-dashed border-[#1E2638] hover:border-emerald-500/50 text-xs text-slate-300 disabled:opacity-40"
+            className="w-full py-2 rounded-lg border border-dashed border-haze-border hover:border-haze-accent/50 text-xs text-haze-soft disabled:opacity-40"
           >
             + Adicionar camada de imagem
           </button>
 
           {layers.length === 0 ? (
-            <p className="text-[11px] text-slate-500 leading-relaxed">
+            <p className="text-xs text-haze-faint leading-relaxed">
               Sobreponha logos, molduras, marcas d'água ou fotos secundárias (PNG com transparência funciona melhor).
               Use a ferramenta Mover camada (3) na barra do preview para arrastá-las; a roda do mouse muda o tamanho. As camadas ficam salvas neste navegador.
             </p>
@@ -2282,30 +2282,30 @@ export const ChatLogView: React.FC = () => {
                 return (
                   <li
                     key={l.id}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] ${
-                      selected ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-[#1E2638] bg-[#0B0E14]'
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs ${
+                      selected ? 'border-haze-accent/60 bg-haze-accent/10' : 'border-haze-border bg-haze-field'
                     }`}
                   >
                     <button
                       onClick={() => updateLayer(l.id, { visible: !l.visible })}
                       aria-label={l.visible ? `Ocultar ${l.name}` : `Mostrar ${l.name}`}
                       title={l.visible ? 'Ocultar' : 'Mostrar'}
-                      className="px-1 text-slate-400 hover:text-slate-100"
+                      className="px-1 text-haze-muted hover:text-haze-text"
                     >
                       {l.visible ? '👁' : '—'}
                     </button>
                     <button
                       onClick={() => setSelectedLayerId(selected ? null : l.id)}
                       aria-pressed={selected}
-                      className="flex-1 min-w-0 text-left truncate text-slate-200"
+                      className="flex-1 min-w-0 text-left truncate text-haze-text"
                       title={l.name}
                     >
                       {l.name}
                     </button>
-                    <button onClick={() => moveLayerOrder(l.id, 1)} aria-label={`Subir ${l.name}`} title="Trazer para frente" className="px-1 text-slate-400 hover:text-slate-100">↑</button>
-                    <button onClick={() => moveLayerOrder(l.id, -1)} aria-label={`Descer ${l.name}`} title="Enviar para trás" className="px-1 text-slate-400 hover:text-slate-100">↓</button>
-                    <button onClick={() => duplicateLayer(l.id)} aria-label={`Duplicar ${l.name}`} title="Duplicar" className="px-1 text-slate-400 hover:text-slate-100">⧉</button>
-                    <button onClick={() => removeLayer(l.id)} aria-label={`Remover ${l.name}`} title="Remover" className="px-1 text-slate-500 hover:text-rose-400">
+                    <button onClick={() => moveLayerOrder(l.id, 1)} aria-label={`Subir ${l.name}`} title="Trazer para frente" className="px-1 text-haze-muted hover:text-haze-text">↑</button>
+                    <button onClick={() => moveLayerOrder(l.id, -1)} aria-label={`Descer ${l.name}`} title="Enviar para trás" className="px-1 text-haze-muted hover:text-haze-text">↓</button>
+                    <button onClick={() => duplicateLayer(l.id)} aria-label={`Duplicar ${l.name}`} title="Duplicar" className="px-1 text-haze-muted hover:text-haze-text">⧉</button>
+                    <button onClick={() => removeLayer(l.id)} aria-label={`Remover ${l.name}`} title="Remover" className="px-1 text-haze-faint hover:text-rose-400">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </li>
@@ -2318,7 +2318,7 @@ export const ChatLogView: React.FC = () => {
             const sel = layers.find(l => l.id === selectedLayerId);
             if (!sel) return null;
             return (
-              <div className="space-y-2 pt-2 border-t border-[#1E2638]">
+              <div className="space-y-2 pt-2 border-t border-haze-border">
                 {([
                   ['Tamanho (largura)', Math.round(sel.widthPct), 2, 200, '%', (v: number) => updateLayer(sel.id, { widthPct: v })],
                   ['Rotação', Math.round(sel.rotation), -180, 180, '°', (v: number) => updateLayer(sel.id, { rotation: v })],
@@ -2327,36 +2327,36 @@ export const ChatLogView: React.FC = () => {
                   ['Posição Y', Math.round(sel.cy * 100), 0, 100, '%', (v: number) => updateLayer(sel.id, { cy: v / 100 })]
                 ] as const).map(([label, value, min, max, unit, onChange]) => (
                   <div key={label}>
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <div className="flex justify-between text-xs text-haze-muted mb-1">
                       <span>{label}</span>
-                      <span className="font-mono text-slate-200">{value}{unit}</span>
+                      <span className="font-mono text-haze-text">{value}{unit}</span>
                     </div>
                     <input
                       type="range" min={min} max={max} value={value} aria-label={label}
                       onChange={(e) => onChange(parseInt(e.target.value))}
-                      className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                      className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                     />
                   </div>
                 ))}
-                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs text-haze-soft cursor-pointer">
                   <input
                     type="checkbox"
                     checked={sel.aboveChat}
                     onChange={(e) => updateLayer(sel.id, { aboveChat: e.target.checked })}
-                    className="accent-emerald-500"
+                    className="accent-haze-accent"
                   />
                   Desenhar acima do texto do chat
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     onClick={() => updateLayer(sel.id, { cx: 0.5, cy: 0.5 })}
-                    className="py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                    className="py-1.5 rounded-lg border border-haze-border text-xs text-haze-soft hover:border-haze-accent/40"
                   >
                     Centralizar
                   </button>
                   <button
                     onClick={() => updateLayer(sel.id, { widthPct: 100, cx: 0.5, rotation: 0 })}
-                    className="py-1.5 rounded-lg border border-[#1E2638] text-[11px] text-slate-300 hover:border-emerald-500/40"
+                    className="py-1.5 rounded-lg border border-haze-border text-xs text-haze-soft hover:border-haze-accent/40"
                   >
                     Ajustar à largura
                   </button>
@@ -2377,38 +2377,39 @@ export const ChatLogView: React.FC = () => {
       <div className={`${focusMode ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'} flex flex-col gap-4 min-w-0 lg:sticky lg:top-4 order-first lg:order-none`}>
 
         {/* Barra Superior do Canvas */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#121722] border border-[#1E2638]">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-haze-panel border border-haze-border">
           <div className="flex flex-col gap-1.5 min-w-0">
             <div role="toolbar" aria-label="Ferramenta do mouse" className="flex flex-wrap items-center gap-1">
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 mr-1">Mouse</span>
+              <span className="text-[11px] uppercase tracking-wider text-haze-faint mr-1">Mouse</span>
               {([
-                ['chat', 'Texto chat', '1', 'Arrastar move o chat; clicar num adesivo ou camada move o elemento (Alt = mover o chat por cima)'],
-                ['photo', 'Enquadrar foto', '2', 'Arrastar desloca a foto; a roda dá zoom'],
-                ['layer', 'Mover camada', '3', 'Arrastar move a camada; a roda muda o tamanho'],
-                ['light', 'Posicionar luz', '4', 'Arrastar move a luz (ative a iluminação)']
-              ] as const).map(([key, label, hotkey, tip]) => (
+                ['chat', 'Texto chat', '1', 'Arrastar move o chat; clicar num adesivo ou camada move o elemento (Alt = mover o chat por cima)', Type],
+                ['photo', 'Enquadrar foto', '2', 'Arrastar desloca a foto; a roda dá zoom', Crop],
+                ['layer', 'Mover camada', '3', 'Arrastar move a camada; a roda muda o tamanho', MousePointer2],
+                ['light', 'Posicionar luz', '4', 'Arrastar move a luz (ative a iluminação)', Lightbulb]
+              ] as const).map(([key, label, hotkey, tip, Icon]) => (
                 <button
                   key={key}
                   onClick={() => setMouseTool(key)}
                   aria-pressed={mouseTool === key}
                   title={`${tip} (${hotkey})`}
-                  className={`px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors ${
                     mouseTool === key
-                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/60'
-                      : 'border-[#1E2638] text-slate-300 hover:border-emerald-500/30'
+                      ? 'bg-haze-accent text-haze-on-accent border-haze-accent font-semibold'
+                      : 'border-haze-border text-haze-soft hover:border-haze-border-strong hover:text-haze-text'
                   }`}
                 >
+                  <Icon className="w-3.5 h-3.5" aria-hidden />
                   {label}
                 </button>
               ))}
             </div>
-            <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
-              <Move className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-xs text-haze-faint flex items-center gap-1.5">
+              <Move className="w-3.5 h-3.5 text-haze-accent shrink-0" />
               {mouseTool === 'chat' && 'Arraste para posicionar o chat · clique num adesivo ou camada para movê-lo (Alt = chat por cima)'}
               {mouseTool === 'photo' && (
                 <>
                   Arraste para enquadrar a foto · roda do mouse = zoom
-                  <button type="button" onClick={resetFraming} className="ml-2 underline underline-offset-2 hover:text-emerald-300">Centralizar foto</button>
+                  <button type="button" onClick={resetFraming} className="ml-2 underline underline-offset-2 hover:text-haze-accent-hover">Centralizar foto</button>
                 </>
               )}
               {mouseTool === 'layer' && (layers.length ? 'Clique numa camada para selecionar e arrastar · roda = tamanho' : 'Adicione uma camada no painel à esquerda')}
@@ -2421,26 +2422,26 @@ export const ChatLogView: React.FC = () => {
               onClick={() => setFocusMode(v => !v)}
               aria-pressed={focusMode}
               title="Modo foco: esconde os controles e amplia o preview (F)"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-haze-raised hover:bg-haze-raised-hover text-haze-soft text-xs transition-colors"
             >
               {focusMode ? '⤡ Mostrar controles' : '⤢ Modo foco'}
             </button>
             <button
               onClick={() => setChatPos({ x: 40, y: 50 })}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1.5 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-haze-raised hover:bg-haze-raised-hover text-haze-soft text-xs flex items-center gap-1.5 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Reset Posição
             </button>
             <button
               onClick={copyImage}
               title="Copia o PNG 2× para a área de transferência (Ctrl+C)"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-haze-raised hover:bg-haze-raised-hover text-haze-soft text-xs transition-colors"
             >
               ⧉ Copiar imagem
             </button>
             <button
               onClick={exportImage}
-              className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
+              className="px-4 py-1.5 rounded-lg bg-haze-accent hover:bg-haze-accent-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-haze-accent/20 transition-all"
             >
               <Download className="w-4 h-4" /> Exportar 2× Ultra HD
             </button>
@@ -2453,8 +2454,8 @@ export const ChatLogView: React.FC = () => {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative rounded-2xl overflow-hidden bg-[#07090E] border transition-colors flex items-center justify-center p-2 h-[60vh] lg:h-[calc(100vh-9.5rem)] min-h-[360px] shadow-2xl ${
-            isDraggingFile ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-[#1E2638]'
+          className={`relative rounded-2xl overflow-hidden bg-haze-stage border transition-colors flex items-center justify-center p-2 h-[60vh] lg:h-[calc(100vh-9.5rem)] min-h-[360px] shadow-2xl ${
+            isDraggingFile ? 'border-haze-accent ring-2 ring-haze-accent/30' : 'border-haze-border'
           }`}
         >
           <canvas
@@ -2479,13 +2480,13 @@ export const ChatLogView: React.FC = () => {
 
           {!imageSrc && canvasLayers.length === 0 && layers.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-6 text-center">
-              <div className="p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3">
+              <div className="p-4 rounded-full bg-haze-accent/10 border border-haze-accent/20 text-haze-accent mb-3">
                 <Sparkles className="w-8 h-8" />
               </div>
               <h3 className="text-sm font-bold text-white mb-1">
                 Visualização Interativa de Chat Log &amp; Retoque
               </h3>
-              <p className="text-xs text-slate-400 max-w-sm">
+              <p className="text-xs text-haze-muted max-w-sm">
                 Arraste um print do seu jogo para cá ou cole com Ctrl+V.
                 Use os controles de tipografia e retoque fotográfico para dar aspecto de cinema.
               </p>

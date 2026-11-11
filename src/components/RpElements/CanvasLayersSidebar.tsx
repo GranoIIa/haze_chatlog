@@ -67,9 +67,9 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
       {(part === undefined || part === 'presets') && (
         <>
         {/* Presets de 1 Clique (RP) */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md">
           <div className="flex items-center justify-between mb-3">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" /> Presets Cinemáticos de RP
             </span>
           </div>
@@ -77,70 +77,70 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => applyPreset('bodycam')}
-              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-emerald-500/50 text-left transition-all"
+              className="p-2.5 rounded-xl bg-haze-field hover:bg-haze-raised/80 border border-haze-border hover:border-haze-accent/50 text-left transition-all"
             >
-              <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs mb-0.5">
+              <div className="flex items-center gap-1.5 text-haze-accent font-bold text-xs mb-0.5">
                 <Camera className="w-3.5 h-3.5" /> Bodycam AXON
               </div>
-              <p className="text-[10px] text-slate-400">Timestamp militar e oficial.</p>
+              <p className="text-[11px] text-haze-muted">Timestamp militar e oficial.</p>
             </button>
 
             <button
               onClick={() => applyPreset('weazel')}
-              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-amber-500/50 text-left transition-all"
+              className="p-2.5 rounded-xl bg-haze-field hover:bg-haze-raised/80 border border-haze-border hover:border-amber-500/50 text-left transition-all"
             >
               <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs mb-0.5">
                 <Tv className="w-3.5 h-3.5" /> Weazel News
               </div>
-              <p className="text-[10px] text-slate-400">Tarja de telejornal ao vivo e GC.</p>
+              <p className="text-[11px] text-haze-muted">Tarja de telejornal ao vivo e GC.</p>
             </button>
 
             <button
               onClick={() => applyPreset('flir')}
-              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-sky-500/50 text-left transition-all"
+              className="p-2.5 rounded-xl bg-haze-field hover:bg-haze-raised/80 border border-haze-border hover:border-sky-500/50 text-left transition-all"
             >
               <div className="flex items-center gap-1.5 text-sky-400 font-bold text-xs mb-0.5">
                 <Plane className="w-3.5 h-3.5" /> FLIR Águia
               </div>
-              <p className="text-[10px] text-slate-400">Visão aérea térmica com mira.</p>
+              <p className="text-[11px] text-haze-muted">Visão aérea térmica com mira.</p>
             </button>
 
             <button
               onClick={() => applyPreset('dashcam')}
-              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-yellow-500/50 text-left transition-all"
+              className="p-2.5 rounded-xl bg-haze-field hover:bg-haze-raised/80 border border-haze-border hover:border-yellow-500/50 text-left transition-all"
             >
               <div className="flex items-center gap-1.5 text-yellow-400 font-bold text-xs mb-0.5">
                 <Car className="w-3.5 h-3.5" /> Dashcam Viatura
               </div>
-              <p className="text-[10px] text-slate-400">Radar de velocidade e viatura.</p>
+              <p className="text-[11px] text-haze-muted">Radar de velocidade e viatura.</p>
             </button>
 
             <button
               onClick={() => applyPreset('cctv')}
-              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-green-500/50 text-left transition-all"
+              className="p-2.5 rounded-xl bg-haze-field hover:bg-haze-raised/80 border border-haze-border hover:border-green-500/50 text-left transition-all"
             >
               <div className="flex items-center gap-1.5 text-green-400 font-bold text-xs mb-0.5">
                 <ShieldCheck className="w-3.5 h-3.5" /> CCTV Segurança
               </div>
-              <p className="text-[10px] text-slate-400">Câmera de vigilância e scanlines.</p>
+              <p className="text-[11px] text-haze-muted">Câmera de vigilância e scanlines.</p>
             </button>
 
             <button
               onClick={() => applyPreset('mugshot')}
-              className="p-2.5 rounded-xl bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] hover:border-red-500/50 text-left transition-all"
+              className="p-2.5 rounded-xl bg-haze-field hover:bg-haze-raised/80 border border-haze-border hover:border-red-500/50 text-left transition-all"
             >
               <div className="flex items-center gap-1.5 text-red-400 font-bold text-xs mb-0.5">
                 <ShieldAlert className="w-3.5 h-3.5" /> Ficha Criminal
               </div>
-              <p className="text-[10px] text-slate-400">Plaqueta policial de detenção.</p>
+              <p className="text-[11px] text-haze-muted">Plaqueta policial de detenção.</p>
             </button>
           </div>
           <div className="pt-2">
             <button
               onClick={addTextLayer}
-              className="w-full py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors"
+              className="w-full py-2 px-2 rounded-xl bg-haze-raised hover:bg-haze-raised-hover text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors"
             >
-              <Type className="w-3.5 h-3.5 text-emerald-400" /> Adicionar texto
+              <Type className="w-3.5 h-3.5 text-haze-accent" /> Adicionar texto
             </button>
           </div>
         </div>
@@ -150,8 +150,8 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
       {(part === undefined || part === 'stickers') && (
         <>
         {/* Adesivos, Texto, Imagem e Fundo */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
-          <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
+          <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
             <Palette className="w-3.5 h-3.5" /> Adesivos &amp; Marcadores Forenses
           </span>
 
@@ -160,10 +160,11 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
               <button
                 key={sticker.id}
                 onClick={() => addSticker(sticker.id)}
-                className="px-2.5 py-1.5 rounded-lg bg-[#0B0E14] hover:bg-slate-800/80 border border-[#1E2638] text-xs text-slate-300 flex items-center justify-between transition-colors"
+                title={`Adicionar: ${sticker.name}`}
+                className="px-2.5 py-1.5 rounded-lg bg-haze-field hover:bg-haze-raised/80 border border-haze-border text-xs text-haze-soft flex items-center justify-between gap-2 text-left transition-colors"
               >
-                <span className="truncate">{sticker.name}</span>
-                <span className="text-[10px] text-emerald-400 font-mono">+Add</span>
+                <span className="leading-snug">{sticker.name}</span>
+                <span aria-hidden className="text-sm leading-none text-haze-accent shrink-0">+</span>
               </button>
             ))}
           </div>
@@ -174,13 +175,13 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
       {(part === undefined || part === 'inspector') && (
         <>
         {/* Inspetor de Propriedades da Camada (Feature 13) */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5" /> Inspetor de Propriedades
             </span>
             {selectedLayer && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 border border-slate-700">
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-haze-raised text-haze-accent border border-haze-border-strong">
                 {selectedLayer.type.toUpperCase()}
               </span>
             )}
@@ -191,34 +192,34 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
               {/* Controles Universais */}
               <div className="space-y-2 text-xs">
                 <div>
-                  <span className="text-slate-400 block mb-1">Nome da Camada</span>
+                  <span className="text-haze-muted block mb-1">Nome da Camada</span>
                   <input
                     type="text"
                     value={selectedLayer.name}
                     onChange={(e) => updateSelectedLayer({ name: e.target.value })}
-                    className="w-full bg-[#0B0E14] border border-[#1E2638] rounded-lg px-2.5 py-1 text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-haze-field border border-haze-border rounded-lg px-2.5 py-1 text-white focus:outline-none focus:border-haze-accent"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-slate-400 block mb-1">Opacidade ({Math.round(selectedLayer.opacity * 100)}%)</span>
+                    <span className="text-haze-muted block mb-1">Opacidade ({Math.round(selectedLayer.opacity * 100)}%)</span>
                     <input
                       type="range"
                       min="0"
                       max="100"
                       value={Math.round(selectedLayer.opacity * 100)}
                       onChange={(e) => updateSelectedLayer({ opacity: parseInt(e.target.value) / 100 })}
-                      className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                      className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                     />
                   </div>
 
                   <div>
-                    <span className="text-slate-400 block mb-1">Modo de Mesclagem</span>
+                    <span className="text-haze-muted block mb-1">Modo de Mesclagem</span>
                     <select
                       value={selectedLayer.blendMode || 'source-over'}
                       onChange={(e) => updateSelectedLayer({ blendMode: e.target.value as GlobalCompositeOperation })}
-                      className="w-full bg-[#0B0E14] border border-[#1E2638] rounded-lg px-2 py-1 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+                      className="w-full bg-haze-field border border-haze-border rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-haze-accent"
                     >
                       {BLEND_MODES.map(mode => (
                         <option key={mode.value} value={mode.value}>{mode.label}</option>
@@ -227,12 +228,12 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs text-haze-soft cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedLayer.aboveChat === false}
                     onChange={(e) => updateSelectedLayer({ aboveChat: e.target.checked ? false : true })}
-                    className="accent-emerald-500"
+                    className="accent-haze-accent"
                   />
                   Desenhar abaixo do texto do chat
                 </label>
@@ -241,10 +242,10 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                 <div className="flex items-center gap-1.5 pt-1">
                   <button
                     onClick={() => updateSelectedLayer({ locked: !selectedLayer.locked })}
-                    className={`flex-1 py-1 px-2 rounded-lg border text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors ${
+                    className={`flex-1 py-1 px-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
                       selectedLayer.locked
                         ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                        : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-white'
+                        : 'bg-haze-field border-haze-border text-haze-muted hover:text-white'
                     }`}
                   >
                     {selectedLayer.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
@@ -253,10 +254,10 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
                   <button
                     onClick={() => updateSelectedLayer({ visible: !selectedLayer.visible })}
-                    className={`flex-1 py-1 px-2 rounded-lg border text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors ${
+                    className={`flex-1 py-1 px-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
                       selectedLayer.visible
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                        : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:text-white'
+                        ? 'bg-haze-accent/20 border-haze-accent text-haze-accent'
+                        : 'bg-haze-field border-haze-border text-haze-muted hover:text-white'
                     }`}
                   >
                     {selectedLayer.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -265,7 +266,7 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
                   <button
                     onClick={() => duplicateLayer(selectedLayer.id)}
-                    className="p-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-slate-400 hover:text-emerald-400 transition-colors"
+                    className="p-1.5 rounded-lg bg-haze-field border border-haze-border text-haze-muted hover:text-haze-accent-hover transition-colors"
                     title="Duplicar Camada"
                   >
                     <Copy className="w-3 h-3" />
@@ -273,7 +274,7 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
                   <button
                     onClick={() => bringLayerToFront(selectedLayer.id)}
-                    className="p-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-slate-400 hover:text-white transition-colors"
+                    className="p-1.5 rounded-lg bg-haze-field border border-haze-border text-haze-muted hover:text-white transition-colors"
                     title="Trazer para Frente"
                   >
                     <ChevronsUp className="w-3 h-3" />
@@ -281,7 +282,7 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
                   <button
                     onClick={() => sendLayerToBack(selectedLayer.id)}
-                    className="p-1.5 rounded-lg bg-[#0B0E14] border border-[#1E2638] text-slate-400 hover:text-white transition-colors"
+                    className="p-1.5 rounded-lg bg-haze-field border border-haze-border text-haze-muted hover:text-white transition-colors"
                     title="Enviar para Trás"
                   >
                     <ChevronsDown className="w-3 h-3" />
@@ -299,24 +300,24 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
               {/* Controles Específicos para Camada de Texto */}
               {selectedLayer.type === 'text' && (
-                <div className="space-y-2 pt-2 border-t border-[#1E2638] text-xs">
+                <div className="space-y-2 pt-2 border-t border-haze-border text-xs">
                   <div>
-                    <span className="text-slate-400 block mb-1">Conteúdo do Texto</span>
+                    <span className="text-haze-muted block mb-1">Conteúdo do Texto</span>
                     <textarea
                       rows={2}
                       value={selectedLayer.text ?? selectedLayer.content ?? ''}
                       onChange={(e) => updateSelectedLayer({ text: e.target.value, content: e.target.value })}
-                      className="w-full bg-[#0B0E14] border border-[#1E2638] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-emerald-500"
+                      className="w-full bg-haze-field border border-haze-border rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-haze-accent"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-slate-400 block mb-1">Família da Fonte</span>
+                      <span className="text-haze-muted block mb-1">Família da Fonte</span>
                       <select
                         value={selectedLayer.fontFamily || 'Inter, sans-serif'}
                         onChange={(e) => updateSelectedLayer({ fontFamily: e.target.value })}
-                        className="w-full bg-[#0B0E14] border border-[#1E2638] rounded-lg px-2 py-1 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-haze-field border border-haze-border rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-haze-accent"
                       >
                         {FONT_FAMILIES.map(f => (
                           <option key={f.value} value={f.value}>{f.label}</option>
@@ -325,45 +326,45 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block mb-1">Tamanho ({selectedLayer.fontSize || 32}px)</span>
+                      <span className="text-haze-muted block mb-1">Tamanho ({selectedLayer.fontSize || 32}px)</span>
                       <input
                         type="range"
                         min="12"
                         max="120"
                         value={selectedLayer.fontSize || 32}
                         onChange={(e) => updateSelectedLayer({ fontSize: parseInt(e.target.value) })}
-                        className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                        className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-slate-400 block mb-1">Cor do Texto</span>
+                      <span className="text-haze-muted block mb-1">Cor do Texto</span>
                       <div className="flex items-center gap-1.5">
                         <input
                           type="color"
                           value={selectedLayer.color || '#ffffff'}
                           onChange={(e) => updateSelectedLayer({ color: e.target.value })}
-                          className="w-7 h-7 rounded border border-[#1E2638] bg-transparent cursor-pointer p-0"
+                          className="w-7 h-7 rounded border border-haze-border bg-transparent cursor-pointer p-0"
                         />
                         <input
                           type="text"
                           value={selectedLayer.color || '#ffffff'}
                           onChange={(e) => updateSelectedLayer({ color: e.target.value })}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-1.5 py-1 text-white text-[11px] font-mono"
+                          className="w-full bg-haze-field border border-haze-border rounded px-1.5 py-1 text-white text-xs font-mono"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block mb-1">Contorno ({selectedLayer.strokeWidth || 0}px)</span>
+                      <span className="text-haze-muted block mb-1">Contorno ({selectedLayer.strokeWidth || 0}px)</span>
                       <div className="flex items-center gap-1.5">
                         <input
                           type="color"
                           value={selectedLayer.strokeColor || '#000000'}
                           onChange={(e) => updateSelectedLayer({ strokeColor: e.target.value })}
-                          className="w-7 h-7 rounded border border-[#1E2638] bg-transparent cursor-pointer p-0"
+                          className="w-7 h-7 rounded border border-haze-border bg-transparent cursor-pointer p-0"
                         />
                         <input
                           type="range"
@@ -371,15 +372,15 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                           max="10"
                           value={selectedLayer.strokeWidth || 0}
                           onChange={(e) => updateSelectedLayer({ strokeWidth: parseInt(e.target.value) })}
-                          className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                          className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                         />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-slate-400 block mb-1">Alinhamento</span>
-                    <div className="flex rounded-lg border border-[#1E2638] overflow-hidden bg-[#0B0E14]">
+                    <span className="text-haze-muted block mb-1">Alinhamento</span>
+                    <div className="flex rounded-lg border border-haze-border overflow-hidden bg-haze-field">
                       {(['left', 'center', 'right'] as const).map((align) => {
                         const currentAlign = (selectedLayer as any).textAlign || 'center';
                         return (
@@ -387,7 +388,7 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                             key={align}
                             onClick={() => updateSelectedLayer({ textAlign: align } as any)}
                             className={`flex-1 py-1 flex items-center justify-center transition-colors ${
-                              currentAlign === align ? 'bg-emerald-500/20 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+                              currentAlign === align ? 'bg-haze-accent/20 text-haze-accent font-bold' : 'text-haze-muted hover:text-white'
                             }`}
                           >
                             {align === 'left' && <AlignLeft className="w-3.5 h-3.5" />}
@@ -403,38 +404,38 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
               {/* Controles Específicos para Camadas de Imagem e Adesivo */}
               {(selectedLayer.type === 'image' || selectedLayer.type === 'sticker') && (
-                <div className="space-y-2 pt-2 border-t border-[#1E2638] text-xs">
+                <div className="space-y-2 pt-2 border-t border-haze-border text-xs">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-slate-400 block mb-1">Largura ({selectedLayer.width}px)</span>
+                      <span className="text-haze-muted block mb-1">Largura ({selectedLayer.width}px)</span>
                       <input
                         type="range"
                         min="20"
                         max="800"
                         value={selectedLayer.width}
                         onChange={(e) => updateSelectedLayer({ width: parseInt(e.target.value) })}
-                        className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                        className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                       />
                     </div>
                     <div>
-                      <span className="text-slate-400 block mb-1">Altura ({selectedLayer.height}px)</span>
+                      <span className="text-haze-muted block mb-1">Altura ({selectedLayer.height}px)</span>
                       <input
                         type="range"
                         min="20"
                         max="800"
                         value={selectedLayer.height}
                         onChange={(e) => updateSelectedLayer({ height: parseInt(e.target.value) })}
-                        className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                        className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                       />
                     </div>
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-slate-400">Rotação ({selectedLayer.rotation || 0}°)</span>
+                      <span className="text-haze-muted">Rotação ({selectedLayer.rotation || 0}°)</span>
                       <button
                         onClick={() => updateSelectedLayer({ rotation: 0 })}
-                        className="text-[10px] text-emerald-400 hover:underline flex items-center gap-0.5"
+                        className="text-[11px] text-haze-accent hover:underline flex items-center gap-0.5"
                       >
                         <RotateCcw className="w-2.5 h-2.5" /> Resetar 0°
                       </button>
@@ -445,7 +446,7 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                       max="360"
                       value={selectedLayer.rotation || 0}
                       onChange={(e) => updateSelectedLayer({ rotation: parseInt(e.target.value) })}
-                      className="w-full accent-emerald-500 h-1 bg-slate-800 rounded cursor-pointer"
+                      className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
                     />
                   </div>
                 </div>
@@ -453,45 +454,45 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
 
               {/* Controles Específicos para Presets de RP */}
               {selectedLayer.type === 'preset' && selectedLayer.presetData && (
-                <div className="space-y-2 pt-2 border-t border-[#1E2638] text-xs">
-                  <span className="text-emerald-400 font-bold block mb-1">Dados do Preset de RP</span>
+                <div className="space-y-2 pt-2 border-t border-haze-border text-xs">
+                  <span className="text-haze-accent font-bold block mb-1">Dados do Preset de RP</span>
 
                   {selectedLayer.presetType === 'bodycam' && (
                     <>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Nome e Distintivo do Oficial</span>
+                        <span className="text-haze-muted block mb-0.5">Nome e Distintivo do Oficial</span>
                         <input
                           type="text"
                           value={selectedLayer.presetData.officerName || ''}
                           onChange={(e) => updatePresetDataField('officerName', e.target.value)}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                          className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                         />
                       </div>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Departamento / Lotação</span>
+                        <span className="text-haze-muted block mb-0.5">Departamento / Lotação</span>
                         <input
                           type="text"
                           value={selectedLayer.presetData.department || ''}
                           onChange={(e) => updatePresetDataField('department', e.target.value)}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                          className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                         />
                       </div>
                       <div className="flex items-center justify-between pt-1">
-                        <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+                        <label className="flex items-center gap-1.5 text-haze-soft cursor-pointer">
                           <input
                             type="checkbox"
                             checked={!!selectedLayer.presetData.showDate}
                             onChange={(e) => updatePresetDataField('showDate', e.target.checked)}
-                            className="accent-emerald-500 rounded"
+                            className="accent-haze-accent rounded"
                           />
                           <span>Exibir Data/Hora (UTC)</span>
                         </label>
-                        <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+                        <label className="flex items-center gap-1.5 text-haze-soft cursor-pointer">
                           <input
                             type="checkbox"
                             checked={!!selectedLayer.presetData.recDot}
                             onChange={(e) => updatePresetDataField('recDot', e.target.checked)}
-                            className="accent-emerald-500 rounded"
+                            className="accent-haze-accent rounded"
                           />
                           <span>Ponto ● REC</span>
                         </label>
@@ -503,40 +504,40 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                     <>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Tag GC</span>
+                          <span className="text-haze-muted block mb-0.5">Tag GC</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.tag || ''}
                             onChange={(e) => updatePresetDataField('tag', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Localidade</span>
+                          <span className="text-haze-muted block mb-0.5">Localidade</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.location || ''}
                             onChange={(e) => updatePresetDataField('location', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                       </div>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Manchete Principal</span>
+                        <span className="text-haze-muted block mb-0.5">Manchete Principal</span>
                         <textarea
                           rows={2}
                           value={selectedLayer.presetData.headline || ''}
                           onChange={(e) => updatePresetDataField('headline', e.target.value)}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                          className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                         />
                       </div>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Sub-Manchete / Ticker</span>
+                        <span className="text-haze-muted block mb-0.5">Sub-Manchete / Ticker</span>
                         <textarea
                           rows={2}
                           value={selectedLayer.presetData.subHeadline || ''}
                           onChange={(e) => updatePresetDataField('subHeadline', e.target.value)}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                          className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                         />
                       </div>
                     </>
@@ -546,41 +547,41 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                     <>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Unidade / Callsign</span>
+                          <span className="text-haze-muted block mb-0.5">Unidade / Callsign</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.unitName || ''}
                             onChange={(e) => updatePresetDataField('unitName', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Velocidade Alvo</span>
+                          <span className="text-haze-muted block mb-0.5">Velocidade Alvo</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.targetSpeed || ''}
                             onChange={(e) => updatePresetDataField('targetSpeed', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Altitude</span>
+                          <span className="text-haze-muted block mb-0.5">Altitude</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.altitude || ''}
                             onChange={(e) => updatePresetDataField('altitude', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Rumo / Bússola</span>
+                          <span className="text-haze-muted block mb-0.5">Rumo / Bússola</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.heading || ''}
                             onChange={(e) => updatePresetDataField('heading', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                       </div>
@@ -591,41 +592,41 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                     <>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Agência Policial</span>
+                          <span className="text-haze-muted block mb-0.5">Agência Policial</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.agency || ''}
                             onChange={(e) => updatePresetDataField('agency', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Prefixo da Viatura</span>
+                          <span className="text-haze-muted block mb-0.5">Prefixo da Viatura</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.patrolUnit || ''}
                             onChange={(e) => updatePresetDataField('patrolUnit', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Velocidade Viatura</span>
+                          <span className="text-haze-muted block mb-0.5">Velocidade Viatura</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.patrolSpeed || ''}
                             onChange={(e) => updatePresetDataField('patrolSpeed', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Velocidade Alvo</span>
+                          <span className="text-haze-muted block mb-0.5">Velocidade Alvo</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.targetSpeed || ''}
                             onChange={(e) => updatePresetDataField('targetSpeed', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                       </div>
@@ -635,20 +636,20 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                   {selectedLayer.presetType === 'cctv' && (
                     <>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Identificação da Câmera</span>
+                        <span className="text-haze-muted block mb-0.5">Identificação da Câmera</span>
                         <input
                           type="text"
                           value={selectedLayer.presetData.camName || ''}
                           onChange={(e) => updatePresetDataField('camName', e.target.value)}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                          className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                         />
                       </div>
-                      <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer pt-1">
+                      <label className="flex items-center gap-1.5 text-haze-soft cursor-pointer pt-1">
                         <input
                           type="checkbox"
                           checked={!!selectedLayer.presetData.showDate}
                           onChange={(e) => updatePresetDataField('showDate', e.target.checked)}
-                          className="accent-emerald-500 rounded"
+                          className="accent-haze-accent rounded"
                         />
                         <span>Exibir Data/Hora no Topo</span>
                       </label>
@@ -658,41 +659,41 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                   {selectedLayer.presetType === 'mugshot' && (
                     <>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Departamento Policial</span>
+                        <span className="text-haze-muted block mb-0.5">Departamento Policial</span>
                         <input
                           type="text"
                           value={selectedLayer.presetData.policeDept || ''}
                           onChange={(e) => updatePresetDataField('policeDept', e.target.value)}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                          className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Nome do Suspeito</span>
+                          <span className="text-haze-muted block mb-0.5">Nome do Suspeito</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.suspectName || ''}
                             onChange={(e) => updatePresetDataField('suspectName', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                         <div>
-                          <span className="text-slate-400 block mb-0.5">Booking ID</span>
+                          <span className="text-haze-muted block mb-0.5">Booking ID</span>
                           <input
                             type="text"
                             value={selectedLayer.presetData.bookingId || ''}
                             onChange={(e) => updatePresetDataField('bookingId', e.target.value)}
-                            className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                            className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                           />
                         </div>
                       </div>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">Artigos Penais / Enquadramento</span>
+                        <span className="text-haze-muted block mb-0.5">Artigos Penais / Enquadramento</span>
                         <textarea
                           rows={2}
                           value={selectedLayer.presetData.charges || ''}
                           onChange={(e) => updatePresetDataField('charges', e.target.value)}
-                          className="w-full bg-[#0B0E14] border border-[#1E2638] rounded px-2 py-1 text-white"
+                          className="w-full bg-haze-field border border-haze-border rounded px-2 py-1 text-white"
                         />
                       </div>
                     </>
@@ -701,16 +702,16 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
               )}
             </div>
           ) : (
-            <p className="text-xs text-slate-500 italic py-2">
+            <p className="text-xs text-haze-faint italic py-2">
               Nenhuma camada selecionada. Clique em um elemento no canvas ou na lista abaixo para editar.
             </p>
           )}
         </div>
 
         {/* Gerenciador de Camadas */}
-        <div className="p-4 rounded-2xl bg-[#121722] border border-[#1E2638] shadow-md space-y-3">
+        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
           <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" /> Elementos de RP ({layers.length})
             </span>
           </div>
@@ -724,8 +725,8 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                   onClick={() => setSelectedLayerId(layer.id)}
                   className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all border ${
                     isSelected
-                      ? 'bg-emerald-500/10 border-emerald-500/50 text-white font-medium'
-                      : 'bg-[#0B0E14] border-[#1E2638] text-slate-400 hover:bg-slate-800/40'
+                      ? 'bg-haze-accent/10 border-haze-accent/50 text-white font-medium'
+                      : 'bg-haze-field border-haze-border text-haze-muted hover:bg-haze-raised/40'
                   }`}
                 >
                   <span className="truncate max-w-[140px]">{layer.name}</span>
@@ -739,7 +740,7 @@ export const CanvasLayersSidebar: React.FC<CanvasLayersSidebarProps> = ({
                       className="p-1 hover:text-white"
                       title={layer.visible ? 'Ocultar' : 'Exibir'}
                     >
-                      {layer.visible ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-slate-600" />}
+                      {layer.visible ? <Eye className="w-3.5 h-3.5 text-haze-accent" /> : <EyeOff className="w-3.5 h-3.5 text-haze-faint" />}
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); moveLayer(layer.id, 'up'); }}
