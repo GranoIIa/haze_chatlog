@@ -331,3 +331,44 @@ test.describe('Adesivos e marcadores: mover com o mouse', () => {
     expect(depois.layers[0].x).toBe(l.x); // a âncora do canto oposto não se move
   });
 });
+
+test.describe('Tema: legibilidade dos botões principais', () => {
+  test.beforeEach(async ({ page }) => { await openFresh(page); });
+
+  /** Contraste WCAG entre cor do texto e cor de fundo realmente aplicadas (rgb/rgba sólidos). */
+  const contrasteReal = (el: import('@playwright/test').Locator) => el.evaluate((node: HTMLElement) => {
+    const parse = (c: string) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+    // fundo translúcido (ex.: estado ativo em tinta) é composto sobre a cor do painel (#171A21)
+    const solid = (c: string) => {
+      const n = (c.match(/[\d.]+/g) || []).map(Number);
+      const a = n.length > 3 ? n[3] : 1;
+      const base = [23, 26, 33];
+      return [0, 1, 2].map(i => Math.round(n[i] * a + base[i] * (1 - a)));
+    };
+    const lum = ([r, g, b]: number[]) => {
+      const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const cs = getComputedStyle(node);
+    const [a, b] = [lum(parse(cs.color)), lum(solid(cs.backgroundColor))].sort((x, y) => y - x);
+    return { ratio: (a + 0.05) / (b + 0.05), color: cs.color, bg: cs.backgroundColor };
+  });
+
+  test('aba ativa, ferramenta ativa e botão Exportar têm texto legível (≥ 4,5:1)', async ({ page }) => {
+    const alvos = {
+      'aba Editor RP': page.getByRole('button', { name: /Editor RP/ }),
+      'ferramenta ativa': page.getByRole('button', { name: 'Texto chat' }),
+      'Exportar': page.getByRole('button', { name: /Exportar 2×/ }),
+      'Lote ativo': page.getByRole('tab', { name: 'Foto individual' })
+    };
+    for (const [nome, el] of Object.entries(alvos)) {
+      const r = await contrasteReal(el);
+      expect(r.ratio, `${nome}: texto ${r.color} sobre ${r.bg}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  test('os botões de preenchimento sólido usam o verde escuro (não o claro)', async ({ page }) => {
+    const bg = await page.getByRole('button', { name: /Exportar 2×/ }).evaluate((n: HTMLElement) => getComputedStyle(n).backgroundColor);
+    expect(bg).toBe('rgb(16, 185, 129)'); // #10B981
+  });
+});

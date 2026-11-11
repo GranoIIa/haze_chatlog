@@ -923,7 +923,7 @@ export const GifLabView: React.FC = () => {
             type="button"
             onClick={generateGif}
             disabled={!videoSrc || isProcessing}
-            className="w-full py-3 px-4 rounded-xl bg-haze-accent hover:bg-haze-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-haze-on-accent font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-haze-accent/20 transition-all cursor-pointer"
+            className="w-full py-3 px-4 rounded-xl bg-haze-accent-fill hover:bg-haze-accent-fill-hover disabled:opacity-50 disabled:cursor-not-allowed text-haze-on-accent font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-haze-accent/20 transition-all cursor-pointer"
           >
             {isProcessing ? (
               <>
@@ -1061,7 +1061,7 @@ export const GifLabView: React.FC = () => {
               <a
                 href={resultGifUrl}
                 download={`haze-clip-${Date.now()}.gif`}
-                className="px-4 py-1.5 rounded-lg bg-haze-accent hover:bg-haze-accent-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-md shadow-haze-accent/20 transition-all"
+                className="px-4 py-1.5 rounded-lg bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-md shadow-haze-accent/20 transition-all"
               >
                 <Download className="w-4 h-4" /> Baixar GIF
               </a>

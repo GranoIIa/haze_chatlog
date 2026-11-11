@@ -25,9 +25,11 @@ export const palette = {
   faint: '#8791A1',        // dicas e placeholders (ainda ≥ 4,5:1 sobre o painel)
 
   // Acento: usado só para a ação principal, estados ativos e foco
-  accent: '#34D399',
+  accent: '#34D399',       // texto, bordas, ícones e foco (legível sobre fundos escuros)
   accentHover: '#6EE7B7',
-  onAccent: '#04120C',     // texto sobre o acento
+  accentFill: '#10B981',   // preenchimento de botões e abas ativas (mais escuro, sem "estourar")
+  accentFillHover: '#34D399',
+  onAccent: '#04120C',     // texto sobre accentFill / accent
 
   // Semânticas
   danger: '#F87171',

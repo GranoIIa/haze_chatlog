@@ -34,6 +34,10 @@ describe('Tier 5: Paleta do tema', () => {
     assert(contrast(P.accent, P.bg) >= 4.5, 'acento/fundo');
     assert(contrast(P.onAccent, P.accent) >= 7, 'texto no botão');
     assert(contrast(P.onAccent, P.accentHover) >= 7, 'texto no botão (hover)');
+    // botões sólidos usam o acento de preenchimento (mais escuro) com texto escuro
+    assert(contrast(P.onAccent, P.accentFill) >= 7, 'texto no botão sólido');
+    assert(contrast(P.onAccent, P.accentFillHover) >= 7, 'texto no botão sólido (hover)');
+    assert(lum(P.accentFill) < lum(P.accent), 'o preenchimento deve ser mais escuro que o acento de texto');
     // semânticas legíveis sobre o painel
     for (const k of ['danger', 'warning', 'info']) assert(contrast(P[k], P.panel) >= 4.5, k);
   });

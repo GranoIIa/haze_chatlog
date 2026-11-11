@@ -1485,7 +1485,7 @@ export const ChatLogView: React.FC = () => {
         {notice && (
           <div className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-xl border ${
             notice.kind === 'ok'
-              ? 'bg-haze-accent text-haze-on-accent border-haze-accent'
+              ? 'bg-haze-accent-fill text-haze-on-accent border-haze-accent'
               : 'bg-rose-950 text-rose-200 border-rose-500/50'
           }`}>
             {notice.text}
@@ -1643,7 +1643,7 @@ export const ChatLogView: React.FC = () => {
             {batchProgress && (
               <div>
                 <div className="h-1.5 rounded bg-haze-raised overflow-hidden">
-                  <div className="h-full bg-haze-accent transition-all" style={{ width: `${(batchProgress.done / batchProgress.total) * 100}%` }} />
+                  <div className="h-full bg-haze-accent-fill transition-all" style={{ width: `${(batchProgress.done / batchProgress.total) * 100}%` }} />
                 </div>
                 <p className="mt-1 text-xs text-haze-muted">{batchProgress.done}/{batchProgress.total} processadas</p>
               </div>
@@ -1654,7 +1654,7 @@ export const ChatLogView: React.FC = () => {
               <button
                 onClick={generateBatchZip}
                 disabled={batchFiles.length === 0 || !!batchProgress}
-                className="flex-1 py-2 rounded-lg text-xs font-bold bg-haze-accent text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2 rounded-lg text-xs font-bold bg-haze-accent-fill text-black disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {batchProgress ? 'Gerando…' : `Gerar ZIP (${batchFiles.length})`}
               </button>
@@ -1847,7 +1847,7 @@ export const ChatLogView: React.FC = () => {
             />
             <button
               onClick={addCharacter}
-              className="px-3 py-1.5 rounded-lg bg-haze-accent hover:bg-haze-accent-hover text-haze-on-accent font-bold text-xs flex items-center gap-1 transition-all"
+              className="px-3 py-1.5 rounded-lg bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent font-bold text-xs flex items-center gap-1 transition-all"
             >
               <Plus className="w-3.5 h-3.5" /> Add
             </button>
@@ -2394,7 +2394,7 @@ export const ChatLogView: React.FC = () => {
                   title={`${tip} (${hotkey})`}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors ${
                     mouseTool === key
-                      ? 'bg-haze-accent text-haze-on-accent border-haze-accent font-semibold'
+                      ? 'bg-haze-accent-fill text-haze-on-accent border-haze-accent font-semibold'
                       : 'border-haze-border text-haze-soft hover:border-haze-border-strong hover:text-haze-text'
                   }`}
                 >
@@ -2441,7 +2441,7 @@ export const ChatLogView: React.FC = () => {
             </button>
             <button
               onClick={exportImage}
-              className="px-4 py-1.5 rounded-lg bg-haze-accent hover:bg-haze-accent-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-haze-accent/20 transition-all"
+              className="px-4 py-1.5 rounded-lg bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-haze-accent/20 transition-all"
             >
               <Download className="w-4 h-4" /> Exportar 2× Ultra HD
             </button>

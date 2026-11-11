@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             onClick={() => setActiveTab('chatlog')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'chatlog'
-                ? 'bg-haze-accent text-haze-on-accent font-bold shadow-lg shadow-haze-accent/20'
+                ? 'bg-haze-accent-fill text-haze-on-accent font-bold shadow-lg shadow-haze-accent/20'
                 : 'text-haze-muted hover:text-white hover:bg-haze-raised/40'
             }`}
           >
@@ -55,7 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             onClick={() => setActiveTab('giflab')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === 'giflab'
-                ? 'bg-haze-accent text-haze-on-accent font-bold shadow-lg shadow-haze-accent/20'
+                ? 'bg-haze-accent-fill text-haze-on-accent font-bold shadow-lg shadow-haze-accent/20'
                 : 'text-haze-muted hover:text-white hover:bg-haze-raised/40'
             }`}
           >
@@ -70,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         {/* Right Info */}
         <div className="hidden lg:flex items-center gap-3">
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-haze-panel border border-haze-border text-xs text-haze-soft">
-            <span className="w-2 h-2 rounded-full bg-haze-accent animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-haze-accent-fill animate-pulse"></span>
             <span>100% Client-Side</span>
           </div>
           <a

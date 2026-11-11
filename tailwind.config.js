@@ -2,7 +2,7 @@ import { palette, toChannels, kebab } from './src/theme/palette.js';
 
 // bg-haze-panel, text-haze-muted, border-haze-border/50... (com suporte a opacidade)
 const hazeColors = Object.fromEntries(
-  Object.keys(palette).map(k => [k, `rgb(var(--haze-${kebab(k)}) / <alpha-value>)`])
+  Object.keys(palette).map(k => [kebab(k), `rgb(var(--haze-${kebab(k)}) / <alpha-value>)`])
 );
 
 // :root { --haze-panel: 23 26 33; ... }
