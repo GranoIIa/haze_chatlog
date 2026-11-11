@@ -36,6 +36,16 @@ export function drawCanvasLayer(
   if (!layer.visible) return;
 
   ctx.save();
+  // estado limpo: presets e adesivos foram feitos para a linha de base "alphabetic", sem sombra herdada
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'start';
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.lineWidth = 1;
+  ctx.lineJoin = 'miter';
+  ctx.setLineDash([]);
   ctx.globalAlpha = layer.opacity ?? 1;
   if (layer.blendMode) ctx.globalCompositeOperation = layer.blendMode;
 

@@ -50,6 +50,7 @@ export function renderChatText(
     showTimestamps, chatPos
   } = style;
   void height;
+  ctx.save(); // o estado (fonte, linha de base, sombra) não pode vazar para quem desenha depois
 
   // 4. Configurar Tipografia & Escalas
   const clampedFontSize = Math.min(Math.max(10, fontSize), 72);
@@ -307,4 +308,5 @@ export function renderChatText(
       curY += lineHeight;
     });
   });
+  ctx.restore();
 }

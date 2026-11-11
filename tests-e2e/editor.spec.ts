@@ -372,3 +372,33 @@ test.describe('Tema: legibilidade dos botões principais', () => {
     expect(bg).toBe('rgb(16, 185, 129)'); // #10B981
   });
 });
+
+test.describe('Presets de RP: alinhamento', () => {
+  test.beforeEach(async ({ page }) => { await openFresh(page); });
+
+  test('Weazel News: o selo "AO VIVO" aparece inteiro acima da tarja (mesmo com o chat na cena)', async ({ page }) => {
+    await openSection(page, 'rp');
+    await page.getByRole('button', { name: /Weazel News/ }).click();
+    const r = await page.getByTestId('preview-canvas').evaluate((c: HTMLCanvasElement) => {
+      const w = c.width, h = c.height;
+      const bannerH = Math.round(h * 0.18);
+      const startY = h - bannerH - Math.round(h * 0.04);
+      const badgeH = Math.round(bannerH * 0.28);
+      const x0 = Math.round(w * 0.05), x1 = Math.round(w * 0.27);
+      const d = c.getContext('2d')!.getImageData(x0, startY - badgeH, x1 - x0, badgeH).data;
+      let branco = 0, vermelho = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235) branco++;
+        else if (d[i] > 180 && d[i + 1] < 70 && d[i + 2] < 70) vermelho++;
+      }
+      // as linhas do texto devem estar no meio do selo (não cortadas na borda inferior)
+      const baixo = c.getContext('2d')!.getImageData(x0, startY - 2, x1 - x0, 2).data;
+      let brancoNaBorda = 0;
+      for (let i = 0; i < baixo.length; i += 4) if (baixo[i] > 235 && baixo[i + 1] > 235 && baixo[i + 2] > 235) brancoNaBorda++;
+      return { branco, vermelho, brancoNaBorda, area: (x1 - x0) * badgeH };
+    });
+    expect(r.vermelho).toBeGreaterThan(r.area * 0.5);          // o selo vermelho está lá
+    expect(r.branco).toBeGreaterThan(40);                      // e o texto branco "AO VIVO" também
+    expect(r.brancoNaBorda).toBeLessThan(5);                   // sem texto cortado na borda da tarja
+  });
+});
