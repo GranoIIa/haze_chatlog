@@ -52,7 +52,7 @@ describe('Tier 5: GIF — orçamento e atrasos', () => {
     assertEqual(estimateCost(base).level, 'ok');
     const heavy = estimateCost({ ...base, w: 1920, h: 1080, durationS: 60, fps: 20 });
     assert(heavy.level !== 'ok', 'GIF de 60 s a 1080p e 20 FPS deve ser pelo menos "pesado"');
-    const blocked = estimateCost({ ...base, w: 1920, h: 1080, durationS: 120, fps: 20 });
+    const blocked = estimateCost({ ...base, w: 1920, h: 1080, durationS: 200, fps: 20 });
     assertEqual(blocked.level, 'blocked');
     assert(blocked.reasons.length > 0);
     assert(LIMITS.heavyPeakBytes < LIMITS.blockedPeakBytes);

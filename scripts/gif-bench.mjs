@@ -69,14 +69,21 @@ const videoInfo = await page.evaluate(() => { const v = document.querySelector('
 
 const results = [];
 for (const cfg of CONFIGS) {
+  if (cfg.profile) {
+    await page.getByRole('group', { name: 'Perfil do GIF' }).getByRole('button', { name: cfg.profile }).click();
+    if (cfg.quality) await page.getByRole('group', { name: 'Nível de qualidade' }).getByRole('button', { name: cfg.quality }).click();
+  }
   if (cfg.size) {
     const p = page.getByTestId('gif-resolution');
     await p.getByLabel('Largura personalizada do GIF').fill(String(cfg.size[0]));
     await p.getByLabel('Altura personalizada do GIF').fill(String(cfg.size[1]));
     await p.getByRole('button', { name: 'Aplicar' }).click();
   }
-  await page.locator('select').filter({ hasText: 'FPS' }).first().selectOption(String(cfg.fps));
-  await page.getByLabel('Cores do GIF').selectOption(String(cfg.colors || 256));
+  if (!cfg.profile) {
+    await page.locator('select').filter({ hasText: 'FPS' }).first().selectOption(String(cfg.fps));
+    await page.getByLabel('Cores do GIF').selectOption(String(cfg.colors || 256));
+  }
+  if (cfg.profile) cfg.fps = Number(await page.locator('select').filter({ hasText: 'FPS' }).first().inputValue());
   await page.evaluate((FPSV) => { Object.assign(window.__gif, { sent: 0, done: 0, prog: 0, maxQueue: 0, heapPeak: 0 }); window.__fps = FPSV; }, cfg.fps);
   const t0 = Date.now();
   await page.getByRole('button', { name: /Converter Vídeo para GIF/ }).click();

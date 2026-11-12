@@ -2,8 +2,8 @@ import { test, expect, Page } from '@playwright/test';
 import { openFresh, editorText } from './helpers';
 
 /** Grava um vídeo curto (WebM) dentro do próprio navegador e devolve os bytes. */
-async function gravarVideo(page: Page, ms = 1800): Promise<Buffer> {
-  const b64 = await page.evaluate(async (dur) => {
+async function gravarVideo(page: Page, ms = 1800, ruido = false): Promise<Buffer> {
+  const b64 = await page.evaluate(async ([dur, noisy]) => {
     const c = document.createElement('canvas'); c.width = 480; c.height = 270;
     const x = c.getContext('2d')!;
     const rec = new MediaRecorder(c.captureStream(15), { mimeType: 'video/webm' });
@@ -14,6 +14,7 @@ async function gravarVideo(page: Page, ms = 1800): Promise<Buffer> {
     while (performance.now() - t0 < dur) {
       const t = (performance.now() - t0) / dur;
       x.fillStyle = `hsl(${200 + t * 120},50%,30%)`; x.fillRect(0, 0, 480, 270);
+      if (noisy) for (let i = 0; i < 1500; i++) { x.fillStyle = `rgb(${Math.random() * 255 | 0},${Math.random() * 255 | 0},${Math.random() * 255 | 0})`; x.fillRect(Math.random() * 480, Math.random() * 270, 8, 8); }
       await new Promise(r => setTimeout(r, 40));
     }
     rec.stop();
@@ -21,7 +22,7 @@ async function gravarVideo(page: Page, ms = 1800): Promise<Buffer> {
     const buf = new Uint8Array(await new Blob(parts).arrayBuffer());
     let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
     return btoa(s);
-  }, ms);
+  }, [ms, ruido] as [number, boolean]);
   return Buffer.from(b64, 'base64');
 }
 
@@ -222,5 +223,103 @@ test.describe('GIF Lab: resolução e adaptação', () => {
     await painel.getByLabel('Altura personalizada do GIF').fill('5000');
     await painel.getByRole('button', { name: 'Aplicar' }).click();
     await expect(painel.getByText('1920×1920')).toBeVisible();
+  });
+});
+
+test.describe('GIF Lab: Smart Export, cancelamento e robustez', () => {
+  const carregar = async (page: Page, ruido = false, ms = 2200) => {
+    await openFresh(page);
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    const video = await gravarVideo(page, ms, ruido);
+    await page.getByTestId('video-input').setInputFiles({ name: 'clipe.webm', mimeType: 'video/webm', buffer: video });
+    await expect.poll(() => page.locator('video').evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(2);
+  };
+  /** Tamanho e dimensões do GIF exibido, lidos do próprio arquivo (decodificador do navegador). */
+  const medirGif = (page: Page) => page.evaluate(async () => {
+    const img = [...document.querySelectorAll('img')].find(i => i.src.startsWith('blob:'))!;
+    const buf = await (await fetch(img.src)).arrayBuffer();
+    const dec = new (window as any).ImageDecoder({ data: buf, type: 'image/gif' });
+    await dec.tracks.ready;
+    const { image } = await dec.decode({ frameIndex: 0 });
+    return { bytes: buf.byteLength, w: image.displayWidth, h: image.displayHeight, frames: dec.tracks.selectedTrack.frameCount };
+  });
+
+  test('perfil Emoji: 128×128, tamanho medido no arquivo e dentro de 256 KB', async ({ page }) => {
+    await carregar(page);
+    await page.getByRole('group', { name: 'Perfil do GIF' }).getByRole('button', { name: /Discord Emoji/ }).click();
+    await expect(page.getByTestId('gif-profile-badge')).toContainText('Discord Emoji');
+    await page.getByRole('button', { name: /Converter Vídeo para GIF/ }).click();
+    await expect(page.getByText('Concluído!')).toBeVisible({ timeout: 90_000 });
+    const g = await medirGif(page);
+    expect([g.w, g.h]).toEqual([128, 128]);
+    expect(g.bytes).toBeLessThanOrEqual(256 * 1024);
+    await expect(page.getByTestId('gif-result-meta')).toContainText('Dentro do limite');
+  });
+
+  test('Smart Export nunca declara o limite cumprido sem medir: texto e arquivo concordam', async ({ page }) => {
+    await carregar(page, true, 2500);
+    await page.getByRole('group', { name: 'Perfil do GIF' }).getByRole('button', { name: /Discord Emoji/ }).click();
+    await page.getByRole('button', { name: /Converter Vídeo para GIF/ }).click();
+    await expect(page.getByText('Concluído!')).toBeVisible({ timeout: 180_000 });
+    const g = await medirGif(page);
+    const meta = await page.getByTestId('gif-result-meta').innerText();
+    if (g.bytes <= 256 * 1024) expect(meta).toContain('Dentro do limite');
+    else expect(meta).toContain('Acima do limite');
+    expect([g.w, g.h].every(v => v <= 128)).toBe(true); // a escada só reduz
+  });
+
+  test('cancelar durante a conversão libera tudo e uma nova conversão funciona', async ({ page }) => {
+    await carregar(page, false, 3000);
+    const painel = page.getByTestId('gif-resolution');
+    await painel.getByLabel('Largura personalizada do GIF').fill('1280');
+    await painel.getByLabel('Altura personalizada do GIF').fill('720');
+    await painel.getByRole('button', { name: 'Aplicar' }).click();
+    await page.getByRole('button', { name: /Converter Vídeo para GIF/ }).click();
+    await page.getByRole('button', { name: /Cancelar Conversão/ }).click();
+    await expect(page.getByText('Conversão cancelada pelo usuário.')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Cancelar Conversão/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Converter Vídeo para GIF/ })).toBeEnabled();
+    // o app segue responsivo e converte de novo
+    await painel.getByRole('button', { name: '854×480' }).click();
+    await page.getByRole('button', { name: /Converter Vídeo para GIF/ }).click();
+    await expect(page.getByText('Concluído!')).toBeVisible({ timeout: 90_000 });
+    expect((await medirGif(page)).w).toBe(854);
+  });
+
+  test('trocar de aba durante a conversão não a interrompe', async ({ page }) => {
+    await carregar(page);
+    await page.getByRole('button', { name: /Converter Vídeo para GIF/ }).click();
+    await page.getByRole('button', { name: /Editor RP/ }).click();
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    await expect(page.getByText('Concluído!')).toBeVisible({ timeout: 90_000 });
+    expect((await medirGif(page)).frames).toBeGreaterThan(5);
+  });
+
+  test('vídeo inválido: o app não trava e nada é gerado', async ({ page }) => {
+    await openFresh(page);
+    await page.getByRole('button', { name: /Video to GIF Lab/ }).click();
+    await page.getByTestId('video-input').setInputFiles({ name: 'ruim.webm', mimeType: 'video/webm', buffer: Buffer.from('isto não é um vídeo') });
+    await page.waitForTimeout(800);
+    const botao = page.getByRole('button', { name: /Converter Vídeo para GIF/ });
+    if (await botao.isEnabled()) {
+      await botao.click();
+      await page.waitForTimeout(3000);
+    }
+    await expect(page.getByText('Concluído!')).toHaveCount(0);
+    await page.getByRole('button', { name: /Editor RP/ }).click();
+    await expect(page.getByTestId('preview-canvas')).toBeVisible();
+  });
+
+  test('ajustar a resolução à mão não troca o perfil nem o alvo', async ({ page }) => {
+    await carregar(page);
+    await page.getByRole('group', { name: 'Perfil do GIF' }).getByRole('button', { name: /Discord Emoji/ }).click();
+    const painel = page.getByTestId('gif-resolution');
+    await painel.getByLabel('Largura personalizada do GIF').fill('200');
+    await painel.getByLabel('Altura personalizada do GIF').fill('200');
+    await painel.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(page.getByTestId('gif-profile-badge')).toContainText('Discord Emoji (ajustado)');
+    await expect(page.getByTestId('gif-target')).toContainText('256 KB');
+    await expect(page.getByTestId('gif-budget')).toContainText('200×200');
   });
 });

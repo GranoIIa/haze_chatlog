@@ -1,0 +1,86 @@
+{
+  "when": "2026-11-12T01:24:52.619Z",
+  "browser": "149.0.7827.201",
+  "video": {
+    "w": 1280,
+    "h": 720,
+    "dur": 3.949773
+  },
+  "results": [
+    {
+      "cfg": "Emoji equilibrado",
+      "ms": 1899,
+      "psnr": null,
+      "bytes": 82162,
+      "frames": 20,
+      "w": 128,
+      "h": 128,
+      "durS": 2,
+      "sent": 20,
+      "maxQueue": 2,
+      "heapPeakMB": 35.8,
+      "mbFile": 0.08,
+      "rawFrameMB": 0.06
+    },
+    {
+      "cfg": "Avatar equilibrado",
+      "ms": 2424,
+      "psnr": null,
+      "bytes": 289770,
+      "frames": 24,
+      "w": 320,
+      "h": 320,
+      "durS": 2,
+      "sent": 24,
+      "maxQueue": 1,
+      "heapPeakMB": 41.6,
+      "mbFile": 0.28,
+      "rawFrameMB": 0.39
+    },
+    {
+      "cfg": "Banner equilibrado",
+      "ms": 2401,
+      "psnr": 38.47,
+      "bytes": 662849,
+      "frames": 24,
+      "w": 680,
+      "h": 383,
+      "durS": 2,
+      "sent": 24,
+      "maxQueue": 1,
+      "heapPeakMB": 45.5,
+      "mbFile": 0.63,
+      "rawFrameMB": 0.99
+    },
+    {
+      "cfg": "Forum qualidade",
+      "ms": 2923,
+      "psnr": 38.58,
+      "bytes": 1928133,
+      "frames": 30,
+      "w": 1280,
+      "h": 720,
+      "durS": 2,
+      "sent": 30,
+      "maxQueue": 2,
+      "heapPeakMB": 38.5,
+      "mbFile": 1.84,
+      "rawFrameMB": 3.52
+    },
+    {
+      "cfg": "Forum compacto",
+      "ms": 1874,
+      "psnr": 37.84,
+      "bytes": 551838,
+      "frames": 20,
+      "w": 720,
+      "h": 405,
+      "durS": 2,
+      "sent": 20,
+      "maxQueue": 1,
+      "heapPeakMB": 47.6,
+      "mbFile": 0.53,
+      "rawFrameMB": 1.11
+    }
+  ]
+}
