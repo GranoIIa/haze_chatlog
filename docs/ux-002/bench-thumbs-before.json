@@ -1,0 +1,190 @@
+{
+  "meta": {
+    "base": "http://localhost:4180",
+    "browser": "149.0.7827.201",
+    "data": "2026-11-12",
+    "nota": "fotos sintéticas (gradiente + ruído), mediana de REPS repetições"
+  },
+  "results": [
+    {
+      "foto": "1280x720",
+      "reps": 3,
+      "readyMs": 361,
+      "genMs": null,
+      "longTaskMaxMs": 188,
+      "longTaskSumMs": 244,
+      "frameGapMaxMs": 184,
+      "heapDeltaMB": 9.4,
+      "raw": [
+        {
+          "readyMs": 649,
+          "genMs": null,
+          "longTaskMaxMs": 341,
+          "longTaskSumMs": 514,
+          "frameGapMaxMs": 611,
+          "heapDeltaMB": 7.3
+        },
+        {
+          "readyMs": 361,
+          "genMs": null,
+          "longTaskMaxMs": 188,
+          "longTaskSumMs": 244,
+          "frameGapMaxMs": 184,
+          "heapDeltaMB": 9.4
+        },
+        {
+          "readyMs": 341,
+          "genMs": null,
+          "longTaskMaxMs": 178,
+          "longTaskSumMs": 234,
+          "frameGapMaxMs": 167,
+          "heapDeltaMB": 9.4
+        }
+      ]
+    },
+    {
+      "foto": "1920x1080",
+      "reps": 3,
+      "readyMs": 606,
+      "genMs": null,
+      "longTaskMaxMs": 373,
+      "longTaskSumMs": 437,
+      "frameGapMaxMs": 367,
+      "heapDeltaMB": 18.4,
+      "raw": [
+        {
+          "readyMs": 609,
+          "genMs": null,
+          "longTaskMaxMs": 384,
+          "longTaskSumMs": 449,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 18.4
+        },
+        {
+          "readyMs": 600,
+          "genMs": null,
+          "longTaskMaxMs": 366,
+          "longTaskSumMs": 431,
+          "frameGapMaxMs": 350,
+          "heapDeltaMB": 18.4
+        },
+        {
+          "readyMs": 606,
+          "genMs": null,
+          "longTaskMaxMs": 373,
+          "longTaskSumMs": 437,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 18.4
+        }
+      ]
+    },
+    {
+      "foto": "2560x1440",
+      "reps": 3,
+      "readyMs": 886,
+      "genMs": null,
+      "longTaskMaxMs": 614,
+      "longTaskSumMs": 672,
+      "frameGapMaxMs": 601,
+      "heapDeltaMB": 30.4,
+      "raw": [
+        {
+          "readyMs": 961,
+          "genMs": null,
+          "longTaskMaxMs": 652,
+          "longTaskSumMs": 725,
+          "frameGapMaxMs": 651,
+          "heapDeltaMB": 30.2
+        },
+        {
+          "readyMs": 886,
+          "genMs": null,
+          "longTaskMaxMs": 614,
+          "longTaskSumMs": 672,
+          "frameGapMaxMs": 601,
+          "heapDeltaMB": 30.4
+        },
+        {
+          "readyMs": 882,
+          "genMs": null,
+          "longTaskMaxMs": 612,
+          "longTaskSumMs": 668,
+          "frameGapMaxMs": 601,
+          "heapDeltaMB": 30.4
+        }
+      ]
+    },
+    {
+      "foto": "3840x2160",
+      "reps": 3,
+      "readyMs": 1902,
+      "genMs": null,
+      "longTaskMaxMs": 1378,
+      "longTaskSumMs": 1474,
+      "frameGapMaxMs": 1351,
+      "heapDeltaMB": 47,
+      "raw": [
+        {
+          "readyMs": 1891,
+          "genMs": null,
+          "longTaskMaxMs": 1360,
+          "longTaskSumMs": 1529,
+          "frameGapMaxMs": 1351,
+          "heapDeltaMB": 47
+        },
+        {
+          "readyMs": 1906,
+          "genMs": null,
+          "longTaskMaxMs": 1382,
+          "longTaskSumMs": 1474,
+          "frameGapMaxMs": 1368,
+          "heapDeltaMB": 47
+        },
+        {
+          "readyMs": 1902,
+          "genMs": null,
+          "longTaskMaxMs": 1378,
+          "longTaskSumMs": 1471,
+          "frameGapMaxMs": 1351,
+          "heapDeltaMB": 47
+        }
+      ]
+    },
+    {
+      "foto": "1080x1920",
+      "reps": 3,
+      "readyMs": 627,
+      "genMs": null,
+      "longTaskMaxMs": 380,
+      "longTaskSumMs": 458,
+      "frameGapMaxMs": 367,
+      "heapDeltaMB": 18.4,
+      "raw": [
+        {
+          "readyMs": 631,
+          "genMs": null,
+          "longTaskMaxMs": 401,
+          "longTaskSumMs": 469,
+          "frameGapMaxMs": 400,
+          "heapDeltaMB": 18.4
+        },
+        {
+          "readyMs": 627,
+          "genMs": null,
+          "longTaskMaxMs": 380,
+          "longTaskSumMs": 458,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 18.4
+        },
+        {
+          "readyMs": 614,
+          "genMs": null,
+          "longTaskMaxMs": 374,
+          "longTaskSumMs": 443,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 18.4
+        }
+      ]
+    }
+  ]
+}

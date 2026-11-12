@@ -1,0 +1,190 @@
+{
+  "meta": {
+    "base": "http://localhost:4179",
+    "browser": "149.0.7827.201",
+    "data": "2026-11-12",
+    "nota": "fotos sintéticas (gradiente + ruído), mediana de REPS repetições"
+  },
+  "results": [
+    {
+      "foto": "1280x720",
+      "reps": 3,
+      "readyMs": 423,
+      "genMs": 145,
+      "longTaskMaxMs": 180,
+      "longTaskSumMs": 181,
+      "frameGapMaxMs": 167,
+      "heapDeltaMB": 10.3,
+      "raw": [
+        {
+          "readyMs": 628,
+          "genMs": 375,
+          "longTaskMaxMs": 180,
+          "longTaskSumMs": 308,
+          "frameGapMaxMs": 262,
+          "heapDeltaMB": 8.2
+        },
+        {
+          "readyMs": 423,
+          "genMs": 145,
+          "longTaskMaxMs": 179,
+          "longTaskSumMs": 179,
+          "frameGapMaxMs": 167,
+          "heapDeltaMB": 10.3
+        },
+        {
+          "readyMs": 417,
+          "genMs": 140,
+          "longTaskMaxMs": 181,
+          "longTaskSumMs": 181,
+          "frameGapMaxMs": 167,
+          "heapDeltaMB": 10.3
+        }
+      ]
+    },
+    {
+      "foto": "1920x1080",
+      "reps": 3,
+      "readyMs": 696,
+      "genMs": 157,
+      "longTaskMaxMs": 383,
+      "longTaskSumMs": 383,
+      "frameGapMaxMs": 384,
+      "heapDeltaMB": 19.2,
+      "raw": [
+        {
+          "readyMs": 705,
+          "genMs": 157,
+          "longTaskMaxMs": 388,
+          "longTaskSumMs": 388,
+          "frameGapMaxMs": 384,
+          "heapDeltaMB": 19.2
+        },
+        {
+          "readyMs": 685,
+          "genMs": 140,
+          "longTaskMaxMs": 383,
+          "longTaskSumMs": 383,
+          "frameGapMaxMs": 384,
+          "heapDeltaMB": 19.2
+        },
+        {
+          "readyMs": 696,
+          "genMs": 166,
+          "longTaskMaxMs": 379,
+          "longTaskSumMs": 379,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 19.3
+        }
+      ]
+    },
+    {
+      "foto": "2560x1440",
+      "reps": 3,
+      "readyMs": 1011,
+      "genMs": 149,
+      "longTaskMaxMs": 625,
+      "longTaskSumMs": 625,
+      "frameGapMaxMs": 617,
+      "heapDeltaMB": 31.3,
+      "raw": [
+        {
+          "readyMs": 1011,
+          "genMs": 146,
+          "longTaskMaxMs": 625,
+          "longTaskSumMs": 625,
+          "frameGapMaxMs": 617,
+          "heapDeltaMB": 31.3
+        },
+        {
+          "readyMs": 995,
+          "genMs": 149,
+          "longTaskMaxMs": 624,
+          "longTaskSumMs": 624,
+          "frameGapMaxMs": 617,
+          "heapDeltaMB": 31.3
+        },
+        {
+          "readyMs": 1014,
+          "genMs": 150,
+          "longTaskMaxMs": 626,
+          "longTaskSumMs": 626,
+          "frameGapMaxMs": 617,
+          "heapDeltaMB": 31.3
+        }
+      ]
+    },
+    {
+      "foto": "3840x2160",
+      "reps": 3,
+      "readyMs": 1998,
+      "genMs": 224,
+      "longTaskMaxMs": 1361,
+      "longTaskSumMs": 1428,
+      "frameGapMaxMs": 1351,
+      "heapDeltaMB": 48.6,
+      "raw": [
+        {
+          "readyMs": 1994,
+          "genMs": 216,
+          "longTaskMaxMs": 1355,
+          "longTaskSumMs": 1428,
+          "frameGapMaxMs": 1335,
+          "heapDeltaMB": 48.6
+        },
+        {
+          "readyMs": 2036,
+          "genMs": 228,
+          "longTaskMaxMs": 1381,
+          "longTaskSumMs": 1381,
+          "frameGapMaxMs": 1368,
+          "heapDeltaMB": 48.6
+        },
+        {
+          "readyMs": 1998,
+          "genMs": 224,
+          "longTaskMaxMs": 1361,
+          "longTaskSumMs": 1432,
+          "frameGapMaxMs": 1351,
+          "heapDeltaMB": 48.6
+        }
+      ]
+    },
+    {
+      "foto": "1080x1920",
+      "reps": 3,
+      "readyMs": 694,
+      "genMs": 160,
+      "longTaskMaxMs": 381,
+      "longTaskSumMs": 381,
+      "frameGapMaxMs": 367,
+      "heapDeltaMB": 21.4,
+      "raw": [
+        {
+          "readyMs": 707,
+          "genMs": 173,
+          "longTaskMaxMs": 381,
+          "longTaskSumMs": 381,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 21.4
+        },
+        {
+          "readyMs": 685,
+          "genMs": 154,
+          "longTaskMaxMs": 376,
+          "longTaskSumMs": 376,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 21.4
+        },
+        {
+          "readyMs": 694,
+          "genMs": 160,
+          "longTaskMaxMs": 386,
+          "longTaskSumMs": 386,
+          "frameGapMaxMs": 367,
+          "heapDeltaMB": 21.4
+        }
+      ]
+    }
+  ]
+}
