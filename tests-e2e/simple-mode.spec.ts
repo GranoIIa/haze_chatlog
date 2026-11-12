@@ -43,6 +43,25 @@ test.describe('Modo Simples', () => {
     await expect(editorText(page)).toHaveValue(/sussurrando/);
   });
 
+  test('colar o chat do servidor cria os personagens sozinho; "Detectar" cobre texto digitado', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await abrir(page);
+    const painel = page.getByTestId('simple-panel');
+    const chat = page.getByTestId('simple-chat');
+    const texto = '[21:04:11] Ana Beatriz diz: Boa noite.\nCarlos Mendes diz (baixo): Psiu.';
+    await page.evaluate(async (t) => { await navigator.clipboard.writeText(t); }, texto);
+    await chat.focus();
+    await page.keyboard.press('Control+v');
+    await expect(painel.getByTestId('detect-note')).toContainText('Ana Beatriz');
+    await expect(painel.getByRole('button', { name: 'Ana Beatriz', exact: true })).toBeVisible();
+    await expect(painel.getByRole('button', { name: 'Carlos Mendes', exact: true })).toBeVisible();
+    await chat.fill(texto + '\nLia Souza diz: oi');
+    await painel.getByRole('button', { name: 'Detectar personagens' }).click();
+    await expect(painel.getByTestId('detect-note')).toContainText('Lia Souza');
+    await painel.getByRole('button', { name: 'Detectar personagens' }).click();
+    await expect(painel.getByTestId('detect-note')).toContainText('já estão');
+  });
+
   test('um visual liga câmera/luz/retoque de uma vez; "Original" desfaz', async ({ page }) => {
     await abrir(page);
     await setBackground(page, 400, 200, [120, 120, 120]);

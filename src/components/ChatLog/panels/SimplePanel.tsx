@@ -18,6 +18,9 @@ interface SimplePanelProps {
   characters: Character[];
   activeCharId: string | null;
   onActiveCharChange: (id: string) => void;
+  onDetect: () => void;
+  onPasteText: (pasted: string) => void;
+  detectNote: string;
 }
 
 const Step: React.FC<{ n: number; title: string; done?: boolean; children: React.ReactNode }> = ({ n, title, done, children }) => (
@@ -33,7 +36,7 @@ const Step: React.FC<{ n: number; title: string; done?: boolean; children: React
 /** Modo Simples: foto → chat → visual → exportar. O resto do editor fica no Modo Avançado. */
 export const SimplePanel: React.FC<SimplePanelProps> = ({
   hasPhoto, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy,
-  charactersCard, characters, activeCharId, onActiveCharChange
+  charactersCard, characters, activeCharId, onActiveCharChange, onDetect, onPasteText, detectNote
 }) => (
   <div className="space-y-4" data-testid="simple-panel">
     <Step n={1} title="Sua foto" done={hasPhoto}>
@@ -56,7 +59,16 @@ export const SimplePanel: React.FC<SimplePanelProps> = ({
         characters={characters}
         activeCharId={activeCharId}
         onActiveCharChange={onActiveCharChange}
+        onPasteText={onPasteText}
       />
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={onDetect}
+          title="Cria os personagens que aparecem como “Nome diz:” no texto"
+          className="px-2.5 py-1.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40">
+          Detectar personagens
+        </button>
+        <p role="status" data-testid="detect-note" className="text-[11px] text-haze-muted m-0">{detectNote}</p>
+      </div>
       <p className="text-xs text-haze-faint">Para mudar fonte, cores e posição do texto, use o Modo Avançado.</p>
     </Step>
 

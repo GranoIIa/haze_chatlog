@@ -4,6 +4,7 @@ import { CHAR_COLORS } from '../../utils/chatParser';
 import { renderChatText } from '../../utils/chatRenderer';
 import { SimplePanel } from './panels/SimplePanel';
 import { applyVisual, findVisual } from '../../utils/visualPresets';
+import { detectSpeakers, newCharactersFor } from '../../utils/chatDetect';
 import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
@@ -429,6 +430,18 @@ export const ChatLogView: React.FC = () => {
     const randomColor = CHAR_COLORS[characters.length % CHAR_COLORS.length];
     setCharacters([...characters, { id: Date.now().toString(), name: newCharName.trim(), color: randomColor }]);
     setNewCharName('');
+  };
+
+  /** Cria os personagens que falam no texto (ex.: chat colado do servidor) e avisa quais foram criados. */
+  const [detectNote, setDetectNote] = useState<string>('');
+  const adoptSpeakers = (text: string) => {
+    const fresh = newCharactersFor(text, characters);
+    if (fresh.length === 0) {
+      setDetectNote(detectSpeakers(text).length === 0 ? 'Nenhum "Nome diz:" encontrado no texto.' : 'Todos os personagens do texto já estão na lista.');
+      return;
+    }
+    setCharacters([...characters, ...fresh]);
+    setDetectNote(`${fresh.length} personagem(ns) criado(s): ${fresh.map(c => c.name).join(', ')}.`);
   };
 
   const removeCharacter = (id: string) => {
@@ -1660,6 +1673,9 @@ export const ChatLogView: React.FC = () => {
             characters={characters}
             activeCharId={activeCharId}
             onActiveCharChange={setActiveCharId}
+            onDetect={() => adoptSpeakers(rawText)}
+            onPasteText={adoptSpeakers}
+            detectNote={detectNote}
           />
         )}
 
