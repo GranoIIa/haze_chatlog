@@ -68,6 +68,7 @@ async function loadTestSuites() {
     await import('./tier5-editor/test_draw_state');
     await import('./tier5-editor/test_gif_frame');
     await import('./tier5-editor/test_gif_pipeline');
+    await import('./tier5-editor/test_visual_presets');
   }
 }
 

@@ -1,0 +1,94 @@
+import React from 'react';
+import { VISUAL_PRESETS } from '../../../utils/visualPresets';
+
+interface SimplePanelProps {
+  hasPhoto: boolean;
+  onPickPhoto: () => void;
+  text: string;
+  onText: (t: string) => void;
+  visualId: string | null;
+  onVisual: (id: string) => void;
+  onExport: () => void;
+  onExportChat: () => void;
+  onCopy: () => void;
+}
+
+const Step: React.FC<{ n: number; title: string; done?: boolean; children: React.ReactNode }> = ({ n, title, done, children }) => (
+  <section className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
+    <h3 className="m-0 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-haze-text">
+      <span aria-hidden className={`w-5 h-5 rounded-full grid place-items-center text-[11px] font-bold ${done ? 'bg-haze-accent-fill text-haze-on-accent' : 'bg-haze-raised text-haze-soft'}`}>{done ? '✓' : n}</span>
+      {title}
+    </h3>
+    {children}
+  </section>
+);
+
+/** Modo Simples: foto → chat → visual → exportar. O resto do editor fica no Modo Avançado. */
+export const SimplePanel: React.FC<SimplePanelProps> = ({
+  hasPhoto, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy
+}) => (
+  <div className="space-y-4" data-testid="simple-panel">
+    <Step n={1} title="Sua foto" done={hasPhoto}>
+      <button
+        type="button"
+        onClick={onPickPhoto}
+        className="w-full py-3 rounded-xl border-2 border-dashed border-haze-border-strong text-xs text-haze-soft hover:border-haze-accent/60 hover:text-haze-text transition-colors"
+      >
+        {hasPhoto ? 'Trocar a foto' : 'Escolher o print (ou arraste/cole com Ctrl+V)'}
+      </button>
+    </Step>
+
+    <Step n={2} title="Cole o chat do servidor" done={text.trim().length > 0}>
+      <textarea
+        data-testid="simple-chat"
+        aria-label="Chat do servidor"
+        value={text}
+        onChange={(e) => onText(e.target.value)}
+        rows={6}
+        placeholder={'Cole aqui o chat copiado do jogo.\nEx.: Mike Johnson diz: Boa noite, oficial.'}
+        className="w-full p-2.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text font-mono placeholder:text-haze-faint resize-y"
+      />
+      <p className="text-xs text-haze-faint">Para mudar fonte, cores ou personagens, use o Modo Avançado.</p>
+    </Step>
+
+    <Step n={3} title="Escolha um visual" done={!!visualId && visualId !== 'original'}>
+      <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Visual">
+        {VISUAL_PRESETS.map(v => (
+          <button
+            key={v.id}
+            type="button"
+            aria-pressed={visualId === v.id}
+            onClick={() => onVisual(v.id)}
+            title={v.hint}
+            className={`p-2 rounded-lg border text-left text-xs transition-colors ${
+              visualId === v.id ? 'bg-haze-accent/15 border-haze-accent/60 text-haze-accent' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
+            }`}
+          >
+            <div className="font-semibold">{v.label}</div>
+            <div className="text-[11px] text-haze-muted">{v.hint}</div>
+          </button>
+        ))}
+      </div>
+    </Step>
+
+    <Step n={4} title="Salvar">
+      <div className="grid grid-cols-1 gap-1.5">
+        <button type="button" onClick={onExport}
+          className="py-2 rounded-lg text-xs font-bold bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent">
+          Baixar imagem (PNG)
+        </button>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button type="button" onClick={onCopy}
+            className="py-2 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40">
+            Copiar imagem
+          </button>
+          <button type="button" onClick={onExportChat}
+            title="Só o texto, com fundo transparente, para editar no Photopea"
+            className="py-2 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40">
+            Só o chat (Photopea)
+          </button>
+        </div>
+      </div>
+    </Step>
+  </div>
+);

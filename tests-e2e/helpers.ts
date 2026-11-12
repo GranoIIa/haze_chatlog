@@ -56,15 +56,16 @@ export const readDownload = async (d: Download): Promise<Buffer> => {
 // ---------------------------------------------------------------- página
 
 /** Abre o app com armazenamento limpo (localStorage + IndexedDB). */
-export async function openFresh(page: Page) {
+export async function openFresh(page: Page, uiMode: 'simple' | 'advanced' = 'advanced') {
   await page.goto('/');
-  await page.evaluate(async () => {
+  await page.evaluate(async (m) => {
     localStorage.clear();
+    if (m === 'advanced') localStorage.setItem('haze-ui-mode-v1', 'advanced'); // os testes antigos usam o painel completo
     await new Promise<void>(r => {
       const q = indexedDB.deleteDatabase('haze-chatlog');
       q.onsuccess = q.onerror = q.onblocked = () => r();
     });
-  });
+  }, uiMode);
   await page.reload();
   await expect(page.getByTestId('preview-canvas')).toBeVisible();
 }

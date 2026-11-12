@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Character, ParsedLine } from '../../types';
 import { CHAR_COLORS } from '../../utils/chatParser';
 import { renderChatText } from '../../utils/chatRenderer';
+import { SimplePanel } from './panels/SimplePanel';
+import { applyVisual, findVisual } from '../../utils/visualPresets';
 import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
@@ -46,6 +48,15 @@ export const ChatLogView: React.FC = () => {
 
   // Modo de trabalho: foto individual ou lote (ZIP)
   const [mode, setMode] = useState<'single' | 'batch'>('single');
+  // Modo Simples (padrão: foto → chat → visual → salvar) ou Avançado (todas as seções)
+  const [uiMode, setUiModeState] = useState<'simple' | 'advanced'>(() => {
+    try { return localStorage.getItem('haze-ui-mode-v1') === 'advanced' ? 'advanced' : 'simple'; } catch (_) { return 'simple'; }
+  });
+  const setUiMode = (m: 'simple' | 'advanced') => {
+    setUiModeState(m);
+    try { localStorage.setItem('haze-ui-mode-v1', m); } catch (_) { /* sem armazenamento */ }
+  };
+  const [visualId, setVisualId] = useState<string | null>(null);
   const [batchFiles, setBatchFiles] = useState<File[]>([]);
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
@@ -1550,6 +1561,44 @@ export const ChatLogView: React.FC = () => {
       {/* Coluna da Esquerda: Controles (4 cols) */}
       <div className={focusMode ? 'hidden' : 'lg:col-span-4 xl:col-span-3 space-y-4 min-w-0'}>
 
+        {/* Modo Simples / Avançado */}
+        <div role="group" aria-label="Nível do editor" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-haze-panel border border-haze-border">
+          {([['simple', 'Simples'], ['advanced', 'Avançado']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={uiMode === key}
+              onClick={() => setUiMode(key)}
+              title={key === 'simple' ? 'Foto, chat e um visual: o essencial' : 'Todas as seções: câmera, luz, camadas, tipografia…'}
+              className={`py-2 rounded-lg text-xs font-semibold transition-colors ${
+                uiMode === key ? 'bg-haze-accent/15 text-haze-accent border border-haze-accent/40' : 'text-haze-muted hover:text-haze-text border border-transparent'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {uiMode === 'simple' && mode === 'single' && (
+          <SimplePanel
+            hasPhoto={!!imageSrc}
+            onPickPhoto={() => fileInputRef.current?.click()}
+            text={rawText}
+            onText={(t) => setRawText(t.slice(0, 200_000))}
+            visualId={visualId}
+            onVisual={(id) => {
+              const v = findVisual(id);
+              if (!v) return;
+              const next = applyVisual(v, { camera, lighting });
+              setCamera(next.camera); setLighting(next.lighting); setAdjustments(next.adjustments);
+              setVisualId(id);
+            }}
+            onExport={exportImage}
+            onExportChat={exportChatOnly}
+            onCopy={copyImage}
+          />
+        )}
+
         {/* Alternador de modo: Foto individual / Lote (ZIP) */}
         <div role="tablist" aria-label="Modo de trabalho" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-haze-panel border border-haze-border">
           {([['single', 'Foto individual'], ['batch', 'Lote (ZIP)']] as const).map(([key, label]) => (
@@ -1730,7 +1779,8 @@ export const ChatLogView: React.FC = () => {
           Restaurar configurações padrão
         </button>
 
-        {/* Seções do Editor RP (na ordem do fluxo de trabalho) */}
+        {/* Seções do Editor RP (na ordem do fluxo de trabalho); no Modo Simples ficam montadas, só escondidas */}
+        <div className={uiMode === 'simple' ? 'hidden' : 'space-y-4'} data-testid="advanced-sections">
         <div className="flex items-center justify-between text-xs text-haze-faint px-1">
           <span>Seções do editor</span>
           <span className="flex items-center gap-3">
@@ -2452,6 +2502,7 @@ export const ChatLogView: React.FC = () => {
         <EditorSection {...sectionProps('inspetor')} title="Inspetor de propriedades" badge={`${canvasLayers.length} elemento${canvasLayers.length === 1 ? '' : 's'}`}>
           <CanvasLayersSidebar part="inspector" {...sidebarProps} />
         </EditorSection>
+        </div>
 
       </div>
 
