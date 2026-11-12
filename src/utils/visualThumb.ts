@@ -3,7 +3,7 @@
  *
  * Fidelidade: usa a mesma sequência de desenho do preview (enquadramento → ajuste de cor → efeitos de filme →
  * iluminação → HUD da câmera), na mesma proporção do quadro de saída. Diferenças conhecidas e aceitas:
- * resolução reduzida (THUMB_W), HUD sem o nome do oficial e sem escurecimento/camadas/chat (não fazem parte do visual).
+ * resolução reduzida (THUMB_W), HUD sem o nome do oficial e sem camadas/chat (não fazem parte do visual).
  *
  * Desempenho: a foto original (até 4K) é reduzida UMA vez para uma base do tamanho da miniatura; cada visual parte
  * dessa base. A geração é incremental (uma miniatura por tarefa ociosa) e cancelável.
@@ -18,7 +18,7 @@ export const THUMB_W = 480;
 export const THUMB_MIN_H = 120;
 export const THUMB_MAX_H = 640;
 
-export interface ThumbFrame { w: number; h: number; fit: FitMode; panX: number; panY: number; zoom: number }
+export interface ThumbFrame { w: number; h: number; fit: FitMode; panX: number; panY: number; zoom: number; /** escurecimento da cena (0–1), igual ao do preview */ darkening: number }
 
 /** Tamanho da miniatura: largura fixa, altura na proporção do quadro de saída. */
 export const thumbSize = (frame: Pick<ThumbFrame, 'w' | 'h'>): { w: number; h: number } => {
@@ -28,7 +28,7 @@ export const thumbSize = (frame: Pick<ThumbFrame, 'w' | 'h'>): { w: number; h: n
 
 /** Identidade de um conjunto de miniaturas: foto + enquadramento. Mudou algo aqui, as miniaturas antigas não valem. */
 export const thumbKey = (src: string, f: ThumbFrame): string =>
-  `${src}|${f.w}x${f.h}|${f.fit}|${Math.round(f.panX * 10)}|${Math.round(f.panY * 10)}|${Math.round(f.zoom)}`;
+  `${src}|${f.w}x${f.h}|${f.fit}|${Math.round(f.panX * 10)}|${Math.round(f.panY * 10)}|${Math.round(f.zoom)}|${Math.round(f.darkening * 100)}`;
 
 // ---------------------------------------------------------------- cache LRU (só strings pequenas)
 
@@ -101,7 +101,7 @@ export function renderBase(img: HTMLImageElement, frame: ThumbFrame): HTMLCanvas
   return canvas;
 }
 
-export function renderVisualThumb(base: HTMLCanvasElement, v: VisualPreset): string {
+export function renderVisualThumb(base: HTMLCanvasElement, v: VisualPreset, darkening = 0): string {
   const { width: w, height: h } = base;
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -112,6 +112,7 @@ export function renderVisualThumb(base: HTMLCanvasElement, v: VisualPreset): str
   ctx.drawImage(base, 0, 0);
   applyPhotoAdjustments(ctx, w, h, s.adjustments);
   applyFilmEffects(ctx, w, h, s.camera.effects);
+  if (darkening > 0) { ctx.fillStyle = `rgba(0, 0, 0, ${darkening})`; ctx.fillRect(0, 0, w, h); } // mesma ordem do preview
   drawPhotographicLight(ctx, w, h, s.lighting);
   drawCameraOverlay(ctx, w, h, s.camera, '');
   const url = canvas.toDataURL('image/jpeg', 0.7);

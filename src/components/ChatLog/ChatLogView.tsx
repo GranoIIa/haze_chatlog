@@ -3,7 +3,7 @@ import { Character, ParsedLine } from '../../types';
 import { CHAR_COLORS } from '../../utils/chatParser';
 import { renderChatText } from '../../utils/chatRenderer';
 import { SimplePanel } from './panels/SimplePanel';
-import { applyVisual, findVisual } from '../../utils/visualPresets';
+import { applyVisual, findVisual, inferVisual } from '../../utils/visualPresets';
 import { useCharacterDetection } from './useCharacterDetection';
 import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
@@ -57,7 +57,6 @@ export const ChatLogView: React.FC = () => {
     setUiModeState(m);
     try { localStorage.setItem('haze-ui-mode-v1', m); } catch (_) { /* sem armazenamento */ }
   };
-  const [visualId, setVisualId] = useState<string | null>(null);
   const [batchFiles, setBatchFiles] = useState<File[]>([]);
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
@@ -1650,13 +1649,12 @@ export const ChatLogView: React.FC = () => {
             onPickPhoto={() => fileInputRef.current?.click()}
             text={rawText}
             onText={(t) => setRawText(t.slice(0, 200_000))}
-            visualId={visualId}
+            visualId={inferVisual({ camera, lighting, adjustments })?.id ?? null}
             onVisual={(id) => {
               const v = findVisual(id);
               if (!v) return;
               const next = applyVisual(v, { camera, lighting });
               setCamera(next.camera); setLighting(next.lighting); setAdjustments(next.adjustments);
-              setVisualId(id);
             }}
             onExport={exportImage}
             onExportChat={exportChatOnly}
@@ -1666,7 +1664,7 @@ export const ChatLogView: React.FC = () => {
             activeCharId={activeCharId}
             onActiveCharChange={setActiveCharId}
             detection={detection}
-            frame={{ w: canvasDims.width, h: canvasDims.height, fit: fitMode, panX, panY, zoom }}
+            frame={{ w: canvasDims.width, h: canvasDims.height, fit: fitMode, panX, panY, zoom, darkening }}
           />
         )}
 

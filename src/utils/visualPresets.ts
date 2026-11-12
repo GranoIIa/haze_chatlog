@@ -41,3 +41,20 @@ export const applyVisual = (
     adjustments: { ...DEFAULT_ADJUSTMENTS, ...v.adjustments }
   };
 };
+
+/**
+ * Qual visual está ativo agora? É o preset cujo resultado coincide exatamente com a câmera, luz e retoque atuais
+ * (`null` = combinação personalizada). Deriva do estado: vale ao abrir projeto, desfazer ou editar no Modo Avançado.
+ */
+export const inferVisual = (cur: { camera: CameraState; lighting: Lighting; adjustments: PhotoAdjustments }): VisualPreset | null => {
+  for (const v of VISUAL_PRESETS) {
+    const r = applyVisual(v, { camera: cur.camera, lighting: cur.lighting });
+    if (
+      r.camera.preset === cur.camera.preset &&
+      JSON.stringify(r.camera.effects) === JSON.stringify(cur.camera.effects) &&
+      JSON.stringify(r.lighting) === JSON.stringify(cur.lighting) &&
+      JSON.stringify(r.adjustments) === JSON.stringify(cur.adjustments)
+    ) return v;
+  }
+  return null;
+};

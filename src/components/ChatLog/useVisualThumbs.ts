@@ -40,7 +40,7 @@ export function useVisualThumbs(src: string | null, frame: ThumbFrame): { thumbs
       const acc: Thumbs = {};
       runThumbJob({
         ids: VISUAL_PRESETS.map(v => v.id),
-        render: (id) => renderVisualThumb(base, VISUAL_PRESETS.find(v => v.id === id)!),
+        render: (id) => renderVisualThumb(base, VISUAL_PRESETS.find(v => v.id === id)!, frame.darkening),
         isStale: () => stale,
         onThumb: (id, url) => { acc[id] = url; setState({ key, thumbs: { ...acc }, status: 'loading' }); }
       }).then(r => {

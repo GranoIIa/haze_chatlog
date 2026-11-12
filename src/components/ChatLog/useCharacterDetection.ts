@@ -65,6 +65,7 @@ export function useCharacterDetection(characters: Character[], setCharacters: (c
     if (!item) return;
     const added = makeCharacters([item.draft], characters);
     if (added.length) setCharacters([...characters, ...added]);
+    ignored.current.add(key); // o nome original (antes da correção) está resolvido: não perguntar de novo
     setPending(p => p.filter(x => nameKey(x.name) !== key));
     setNote(added.length ? `“${added[0].name}” adicionado.` : 'Esse nome já está na lista.');
   };
@@ -77,6 +78,7 @@ export function useCharacterDetection(characters: Character[], setCharacters: (c
   const acceptAll = () => {
     const added = makeCharacters(pending.map(p => p.draft), characters);
     if (added.length) setCharacters([...characters, ...added]);
+    pending.forEach(p => ignored.current.add(nameKey(p.name)));
     setPending([]);
     setNote(`${added.length} personagem(ns) adicionado(s).`);
   };

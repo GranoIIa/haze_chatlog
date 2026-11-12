@@ -4,7 +4,7 @@
 import { describe, test, assert, assertEqual } from '../harness/testRunner';
 import { ThumbCache, runThumbJob, thumbKey, thumbSize, THUMB_W, THUMB_MIN_H, THUMB_MAX_H, type ThumbFrame } from '../../src/utils/visualThumb';
 
-const frame: ThumbFrame = { w: 1920, h: 1080, fit: 'cover', panX: 0, panY: 0, zoom: 100 };
+const frame: ThumbFrame = { w: 1920, h: 1080, fit: 'cover', panX: 0, panY: 0, zoom: 100, darkening: 0.15 };
 const now = (fn: () => void) => fn();
 
 describe('Tier 5: geometria e identidade das miniaturas', () => {
@@ -23,6 +23,7 @@ describe('Tier 5: geometria e identidade das miniaturas', () => {
     assert(thumbKey('blob:a', { ...frame, w: 1280, h: 720 }) !== k, 'saída');
     assert(thumbKey('blob:a', { ...frame, zoom: 120 }) !== k, 'zoom');
     assert(thumbKey('blob:a', { ...frame, panX: 5 }) !== k, 'pan');
+    assert(thumbKey('blob:a', { ...frame, darkening: 0.4 }) !== k, 'escurecimento');
   });
 });
 

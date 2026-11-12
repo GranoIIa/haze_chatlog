@@ -2,7 +2,7 @@
  * Tier 5: "Visuais" do Modo Simples (combinam câmera, iluminação e retoque já existentes)
  */
 import { describe, test, assert, assertEqual } from '../harness/testRunner';
-import { VISUAL_PRESETS, applyVisual, findVisual } from '../../src/utils/visualPresets';
+import { VISUAL_PRESETS, applyVisual, findVisual, inferVisual } from '../../src/utils/visualPresets';
 import { DEFAULT_CAMERA, CAMERA_PRESET_EFFECTS } from '../../src/utils/cameraFx';
 import { DEFAULT_LIGHTING, LIGHTING_PRESETS } from '../../src/utils/lighting';
 import { DEFAULT_ADJUSTMENTS } from '../../src/utils/photoFilters';
@@ -54,5 +54,15 @@ describe('Tier 5: Visuais (Modo Simples)', () => {
     const b = applyVisual(findVisual('crime')!, { camera: a.camera, lighting: a.lighting });
     assertEqual(b.adjustments.colorPreset, 'grit-crime');
     assertEqual(b.adjustments.grain, 0);
+  });
+
+  test('T5_VIS_06_InferVisual: o visual ativo é derivado do estado (abrir projeto, desfazer, edição manual)', () => {
+    const base = { camera: cur.camera, lighting: cur.lighting, adjustments: DEFAULT_ADJUSTMENTS };
+    assertEqual(inferVisual(base)?.id, 'original');
+    for (const v of VISUAL_PRESETS) assertEqual(inferVisual(applyVisual(v, cur))?.id, v.id, v.id);
+    // ajuste manual depois do visual → personalizado (nenhum botão marcado)
+    const crime = applyVisual(findVisual('crime')!, cur);
+    assertEqual(inferVisual({ ...crime, adjustments: { ...crime.adjustments, vignette: 31 } }), null);
+    assertEqual(inferVisual({ ...crime, lighting: { ...crime.lighting, enabled: true } }), null);
   });
 });
