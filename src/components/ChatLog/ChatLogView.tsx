@@ -4,7 +4,7 @@ import { CHAR_COLORS } from '../../utils/chatParser';
 import { renderChatText } from '../../utils/chatRenderer';
 import { SimplePanel } from './panels/SimplePanel';
 import { applyVisual, findVisual } from '../../utils/visualPresets';
-import { detectSpeakers, newCharactersFor } from '../../utils/chatDetect';
+import { useCharacterDetection } from './useCharacterDetection';
 import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
@@ -432,17 +432,8 @@ export const ChatLogView: React.FC = () => {
     setNewCharName('');
   };
 
-  /** Cria os personagens que falam no texto (ex.: chat colado do servidor) e avisa quais foram criados. */
-  const [detectNote, setDetectNote] = useState<string>('');
-  const adoptSpeakers = (text: string) => {
-    const fresh = newCharactersFor(text, characters);
-    if (fresh.length === 0) {
-      setDetectNote(detectSpeakers(text).length === 0 ? 'Nenhum "Nome diz:" encontrado no texto.' : 'Todos os personagens do texto já estão na lista.');
-      return;
-    }
-    setCharacters([...characters, ...fresh]);
-    setDetectNote(`${fresh.length} personagem(ns) criado(s): ${fresh.map(c => c.name).join(', ')}.`);
-  };
+  /** Detecção de personagens do Modo Simples (automática para nomes inequívocos, revisão para os ambíguos). */
+  const detection = useCharacterDetection(characters, setCharacters);
 
   const removeCharacter = (id: string) => {
     setCharacters(characters.filter(c => c.id !== id));
@@ -1674,9 +1665,8 @@ export const ChatLogView: React.FC = () => {
             characters={characters}
             activeCharId={activeCharId}
             onActiveCharChange={setActiveCharId}
-            onDetect={() => adoptSpeakers(rawText)}
-            onPasteText={adoptSpeakers}
-            detectNote={detectNote}
+            detection={detection}
+            frame={{ w: canvasDims.width, h: canvasDims.height, fit: fitMode, panX, panY, zoom }}
           />
         )}
 

@@ -70,6 +70,7 @@ async function loadTestSuites() {
     await import('./tier5-editor/test_gif_pipeline');
     await import('./tier5-editor/test_visual_presets');
     await import('./tier5-editor/test_chat_detect');
+    await import('./tier5-editor/test_visual_thumb');
   }
 }
 
