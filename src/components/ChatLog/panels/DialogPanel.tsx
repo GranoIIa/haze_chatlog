@@ -17,6 +17,8 @@ interface DialogPanelProps {
   showCharacters?: boolean;
   /** data-testid do cartão (testes de ponta a ponta). */
   testId?: string;
+  /** data-testid do campo de texto. */
+  textareaTestId?: string;
 }
 
 const TONES: Array<[string, string, string, string]> = [
@@ -30,7 +32,7 @@ const TONES: Array<[string, string, string, string]> = [
 
 /** Editor do chat: texto, tom de voz, marcadores de ação e censura. Usado no Editor RP e no GIF Lab. */
 export const DialogPanel: React.FC<DialogPanelProps> = ({
-  value, onChange, characters, activeCharId, onActiveCharChange, textareaRef, showCharacters, testId
+  value, onChange, characters, activeCharId, onActiveCharChange, textareaRef, showCharacters, testId, textareaTestId
 }) => {
   const innerRef = useRef<HTMLTextAreaElement | null>(null);
   const ref = textareaRef ?? innerRef;
@@ -80,6 +82,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
 
       <textarea
         ref={ref}
+        data-testid={textareaTestId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={6}

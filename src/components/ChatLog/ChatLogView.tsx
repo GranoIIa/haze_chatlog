@@ -1525,6 +1525,66 @@ export const ChatLogView: React.FC = () => {
     setOpenSections(Object.fromEntries(SECTION_IDS.map(id => [id, open])));
   const sectionProps = (id: SectionId) => ({ id, open: !!openSections[id], onToggle: toggleSection });
 
+  /** Cartão de personagens: usado na seção do Modo Avançado e no passo 2 do Modo Simples. */
+  const charactersCard = (
+    <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
+          <Layers className="w-3.5 h-3.5" /> Personagens da Cena
+        </span>
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={newCharName}
+          onChange={(e) => setNewCharName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addCharacter()}
+          placeholder="Nome do personagem..."
+          aria-label="Nome do personagem"
+          className="flex-1 px-3 py-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text focus:outline-none focus:border-haze-accent"
+        />
+        <button
+          onClick={addCharacter}
+          className="px-3 py-1.5 rounded-lg bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent font-bold text-xs flex items-center gap-1 transition-all"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {characters.map((char) => (
+          <div
+            key={char.id}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all"
+            style={{
+              borderColor: char.id === activeChar?.id ? char.color : `${char.color}40`,
+              backgroundColor: `${char.color}${char.id === activeChar?.id ? '30' : '15'}`,
+              color: char.color,
+              boxShadow: char.id === activeChar?.id ? `0 0 0 1px ${char.color}` : undefined
+            }}
+          >
+            <button
+              onClick={() => insertCharSpeech(char.name)}
+              aria-pressed={char.id === activeChar?.id}
+              className="font-medium hover:underline text-xs"
+              title="Define como personagem ativo e insere a fala"
+            >
+              {char.name}
+            </button>
+            <button
+              onClick={() => removeCharacter(char.id)}
+              aria-label={`Remover ${char.name}`}
+              className="opacity-60 hover:opacity-100 hover:text-red-400 ml-1"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const sidebarProps = {
     layers: canvasLayers,
     setLayers: setCanvasLayers,
@@ -1596,6 +1656,10 @@ export const ChatLogView: React.FC = () => {
             onExport={exportImage}
             onExportChat={exportChatOnly}
             onCopy={copyImage}
+            charactersCard={charactersCard}
+            characters={characters}
+            activeCharId={activeCharId}
+            onActiveCharChange={setActiveCharId}
           />
         )}
 
@@ -1961,60 +2025,7 @@ export const ChatLogView: React.FC = () => {
         </EditorSection>
 
         <EditorSection {...sectionProps('personagens')} title="Personagens da cena" badge={`${characters.length}`}>
-        <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="section-title text-xs font-semibold uppercase tracking-wider text-haze-text flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" /> Personagens da Cena
-            </span>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newCharName}
-              onChange={(e) => setNewCharName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCharacter()}
-              placeholder="Nome do personagem..."
-              className="flex-1 px-3 py-1.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text focus:outline-none focus:border-haze-accent"
-            />
-            <button
-              onClick={addCharacter}
-              className="px-3 py-1.5 rounded-lg bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent font-bold text-xs flex items-center gap-1 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {characters.map((char) => (
-              <div
-                key={char.id}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all"
-                style={{
-                  borderColor: char.id === activeChar?.id ? char.color : `${char.color}40`,
-                  backgroundColor: `${char.color}${char.id === activeChar?.id ? '30' : '15'}`,
-                  color: char.color,
-                  boxShadow: char.id === activeChar?.id ? `0 0 0 1px ${char.color}` : undefined
-                }}
-              >
-                <button
-                  onClick={() => insertCharSpeech(char.name)}
-                  aria-pressed={char.id === activeChar?.id}
-                  className="font-medium hover:underline text-xs"
-                  title="Define como personagem ativo e insere a fala"
-                >
-                  {char.name}
-                </button>
-                <button
-                  onClick={() => removeCharacter(char.id)}
-                  className="opacity-60 hover:opacity-100 hover:text-red-400 ml-1"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        {charactersCard}
         </EditorSection>
 
         <EditorSection {...sectionProps('dialogos')} title="Diálogos e ações">

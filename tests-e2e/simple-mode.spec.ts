@@ -26,6 +26,23 @@ test.describe('Modo Simples', () => {
     await expect(page.getByTestId('advanced-sections')).toBeVisible();
   });
 
+  test('personagens, tons de voz e ações funcionam no passo 2 do Modo Simples', async ({ page }) => {
+    await abrir(page);
+    const painel = page.getByTestId('simple-panel');
+    await painel.getByLabel('Nome do personagem').fill('Rick Santos');
+    await painel.getByRole('button', { name: 'Add' }).click();
+    await painel.getByRole('button', { name: 'Rick Santos', exact: true }).click();
+    const chat = page.getByTestId('simple-chat');
+    await expect(chat).toHaveValue(/Rick Santos/);
+    await painel.getByRole('button', { name: 'Sussurro' }).click();
+    await expect(chat).toHaveValue(/sussurrando/);
+    await painel.getByRole('button', { name: '* /me' }).click();
+    await expect(chat).toHaveValue(/\* Rick Santos/);
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Avançado' }).click();
+    await expect(editorText(page)).toHaveValue(/sussurrando/);
+  });
+
   test('um visual liga câmera/luz/retoque de uma vez; "Original" desfaz', async ({ page }) => {
     await abrir(page);
     await setBackground(page, 400, 200, [120, 120, 120]);

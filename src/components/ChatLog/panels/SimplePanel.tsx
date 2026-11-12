@@ -1,5 +1,7 @@
 import React from 'react';
 import { VISUAL_PRESETS } from '../../../utils/visualPresets';
+import { DialogPanel } from './DialogPanel';
+import type { Character } from '../../../types';
 
 interface SimplePanelProps {
   hasPhoto: boolean;
@@ -11,6 +13,11 @@ interface SimplePanelProps {
   onExport: () => void;
   onExportChat: () => void;
   onCopy: () => void;
+  /** Cartão de personagens (mesmo do Modo Avançado). */
+  charactersCard: React.ReactNode;
+  characters: Character[];
+  activeCharId: string | null;
+  onActiveCharChange: (id: string) => void;
 }
 
 const Step: React.FC<{ n: number; title: string; done?: boolean; children: React.ReactNode }> = ({ n, title, done, children }) => (
@@ -25,7 +32,8 @@ const Step: React.FC<{ n: number; title: string; done?: boolean; children: React
 
 /** Modo Simples: foto → chat → visual → exportar. O resto do editor fica no Modo Avançado. */
 export const SimplePanel: React.FC<SimplePanelProps> = ({
-  hasPhoto, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy
+  hasPhoto, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy,
+  charactersCard, characters, activeCharId, onActiveCharChange
 }) => (
   <div className="space-y-4" data-testid="simple-panel">
     <Step n={1} title="Sua foto" done={hasPhoto}>
@@ -39,16 +47,17 @@ export const SimplePanel: React.FC<SimplePanelProps> = ({
     </Step>
 
     <Step n={2} title="Cole o chat do servidor" done={text.trim().length > 0}>
-      <textarea
-        data-testid="simple-chat"
-        aria-label="Chat do servidor"
+      {charactersCard}
+      <DialogPanel
+        testId="simple-dialog"
+        textareaTestId="simple-chat"
         value={text}
-        onChange={(e) => onText(e.target.value)}
-        rows={6}
-        placeholder={'Cole aqui o chat copiado do jogo.\nEx.: Mike Johnson diz: Boa noite, oficial.'}
-        className="w-full p-2.5 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text font-mono placeholder:text-haze-faint resize-y"
+        onChange={onText}
+        characters={characters}
+        activeCharId={activeCharId}
+        onActiveCharChange={onActiveCharChange}
       />
-      <p className="text-xs text-haze-faint">Para mudar fonte, cores ou personagens, use o Modo Avançado.</p>
+      <p className="text-xs text-haze-faint">Para mudar fonte, cores e posição do texto, use o Modo Avançado.</p>
     </Step>
 
     <Step n={3} title="Escolha um visual" done={!!visualId && visualId !== 'original'}>
