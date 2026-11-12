@@ -1120,6 +1120,34 @@ export const ChatLogView: React.FC = () => {
     }
   };
 
+  // Só o chat: PNG transparente no tamanho da cena (2×), para levar ao Photopea e outros editores.
+  // Mantém o tamanho da cena de propósito: ao colocar sobre a foto original, o texto cai exatamente onde está no preview.
+  const exportChatOnly = async () => {
+    try {
+      const scale = 2;
+      const cv = document.createElement('canvas');
+      cv.width = canvasDims.width * scale;
+      cv.height = canvasDims.height * scale;
+      const ctx = cv.getContext('2d');
+      if (!ctx) throw new Error('Canvas indisponível');
+      renderChatText(ctx, cv.width, cv.height, scale, {
+        rawText, characters, fontSize, fontFamily, lineHeightFactor, strokeEnabled, strokeWidth,
+        strokeColor, bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled, censorStyle,
+        showTimestamps, chatPos
+      });
+      const blob: Blob = await new Promise((res, rej) => cv.toBlob(b => (b ? res(b) : rej(new Error('Falha ao gerar a imagem'))), 'image/png'));
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `haze-chat-transparente-${Date.now()}.png`;
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      showNotice('Chat exportado com fundo transparente.');
+    } catch (err) {
+      showNotice(err instanceof Error ? err.message : 'Não foi possível exportar o chat.', 'error');
+    }
+  };
+
   // Aviso curto (toast) para feedback de ações
   const [notice, setNotice] = useState<{ text: string; kind: 'ok' | 'error' } | null>(null);
   const noticeTimer = useRef<number | undefined>(undefined);
@@ -2492,6 +2520,13 @@ export const ChatLogView: React.FC = () => {
               className="px-3 py-1.5 rounded-lg bg-haze-raised hover:bg-haze-raised-hover text-haze-soft text-xs transition-colors"
             >
               ⧉ Copiar imagem
+            </button>
+            <button
+              onClick={exportChatOnly}
+              title="Baixa só o texto do chat, com fundo transparente e no tamanho da cena (para editar no Photopea)"
+              className="px-3 py-1.5 rounded-lg bg-haze-raised hover:bg-haze-raised-hover text-haze-soft text-xs transition-colors"
+            >
+              Só o chat (PNG)
             </button>
             <button
               onClick={exportImage}

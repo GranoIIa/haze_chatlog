@@ -485,3 +485,36 @@ test.describe('Adaptação da foto (Cover / Contain / Desfoque / Esticar)', () =
     await expect(modo(page, 'Contain + desfoque')).toHaveAttribute('aria-pressed', 'true');
   });
 });
+
+test.describe('Exportar só o chat (PNG transparente)', () => {
+  test('o PNG tem fundo transparente, o tamanho da cena em 2× e nenhum pixel da foto', async ({ page }) => {
+    await openFresh(page);
+    await setBackground(page, 600, 300, [220, 30, 30]); // foto vermelha
+    await editorText(page).fill('Mike Johnson diz (normal): texto para o Photopea');
+    await page.waitForTimeout(400);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Só o chat (PNG)' }).click()
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^haze-chat-transparente-\d+\.png$/);
+    const png = await readDownload(download);
+    expect(pngSize(png)).toEqual({ w: 1200, h: 600 });
+    const r = await page.evaluate(async (b64) => {
+      const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+      const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+      const x = c.getContext('2d')!; x.drawImage(bmp, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height).data;
+      let transparent = 0, opaque = 0, red = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] === 0) transparent++; else if (d[i + 3] > 200) opaque++;
+        if (d[i + 3] > 200 && d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) red++;
+      }
+      return { transparent, opaque, red, total: d.length / 4, corner: d[3], bottom: d[d.length - 1] };
+    }, png.toString('base64'));
+    expect(r.corner).toBe(0);
+    expect(r.bottom).toBe(0);
+    expect(r.transparent).toBeGreaterThan(r.total * 0.5); // a maior parte é transparente
+    expect(r.opaque).toBeGreaterThan(500);                // o texto está lá
+    expect(r.red).toBe(0);                                // a foto não vai junto
+  });
+});
