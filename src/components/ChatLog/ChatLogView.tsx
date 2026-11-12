@@ -1655,6 +1655,7 @@ export const ChatLogView: React.FC = () => {
         {uiMode === 'simple' && mode === 'single' && (
           <SimplePanel
             hasPhoto={!!imageSrc}
+            photoSrc={imageSrc}
             onPickPhoto={() => fileInputRef.current?.click()}
             text={rawText}
             onText={(t) => setRawText(t.slice(0, 200_000))}

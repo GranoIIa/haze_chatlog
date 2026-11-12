@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { VISUAL_PRESETS } from '../../../utils/visualPresets';
+import { renderVisualThumb } from '../../../utils/visualThumb';
 import { DialogPanel } from './DialogPanel';
 import type { Character } from '../../../types';
 
 interface SimplePanelProps {
   hasPhoto: boolean;
+  /** URL da foto (para as miniaturas dos visuais). */
+  photoSrc: string | null;
   onPickPhoto: () => void;
   text: string;
   onText: (t: string) => void;
@@ -33,11 +36,35 @@ const Step: React.FC<{ n: number; title: string; done?: boolean; children: React
   </section>
 );
 
+/** Miniaturas dos visuais aplicados à foto do jogador (vazio sem foto ou se a imagem falhar). */
+const useVisualThumbs = (photoSrc: string | null): Record<string, string> => {
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setThumbs({});
+    if (!photoSrc) return;
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const next: Record<string, string> = {};
+        for (const v of VISUAL_PRESETS) next[v.id] = renderVisualThumb(img, v);
+        setThumbs(next);
+      } catch { /* sem miniaturas: os botões continuam funcionando só com texto */ }
+    };
+    img.src = photoSrc;
+    return () => { cancelled = true; };
+  }, [photoSrc]);
+  return thumbs;
+};
+
 /** Modo Simples: foto → chat → visual → exportar. O resto do editor fica no Modo Avançado. */
 export const SimplePanel: React.FC<SimplePanelProps> = ({
-  hasPhoto, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy,
+  hasPhoto, photoSrc, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy,
   charactersCard, characters, activeCharId, onActiveCharChange, onDetect, onPasteText, detectNote
-}) => (
+}) => {
+  const thumbs = useVisualThumbs(photoSrc);
+  return (
   <div className="space-y-4" data-testid="simple-panel">
     <Step n={1} title="Sua foto" done={hasPhoto}>
       <button
@@ -85,6 +112,9 @@ export const SimplePanel: React.FC<SimplePanelProps> = ({
               visualId === v.id ? 'bg-haze-accent/15 border-haze-accent/60 text-haze-accent' : 'border-haze-border text-haze-soft hover:border-haze-accent/30'
             }`}
           >
+            {thumbs[v.id] && (
+              <img src={thumbs[v.id]} alt="" data-testid={`visual-thumb-${v.id}`} className="w-full aspect-video object-cover rounded-md mb-1.5" />
+            )}
             <div className="font-semibold">{v.label}</div>
             <div className="text-[11px] text-haze-muted">{v.hint}</div>
           </button>
@@ -112,4 +142,5 @@ export const SimplePanel: React.FC<SimplePanelProps> = ({
       </div>
     </Step>
   </div>
-);
+  );
+};

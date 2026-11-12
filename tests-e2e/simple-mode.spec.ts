@@ -62,6 +62,18 @@ test.describe('Modo Simples', () => {
     await expect(painel.getByTestId('detect-note')).toContainText('já estão');
   });
 
+  test('os visuais mostram miniatura da foto do jogador, cada uma diferente', async ({ page }) => {
+    await abrir(page);
+    await expect(page.getByTestId('visual-thumb-original')).toHaveCount(0); // sem foto, sem miniaturas
+    await setBackground(page, 400, 200, [120, 140, 160]);
+    const orig = page.getByTestId('visual-thumb-original');
+    await expect(orig).toBeVisible();
+    await expect(page.locator('[data-testid^="visual-thumb-"]')).toHaveCount(8);
+    const src = (id: string) => page.getByTestId(`visual-thumb-${id}`).getAttribute('src');
+    const [o, n, c] = [await src('original'), await src('neon'), await src('crime')];
+    expect(new Set([o, n, c]).size).toBe(3);
+  });
+
   test('um visual liga câmera/luz/retoque de uma vez; "Original" desfaz', async ({ page }) => {
     await abrir(page);
     await setBackground(page, 400, 200, [120, 120, 120]);
