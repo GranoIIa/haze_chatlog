@@ -30,7 +30,7 @@ export class FramePlayer {
   private epoch = 0;
 
   /** Se o instante pedido passar disto além do quadro seguinte, reabre o iterador (salto/seek). */
-  private static readonly JUMP = 0.35;
+  private static readonly JUMP = 1.5;
   /** Número máximo de quadros a decodificar sequencialmente em um tick antes de forçar re-seek direto. */
   private static readonly MAX_CATCHUP_FRAMES = 8;
 
