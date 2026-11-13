@@ -57,12 +57,12 @@ test('durante a reprodução a imagem corresponde ao clipe do instante (sem cong
   console.log('SYNC', JSON.stringify(rows.filter((_, i) => i % 4 === 0)));
   // o playhead andou e passou da emenda (12 s)
   expect(rows[rows.length - 1].t).toBeGreaterThan(12.5);
-  // antes da emenda (com folga de 0,5 s) mostra A; depois dela (folga de 1,0 s para decode inicial assíncrono de GOP longo), B
+  // antes da emenda (com folga de 0,4 s) mostra A; depois dela, B
   for (const r of rows) {
-    if (r.t < 11.5) expect(r.who, `t=${r.t}`).toBe('A');
-    if (r.t > 13.0) expect(r.who, `t=${r.t}`).toBe('B');
+    if (r.t < 11.6) expect(r.who, `t=${r.t}`).toBe('A');
+    if (r.t > 12.4) expect(r.who, `t=${r.t}`).toBe('B');
   }
-  expect(sigs.size).toBeGreaterThanOrEqual(4);
+  expect(sigs.size).toBeGreaterThan(5);
 });
 
 test('tocar a partir do meio, pausar e retomar continua de onde parou', async ({ page }) => {

@@ -318,6 +318,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       const activeKeys = new Set<string>();
       for (const L of activeL) activeKeys.add('m' + L.clip.id);
       for (const A of activeC) activeKeys.add('l' + A.layer.id);
+      const nextPlaced = placed.find(p => p.start > now && p.start - now <= 3.0);
+      if (nextPlaced) activeKeys.add('m' + nextPlaced.clip.id);
       fp.prune(activeKeys);
 
       // Decodificação paralela de camadas principais e PiP
@@ -327,6 +329,17 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       ]);
 
       if (!alive) return;
+      // Se durante a decodificação o playhead cruzou para outro clipe principal, descarta o quadro obsoleto
+      // e desenha imediatamente o quadro em cache do novo clipe se disponível.
+      const currentNow = pa.time();
+      const currentActive = activeLayers(tl, currentNow);
+      if (currentActive.length > 0 && activeL.length > 0 && currentActive[0].clip.id !== activeL[0].clip.id) {
+        const peeked = fp.peek('m' + currentActive[0].clip.id);
+        if (peeked) {
+          composeFrame(ctx, cv.width, cv.height, [peeked], tl, currentNow, new Map());
+        }
+        return render(currentNow);
+      }
       const lf = new Map<string, Drawable | null>(layerEntries);
       composeFrame(ctx, cv.width, cv.height, main, tl, now, lf);
     };
@@ -344,6 +357,14 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       }
       setT(now);
       setAudioStatus(`ativo · ${pa.scheduled} trechos`);
+
+      // Pré-aquecimento contínuo no tick: não bloqueado pelo busy do render
+      const nextPlaced = placed.find(p => p.start > now && p.start - now <= 3.0);
+      if (nextPlaced) {
+        const nextMedia = mediaRef.current.get(nextPlaced.clip.mediaId);
+        fp.prefetch('m' + nextPlaced.clip.id, nextMedia?.video, nextPlaced.clip.inPoint);
+      }
+
       if (!busy) {
         busy = true;
         render(now)
