@@ -74,6 +74,7 @@ async function loadTestSuites() {
 
   if (shouldLoadTier(6)) {
     await import('./tier6-video/test_video_timeline');
+    await import('./tier6-video/test_video_limits');
   }
 }
 

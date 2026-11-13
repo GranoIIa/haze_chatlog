@@ -11,6 +11,7 @@ import type { OutputFormat, VideoCodec, AudioCodec } from 'mediabunny';
 import { composeFrame, Drawable } from './compositor';
 import { layout, totalDuration, validate, Timeline, MediaRef } from './timeline';
 import type { OpenedMedia } from './mediaIO';
+import { checkExportLimits } from './limits';
 
 export class ExportCancelled extends Error {
   constructor() { super('Exportação cancelada.'); this.name = 'ExportCancelled'; }
@@ -122,6 +123,8 @@ export async function exportTimeline(
   if (problems.length) throw new ExportError(`Projeto inválido: ${problems[0]}`);
 
   const total = totalDuration(tl);
+  const tooBig = checkExportLimits(total);
+  if (tooBig) throw new ExportError(tooBig);
   const frames = Math.max(1, Math.ceil(total * fps - 1e-6));
   const placed = layout(tl);
   const needAudio = placed.some(p => opened.get(p.clip.mediaId)?.audio);

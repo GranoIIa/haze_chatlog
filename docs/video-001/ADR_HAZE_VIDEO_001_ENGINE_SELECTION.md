@@ -1,6 +1,6 @@
 # ADR HAZE-VIDEO-001: Seleção do motor do Video Studio
 
-**Status:** PROPOSTO (aguarda aprovação do responsável). **Data:** 2026-11-12.
+**Status:** APROVADO pelo responsável em 2026-11-12 (Alternativa A + fase F0 antes da F1). Reversão sujeita ao critério no fim.
 
 ## Contexto
 O Haze precisa de um editor de vídeo local (importar, cortar, dividir, reorganizar, áudio, chat sincronizado, exportar MP4) que reaproveite o Canvas e o chat do Editor RP. O projeto é React 18 + Tailwind, sem store global, com 4 dependências de runtime. Ver pesquisa e matriz em `OPEN_SOURCE_RESEARCH.md`.

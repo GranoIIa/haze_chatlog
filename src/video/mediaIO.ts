@@ -4,6 +4,7 @@
  */
 import { Input, BlobSource, ALL_FORMATS, CanvasSink, AudioBufferSink } from 'mediabunny';
 import type { MediaRef } from './timeline';
+import { checkImportLimits } from './limits';
 
 export class MediaError extends Error {
   constructor(message: string) { super(message); this.name = 'MediaError'; }
@@ -21,6 +22,8 @@ export interface OpenedMedia {
 }
 
 export async function openMedia(file: File, id: string): Promise<OpenedMedia> {
+  const early = checkImportLimits(file.name, file.size);
+  if (early) throw new MediaError(early);
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   try {
     const vt = await input.getPrimaryVideoTrack();
@@ -31,6 +34,8 @@ export async function openMedia(file: File, id: string): Promise<OpenedMedia> {
     }
     const duration = await input.computeDuration();
     if (!(duration > 0)) throw new MediaError(`"${file.name}" parece vazio ou corrompido (duração zero).`);
+    const late = checkImportLimits(file.name, file.size, duration);
+    if (late) throw new MediaError(late);
     const hasAudio = !!at && (await at.canDecode());
     return {
       ref: { id, name: file.name, duration, width: vt.displayWidth, height: vt.displayHeight, hasAudio },
