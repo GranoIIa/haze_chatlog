@@ -18,7 +18,7 @@ export const loadSaved = (): Record<string, any> => {
 export type FitMode = 'cover' | 'contain' | 'blur' | 'stretch';
 export const FIT_MODES: ReadonlyArray<FitMode> = ['cover', 'contain', 'blur', 'stretch'];
 export const isFitMode = (v: unknown): v is FitMode => FIT_MODES.includes(v as FitMode);
-export type MouseTool = 'chat' | 'photo' | 'layer' | 'light';
+export type MouseTool = 'chat' | 'photo' | 'layer' | 'light' | 'censor';
 
 // Posição em frações do canvas (0–1) e largura em % da largura do canvas:
 // assim a camada se adapta a qualquer resolução de saída e ao modo Lote.

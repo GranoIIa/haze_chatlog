@@ -17,6 +17,7 @@ import { sanitizeCamera, CameraState } from './cameraFx';
 import {
   sanitizeCanvasLayers, FitMode, isFitMode, ImageLayer, MIN_RES, MAX_RES
 } from './editorSettings';
+import { CensorRegion, sanitizeCensorRegions } from './censorTool';
 
 export const PROJECT_FORMAT = 'haze-project';
 /** Maior versão que este app abre. v1 = projeto de cena (Editor RP); v2 acrescenta `kind: 'video'` (Video Studio). */
@@ -71,6 +72,7 @@ export interface ProjectScene {
   lighting: Lighting;
   camera: CameraState;
   canvasLayers: CanvasLayer[];
+  censorSpots?: CensorRegion[];
 }
 
 export interface ProjectAsset {
@@ -170,7 +172,8 @@ export function normalizeScene(raw: any): ProjectScene {
     zoom: clamp(r.zoom, 25, 400, 100),
     lighting: sanitizeLighting(r.lighting),
     camera: sanitizeCamera(r.camera),
-    canvasLayers
+    canvasLayers,
+    censorSpots: Array.isArray(r.censorSpots) ? sanitizeCensorRegions(r.censorSpots) : []
   };
 }
 

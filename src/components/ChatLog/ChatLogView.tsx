@@ -44,6 +44,10 @@ import {
   loadAndApplyAllCustomFonts, saveCustomFont, deleteCustomFont, registerFontFace,
   fontNameFromFileName, isValidFontFile, MAX_FONT_SIZE_BYTES, type CustomFontMeta
 } from '../../utils/customFontStorage';
+import {
+  CensorRegion, CensorBrushSettings, DEFAULT_CENSOR_SETTINGS,
+  sanitizeCensorRegions, drawAllCensorRegions, drawCensorGizmo
+} from '../../utils/censorTool';
 
 export const ChatLogView: React.FC = () => {
   // Container Ref para escopo de eventos globais (ex: paste em abas inativas)
@@ -179,6 +183,13 @@ export const ChatLogView: React.FC = () => {
   const [shadowEnabled, setShadowEnabled] = useState<boolean>(bool(saved.shadowEnabled, false));
   const [censorStyle, setCensorStyle] = useState<'mosaic' | 'solid'>(saved.censorStyle === 'solid' ? 'solid' : 'mosaic');
   const [showTimestamps, setShowTimestamps] = useState<boolean>(bool(saved.showTimestamps, true));
+
+  // Censura e Borrão de Imagem (rostos, placas, áreas confidenciais)
+  const [censorSpots, setCensorSpots] = useState<CensorRegion[]>(() => sanitizeCensorRegions(saved.censorSpots));
+  const [censorBrush, setCensorBrush] = useState<CensorBrushSettings>(DEFAULT_CENSOR_SETTINGS);
+  const [censorHoverPos, setCensorHoverPos] = useState<{ x: number; y: number } | null>(null);
+  const censorDragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastCensorStampRef = useRef<{ x: number; y: number } | null>(null);
 
   // Posicionamento do Chat (Drag & Drop com Pointer Events)
   const [chatPos, setChatPos] = useState<{ x: number; y: number }>({
@@ -719,6 +730,9 @@ export const ChatLogView: React.FC = () => {
     // 2.1 Efeitos de filme (P&B, vintage, vinheta, granulado...)
     applyFilmEffects(ctx, width, height, camera.effects);
 
+    // 2.2 Censura e Borrão de Imagem (rostos, placas, detalhes)
+    drawAllCensorRegions(ctx, censorSpots, width, height, scale);
+
     // 3. Escurecimento da Cena
     if (darkening > 0) {
       ctx.fillStyle = `rgba(0, 0, 0, ${darkening})`;
@@ -789,13 +803,20 @@ export const ChatLogView: React.FC = () => {
       ctx.strokeRect(-r.w / 2, -r.h / 2, r.w, r.h);
       ctx.restore();
     }
+
+    // Mira visual da ferramenta de Censura / Borrador (só no preview)
+    if (mouseTool === 'censor' && censorHoverPos) {
+      const gw = censorBrush.shape === 'rect' ? censorBrush.size * 1.3 : censorBrush.size;
+      const gh = censorBrush.shape === 'rect' ? censorBrush.size * 0.5 : censorBrush.size;
+      drawCensorGizmo(ctx, censorHoverPos.x, censorHoverPos.y, censorBrush.shape, gw, gh);
+    }
   }, [
     layers, selectedLayerId, lightEdit, activeCharId, selectedCanvasLayerId, fontsVersion,
     imageSrc, imageDimensions, outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, darkening, adjustments, rawText, fontSize, fontFamily,
     lineHeightFactor, strokeEnabled, strokeWidth, strokeColor,
     bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
     censorStyle, showTimestamps, chatPos, characters, canvasDims.width, canvasDims.height,
-    isGif, gifFrames
+    isGif, gifFrames, censorSpots, mouseTool, censorHoverPos, censorBrush
   ]);
 
   // Outros módulos (GIF Lab) podem editar o texto do chat: este componente é o dono do estado
@@ -911,7 +932,7 @@ export const ChatLogView: React.FC = () => {
           darkening, adjustments, rawText, fontSize, fontFamily, lineHeightFactor,
           strokeEnabled, strokeWidth, strokeColor, bgEnabled, bgColor, bgOpacity,
           maxWidthPercent, shadowEnabled, censorStyle, showTimestamps, chatPos, characters,
-          outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers
+          outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, censorSpots
         }));
       } catch (_) { /* storage bloqueado ou cheio: segue sem persistir */ }
     }, 400);
@@ -920,7 +941,7 @@ export const ChatLogView: React.FC = () => {
     darkening, adjustments, rawText, fontSize, fontFamily, lineHeightFactor,
     strokeEnabled, strokeWidth, strokeColor, bgEnabled, bgColor, bgOpacity,
     maxWidthPercent, shadowEnabled, censorStyle, showTimestamps, chatPos, characters,
-    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers
+    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, censorSpots
   ]);
 
   // ---- Projeto (.haze): salva e reabre a cena inteira, sem rasterizar nada ----
@@ -1114,6 +1135,30 @@ export const ChatLogView: React.FC = () => {
     const pointerX = (e.clientX - rect.left) * scaleX;
     const pointerY = (e.clientY - rect.top) * scaleY;
 
+    // Modo "Borrar / Censurar imagem"
+    if (mouseTool === 'censor') {
+      censorDragStartRef.current = { x: pointerX, y: pointerY };
+      lastCensorStampRef.current = { x: pointerX, y: pointerY };
+      setIsDragging(true);
+
+      if (censorBrush.shape === 'circle') {
+        const wNorm = censorBrush.size / canvas.width;
+        const hNorm = censorBrush.size / canvas.height;
+        const spot: CensorRegion = {
+          id: `censor-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          cx: pointerX / canvas.width,
+          cy: pointerY / canvas.height,
+          width: wNorm,
+          height: hNorm,
+          type: censorBrush.type,
+          shape: 'circle',
+          intensity: censorBrush.intensity
+        };
+        setCensorSpots(prev => [...prev, spot]);
+      }
+      return;
+    }
+
     // Modo "posicionar luz": arrasta a luz principal (ou a de recorte, se estiver mais perto)
     if (mouseTool === 'light') {
       if (!lighting.enabled) return;
@@ -1204,7 +1249,6 @@ export const ChatLogView: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDragging) return;
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
 
@@ -1214,6 +1258,34 @@ export const ChatLogView: React.FC = () => {
 
     const pointerX = (e.clientX - rect.left) * scaleX;
     const pointerY = (e.clientY - rect.top) * scaleY;
+
+    if (mouseTool === 'censor') {
+      setCensorHoverPos({ x: pointerX, y: pointerY });
+      if (isDragging && censorDragStartRef.current && censorBrush.shape === 'circle') {
+        const last = lastCensorStampRef.current || censorDragStartRef.current;
+        const dist = Math.hypot(pointerX - last.x, pointerY - last.y);
+        const step = Math.max(10, censorBrush.size * 0.35);
+        if (dist >= step) {
+          const wNorm = censorBrush.size / canvas.width;
+          const hNorm = censorBrush.size / canvas.height;
+          const spot: CensorRegion = {
+            id: `censor-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            cx: pointerX / canvas.width,
+            cy: pointerY / canvas.height,
+            width: wNorm,
+            height: hNorm,
+            type: censorBrush.type,
+            shape: 'circle',
+            intensity: censorBrush.intensity
+          };
+          setCensorSpots(prev => [...prev, spot]);
+          lastCensorStampRef.current = { x: pointerX, y: pointerY };
+        }
+      }
+      return;
+    }
+
+    if (!isDragging) return;
 
     const cd = canvasDragRef.current;
     if (cd) {
@@ -1262,6 +1334,46 @@ export const ChatLogView: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (mouseTool === 'censor') {
+      const canvas = previewCanvasRef.current;
+      if (canvas && censorDragStartRef.current && censorBrush.shape === 'rect') {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const pointerX = (e.clientX - rect.left) * scaleX;
+        const pointerY = (e.clientY - rect.top) * scaleY;
+        const start = censorDragStartRef.current;
+        const boxW = Math.abs(pointerX - start.x);
+        const boxH = Math.abs(pointerY - start.y);
+        const minSize = 10;
+        const finalW = Math.max(minSize, boxW > minSize ? boxW : censorBrush.size);
+        const finalH = Math.max(minSize, boxH > minSize ? boxH : censorBrush.size * 0.45);
+        const midX = boxW > minSize ? (start.x + pointerX) / 2 : start.x;
+        const midY = boxH > minSize ? (start.y + pointerY) / 2 : start.y;
+
+        const spot: CensorRegion = {
+          id: `censor-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          cx: midX / canvas.width,
+          cy: midY / canvas.height,
+          width: finalW / canvas.width,
+          height: finalH / canvas.height,
+          type: censorBrush.type,
+          shape: 'rect',
+          intensity: censorBrush.intensity
+        };
+        setCensorSpots(prev => [...prev, spot]);
+      }
+      censorDragStartRef.current = null;
+      lastCensorStampRef.current = null;
+      setIsDragging(false);
+      if (previewCanvasRef.current?.hasPointerCapture(e.pointerId)) {
+        try {
+          previewCanvasRef.current.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+      }
+      return;
+    }
+
     if (!isDragging) return;
     layerDragRef.current = null;
     lightDragRef.current = null;
@@ -1276,6 +1388,8 @@ export const ChatLogView: React.FC = () => {
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    censorDragStartRef.current = null;
+    lastCensorStampRef.current = null;
     if (!isDragging) return;
     layerDragRef.current = null;
     lightDragRef.current = null;
@@ -1601,7 +1715,7 @@ export const ChatLogView: React.FC = () => {
     strokeEnabled, strokeWidth, strokeColor, bgEnabled, bgColor, bgOpacity,
     maxWidthPercent, shadowEnabled, censorStyle, showTimestamps, chatPos, characters,
     outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers,
-    layers, bgId
+    layers, bgId, censorSpots
   };
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
@@ -1783,7 +1897,7 @@ export const ChatLogView: React.FC = () => {
     darkening, adjustments, rawText, fontSize, fontFamily, lineHeightFactor,
     strokeEnabled, strokeWidth, strokeColor, bgEnabled, bgColor, bgOpacity,
     maxWidthPercent, shadowEnabled, censorStyle, showTimestamps, chatPos, characters,
-    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, layers, bgId
+    outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, layers, bgId, censorSpots
   ]);
 
   const applySnapshot = (json: string, opts?: { skipBackground?: boolean }) => {
@@ -1802,6 +1916,11 @@ export const ChatLogView: React.FC = () => {
     const restoredCanvasLayers = sanitizeCanvasLayers(s.canvasLayers);
     setCanvasLayers(restoredCanvasLayers);
     setSelectedCanvasLayerId(cur => (cur && restoredCanvasLayers.some(l => l.id === cur) ? cur : null));
+    if (Array.isArray(s.censorSpots)) {
+      setCensorSpots(sanitizeCensorRegions(s.censorSpots));
+    } else {
+      setCensorSpots([]);
+    }
 
     // camadas de imagem (só as que ainda têm a imagem carregada na sessão)
     const restoredLayers: ImageLayer[] = Array.isArray(s.layers)
@@ -1882,8 +2001,8 @@ export const ChatLogView: React.FC = () => {
       if (e.key === 'Escape') { setShowShortcuts(false); setFocusMode(false); return; }
       if (isText) return;
       if (!mod && !e.altKey && k === 'f') { setFocusMode(v => !v); return; }
-      if (!mod && !e.altKey && /^[1-4]$/.test(e.key)) {
-        setMouseTool((['chat', 'photo', 'layer', 'light'] as const)[parseInt(e.key) - 1]);
+      if (!mod && !e.altKey && /^[1-5]$/.test(e.key)) {
+        setMouseTool((['chat', 'photo', 'layer', 'light', 'censor'] as const)[parseInt(e.key) - 1]);
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && t === previewCanvasRef.current) {
@@ -2158,7 +2277,7 @@ export const ChatLogView: React.FC = () => {
               ['Setas (canvas focado)', 'Mover o chat 1px (Shift = 10px)'],
               ['Ctrl+V', 'Colar print como fundo'],
               ['Del (canvas focado)', 'Remover a camada selecionada'],
-              ['1 / 2 / 3 / 4', 'Ferramenta: Texto, Foto, Camada, Luz'],
+              ['1 / 2 / 3 / 4 / 5', 'Ferramenta: Texto, Foto, Camada, Luz, Censura'],
               ['Alt + arrastar', 'Mover o chat por cima de um elemento'],
               ['Roda do mouse', 'Zoom da foto ou tamanho da camada'],
               ['F', 'Modo foco (preview maior)'],
@@ -2579,6 +2698,108 @@ export const ChatLogView: React.FC = () => {
               <Clapperboard className="w-4 h-4" />
               <span>{adjustments.letterbox ? 'Letterbox 21:9 Ativo (Barras de Cinema)' : 'Ativar Letterbox 21:9 (Cinema)'}</span>
             </button>
+          </div>
+
+          {/* Censura e Borrão de Imagem */}
+          <div className="pt-3 border-t border-haze-border space-y-2.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-haze-text flex items-center gap-1.5">
+                <EyeOff className="w-3.5 h-3.5 text-haze-accent" /> Censura / Borrão de Imagem
+              </span>
+              {censorSpots.length > 0 && (
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-haze-accent/15 text-haze-accent border border-haze-accent/30">
+                  {censorSpots.length} {censorSpots.length === 1 ? 'região' : 'regiões'}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMouseTool(prev => (prev === 'censor' ? 'chat' : 'censor'))}
+              className={`w-full py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all font-semibold ${
+                mouseTool === 'censor'
+                  ? 'bg-haze-accent/20 border-haze-accent text-haze-accent shadow-sm'
+                  : 'bg-haze-field border-haze-border text-haze-muted hover:text-white'
+              }`}
+            >
+              <EyeOff className="w-4 h-4" />
+              <span>{mouseTool === 'censor' ? 'Modo Borrador Ativo (Clique na foto)' : 'Ativar Modo Borrador / Censura (5)'}</span>
+            </button>
+
+            {/* Configurações do Pincel de Censura */}
+            <div className="space-y-2 pt-1">
+              <div className="grid grid-cols-3 gap-1">
+                {([
+                  ['blur', 'Desfoque'],
+                  ['pixelate', 'Mosaico'],
+                  ['solid', 'Tarja']
+                ] as const).map(([typeKey, label]) => (
+                  <button
+                    key={typeKey}
+                    type="button"
+                    onClick={() => setCensorBrush(prev => ({ ...prev, type: typeKey }))}
+                    className={`py-1.5 px-1 rounded-lg text-center font-medium transition-colors ${
+                      censorBrush.type === typeKey
+                        ? 'bg-haze-accent-fill text-haze-on-accent font-semibold'
+                        : 'bg-haze-field text-haze-soft hover:bg-haze-raised'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-1">
+                {([
+                  ['circle', 'Pincel (Círculo)'],
+                  ['rect', 'Caixa (Retângulo)']
+                ] as const).map(([shapeKey, label]) => (
+                  <button
+                    key={shapeKey}
+                    type="button"
+                    onClick={() => setCensorBrush(prev => ({ ...prev, shape: shapeKey }))}
+                    className={`py-1.5 px-1 rounded-lg text-center font-medium transition-colors ${
+                      censorBrush.shape === shapeKey
+                        ? 'bg-haze-accent/20 text-haze-accent border border-haze-accent/40 font-semibold'
+                        : 'bg-haze-field text-haze-soft hover:bg-haze-raised border border-transparent'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-haze-muted">Tamanho / Raio</span>
+                <div className="flex items-center gap-2 w-1/2">
+                  <input
+                    type="range" min="15" max="180" value={censorBrush.size}
+                    onChange={(e) => setCensorBrush(prev => ({ ...prev, size: parseInt(e.target.value) }))}
+                    className="w-full accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
+                  />
+                  <span className="font-mono text-[11px] w-8 text-right text-haze-soft">{censorBrush.size}px</span>
+                </div>
+              </div>
+
+              {censorSpots.length > 0 && (
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCensorSpots(prev => prev.slice(0, -1))}
+                    className="py-1.5 px-2 rounded-lg border border-haze-border text-haze-soft hover:border-haze-accent/40 text-center"
+                  >
+                    Desfazer último
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCensorSpots([])}
+                    className="py-1.5 px-2 rounded-lg border border-haze-danger/30 text-haze-danger hover:bg-haze-danger/10 text-center"
+                  >
+                    Limpar todos
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         </EditorSection>
@@ -3057,7 +3278,8 @@ export const ChatLogView: React.FC = () => {
                 ['chat', 'Texto chat', '1', 'Arrastar move o chat; clicar num adesivo ou camada move o elemento (Alt = mover o chat por cima)', Type],
                 ['photo', 'Enquadrar foto', '2', 'Arrastar desloca a foto; a roda dá zoom', Crop],
                 ['layer', 'Mover camada', '3', 'Arrastar move a camada; a roda muda o tamanho', MousePointer2],
-                ['light', 'Posicionar luz', '4', 'Arrastar move a luz (ative a iluminação)', Lightbulb]
+                ['light', 'Posicionar luz', '4', 'Arrastar move a luz (ative a iluminação)', Lightbulb],
+                ['censor', 'Borrar / Censurar', '5', 'Clique e arraste para borrar ou censurar rostos, placas e locais', EyeOff]
               ] as const).map(([key, label, hotkey, tip, Icon]) => (
                 <button
                   key={key}
@@ -3086,6 +3308,16 @@ export const ChatLogView: React.FC = () => {
               )}
               {mouseTool === 'layer' && (layers.length ? 'Clique numa camada para selecionar e arrastar · roda = tamanho' : 'Adicione uma camada no painel à esquerda')}
               {mouseTool === 'light' && (lighting.enabled ? 'Arraste para posicionar a luz' : 'Ative a iluminação no painel para usar esta ferramenta')}
+              {mouseTool === 'censor' && (
+                <>
+                  Clique ou arraste no canvas para borrar · Pincel {censorBrush.shape === 'rect' ? 'Retangular' : 'Circular'} ({censorBrush.size}px) · Modo: {censorBrush.type === 'blur' ? 'Desfoque' : censorBrush.type === 'pixelate' ? 'Mosaico' : 'Tarja'}
+                  {censorSpots.length > 0 && (
+                    <button type="button" onClick={() => setCensorSpots([])} className="ml-2 underline underline-offset-2 hover:text-haze-accent-hover">
+                      Limpar censuras ({censorSpots.length})
+                    </button>
+                  )}
+                </>
+              )}
             </span>
           </div>
 
@@ -3149,6 +3381,78 @@ export const ChatLogView: React.FC = () => {
           </div>
         </div>
 
+        {/* Barra Rápida de Ajustes de Censura / Borrão (visível quando ferramenta 5 está ativa) */}
+        {mouseTool === 'censor' && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-haze-panel border border-haze-accent/40 text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-semibold text-haze-accent mr-1 flex items-center gap-1">
+                <EyeOff className="w-3.5 h-3.5" /> Borrador:
+              </span>
+              {(['blur', 'pixelate', 'solid'] as const).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setCensorBrush(p => ({ ...p, type: t }))}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    censorBrush.type === t
+                      ? 'bg-haze-accent-fill text-haze-on-accent font-semibold'
+                      : 'bg-haze-field text-haze-soft hover:bg-haze-raised'
+                  }`}
+                >
+                  {t === 'blur' ? 'Desfoque' : t === 'pixelate' ? 'Mosaico' : 'Tarja'}
+                </button>
+              ))}
+              <div className="w-px h-4 bg-haze-border mx-1" />
+              {(['circle', 'rect'] as const).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setCensorBrush(p => ({ ...p, shape: s }))}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    censorBrush.shape === s
+                      ? 'bg-haze-accent/20 text-haze-accent border border-haze-accent/40 font-semibold'
+                      : 'bg-haze-field text-haze-soft hover:bg-haze-raised border border-transparent'
+                  }`}
+                >
+                  {s === 'circle' ? 'Pincel (Círculo)' : 'Caixa (Retângulo)'}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-haze-muted text-[11px]">Tamanho:</span>
+                <input
+                  type="range" min="15" max="180" value={censorBrush.size}
+                  onChange={(e) => setCensorBrush(p => ({ ...p, size: parseInt(e.target.value) }))}
+                  className="w-20 accent-haze-accent h-1 bg-haze-raised rounded cursor-pointer"
+                />
+                <span className="font-mono text-[11px] text-haze-soft w-7">{censorBrush.size}px</span>
+              </div>
+              {censorSpots.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCensorSpots(p => p.slice(0, -1))}
+                    title="Desfazer último borrão"
+                    className="px-2 py-0.5 rounded border border-haze-border text-haze-soft hover:border-haze-accent/40 text-[11px]"
+                  >
+                    Desfazer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCensorSpots([])}
+                    title="Remover todas as áreas borradas"
+                    className="px-2 py-0.5 rounded border border-haze-danger/30 text-haze-danger hover:bg-haze-danger/10 text-[11px]"
+                  >
+                    Limpar ({censorSpots.length})
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Viewport do Canvas com Drag & Drop */}
         <div
           ref={viewportRef}
@@ -3166,6 +3470,7 @@ export const ChatLogView: React.FC = () => {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
+            onPointerLeave={() => setCensorHoverPos(null)}
             tabIndex={0}
             aria-label="Preview do chat log. Setas movem o texto, Shift acelera."
             style={{
@@ -3176,7 +3481,7 @@ export const ChatLogView: React.FC = () => {
                 return { width: Math.max(1, Math.floor(canvasDims.width * k)), height: Math.max(1, Math.floor(canvasDims.height * k)) };
               })() : {})
             }}
-            className={`rounded-lg shadow-lg ${mouseTool === 'light' ? 'cursor-crosshair' : mouseTool === 'photo' ? 'cursor-move' : mouseTool === 'layer' ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
+            className={`rounded-lg shadow-lg ${mouseTool === 'censor' || mouseTool === 'light' ? 'cursor-crosshair' : mouseTool === 'photo' ? 'cursor-move' : mouseTool === 'layer' ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
           />
 
           {!imageSrc && canvasLayers.length === 0 && layers.length === 0 && (
