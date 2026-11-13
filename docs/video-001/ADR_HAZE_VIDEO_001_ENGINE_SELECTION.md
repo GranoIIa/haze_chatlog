@@ -37,10 +37,11 @@ Adotar a **Alternativa A**:
 - (−) `mediabunny` é MPL-2.0 (cuidado se um dia for modificado) e tem um mantenedor principal (1290 de ~1465 contribuições humanas no GitHub).
 
 ## O que NÃO foi provado (precisa de validação antes de aprovar a F1)
-- Desempenho com fontes longas/4K e memória no pico (só uma medição pequena; ver POC_REPORT).
+- Desempenho com fontes longas/4K e memória no pico. **Medido:** 60 s de 1080p30 exportam em 38,3 s (1,57× o tempo real, dominado pelo encoder H.264); a primeira versão levou 149 s por culpa do meu mix de áudio (corrigido). Uma medição, uma máquina; ver POC_REPORT.
+- **Reordenar por arrasto** com `react-timeline-editor`: não funcionou em 2 tentativas (risco 3 do ADR já apareceu). A F1 precisa decidir: gesto próprio sobre a lib ou UI própria.
 - Navegadores além do Chrome 149.
 - O áudio do preview (a POC reproduz sem som; só a exportação mixa áudio).
 - B não foi executada: a comparação por código é por leitura e metadados, não por teste.
 
 ## Critério para reverter a decisão
-Reabrir se, na F1/F3: (a) a exportação de 1080p com 10+ clipes passar de ~2× o tempo real em máquina média, (b) a timeline de terceiros não suportar multifaixa com snap e ripple sem fork, ou (c) mudança de licença do mediabunny.
+Reabrir se, na F1/F3: (a) a exportação de 1080p com 10+ clipes levar mais de 2× a duração do vídeo em máquina média (hoje: 0,64× em 1 clipe repetido, ver POC_REPORT), (b) a timeline de terceiros não suportar multifaixa com snap e ripple sem fork, ou (c) mudança de licença do mediabunny.
