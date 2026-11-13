@@ -10,7 +10,7 @@
  * tipo real das imagens (pelos primeiros bytes) e limita todos os campos da cena.
  */
 
-import type { CanvasLayer, Character } from '../types';
+import type { CanvasLayer, Character, CensorRegion, CensorType, CensorShape, CensorScope, CensorPoint } from '../types';
 import { DEFAULT_ADJUSTMENTS, PhotoAdjustments } from './photoFilters';
 import { sanitizeLighting, Lighting } from './lighting';
 import { sanitizeCamera, CameraState } from './cameraFx';
@@ -33,6 +33,7 @@ export const LIMITS = {
   imageLayers: 20,
   characters: 50,
   canvasLayers: 40,
+  censorRegions: 100,
   rawText: 200_000
 };
 
@@ -71,6 +72,7 @@ export interface ProjectScene {
   lighting: Lighting;
   camera: CameraState;
   canvasLayers: CanvasLayer[];
+  censorRegions?: CensorRegion[];
 }
 
 export interface ProjectAsset {
@@ -101,6 +103,50 @@ const text = (v: unknown, max: number, fallback = ''): string =>
   typeof v === 'string' ? v.slice(0, max) : fallback;
 
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function sanitizeCensorRegions(raw: any): CensorRegion[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CensorRegion[] = [];
+  for (const item of raw.slice(0, LIMITS.censorRegions)) {
+    if (!item || typeof item !== 'object') continue;
+    const type: CensorType = ['solid', 'mosaic', 'blur'].includes(item.type) ? item.type : 'solid';
+    const shape: CensorShape = ['rect', 'brush'].includes(item.shape) ? item.shape : 'rect';
+    const scope: CensorScope = ['final', 'background'].includes(item.scope) ? item.scope : 'final';
+    const id = typeof item.id === 'string' && SAFE_ID.test(item.id) ? item.id : `censor-${out.length + 1}`;
+    const x = clamp(item.x, -50_000, 50_000, 0);
+    const y = clamp(item.y, -50_000, 50_000, 0);
+    const width = clamp(item.width, 1, 50_000, 50);
+    const height = clamp(item.height, 1, 50_000, 50);
+    const radius = clamp(item.radius, 2, 500, 20);
+    const intensity = clamp(item.intensity, 2, 100, 12);
+
+    let points: CensorPoint[] | undefined = undefined;
+    if (shape === 'brush' && Array.isArray(item.points)) {
+      points = [];
+      for (const p of item.points.slice(0, 1000)) {
+        if (p && typeof p.x === 'number' && typeof p.y === 'number' && isFinite(p.x) && isFinite(p.y)) {
+          points.push({ x: clamp(p.x, -50_000, 50_000, 0), y: clamp(p.y, -50_000, 50_000, 0) });
+        }
+      }
+      if (points.length === 0) points.push({ x, y });
+    }
+
+    out.push({
+      id,
+      type,
+      shape,
+      scope,
+      x,
+      y,
+      width,
+      height,
+      radius,
+      intensity,
+      points
+    });
+  }
+  return out;
+}
 
 /** Valida e completa uma cena vinda de fora (arquivo, armazenamento antigo). Nunca lança. */
 export function normalizeScene(raw: any): ProjectScene {
@@ -170,7 +216,8 @@ export function normalizeScene(raw: any): ProjectScene {
     zoom: clamp(r.zoom, 25, 400, 100),
     lighting: sanitizeLighting(r.lighting),
     camera: sanitizeCamera(r.camera),
-    canvasLayers
+    canvasLayers,
+    censorRegions: sanitizeCensorRegions(r.censorRegions)
   };
 }
 

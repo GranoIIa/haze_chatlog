@@ -130,3 +130,27 @@ export interface GifWorkerMessage {
   /** ERROR: 'OUTPUT_LIMIT' quando o arquivo passou do limite pedido */
   code?: 'OUTPUT_LIMIT';
 }
+
+// Censor Regions & Visual Anonymization System
+export type CensorType = 'solid' | 'mosaic' | 'blur';
+export type CensorShape = 'rect' | 'brush';
+export type CensorScope = 'final' | 'background';
+
+export interface CensorPoint {
+  x: number;
+  y: number;
+}
+
+export interface CensorRegion {
+  id: string;
+  type: CensorType;
+  shape: CensorShape;
+  scope?: CensorScope; // 'final' (default - cobre tudo) | 'background'
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  radius?: number; // Para pincel circular
+  points?: CensorPoint[]; // Traço contínuo de pincelada
+  intensity?: number; // Bloco do mosaico ou raio do blur (ex: 12)
+}
