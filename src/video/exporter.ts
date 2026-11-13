@@ -9,7 +9,7 @@ import {
 } from 'mediabunny';
 import type { OutputFormat, VideoCodec, AudioCodec } from 'mediabunny';
 import { composeFrame, Drawable } from './compositor';
-import { layout, totalDuration, validate, Timeline, MediaRef } from './timeline';
+import { activeLayers, fadeFactor, layout, speedOf, totalDuration, validate, Timeline, MediaRef, PlacedClip } from './timeline';
 import type { OpenedMedia } from './mediaIO';
 import { checkExportLimits } from './limits';
 
@@ -75,21 +75,44 @@ const WINDOW = SR / 2; // 0,5 s por janela
 
 /**
  * Gera o áudio da timeline em janelas de 0,5 s, na ordem do tempo, decodificando sob demanda.
- * A memória fica limitada a uma janela (antes: a montagem inteira em PCM). Trechos sem áudio viram
- * silêncio. Fonte fora de 48 kHz é reamostrada por interpolação linear (suficiente para fala).
- * Os dois primeiros pacotes em lote do mix original levavam 96 s por usar um nó Web Audio por pacote;
- * aqui as amostras são copiadas direto.
+ * A memória fica limitada a poucas janelas (nada de montagem inteira em PCM). Trechos sem áudio
+ * viram silêncio. Aplica volume, velocidade (muda o tom, sem esticar o tempo), entrada/saída gradual e
+ * a fusão das transições (clipes que se sobrepõem são somados com rampas). Fonte fora de 48 kHz é
+ * reamostrada por interpolação linear. Uma janela só é entregue quando nenhum clipe futuro
+ * pode mais escrever nela (o próximo clipe começa, no máximo, na sobreposição da transição).
  */
 async function* audioWindows(
   tl: Timeline, media: Map<string, OpenedMedia>, total: number, signal?: AbortSignal
 ): AsyncGenerator<AudioWindow, void, unknown> {
   const length = Math.max(1, Math.ceil(total * SR));
-  let winStart = 0;
-  let win: AudioWindow = [new Float32Array(WINDOW), new Float32Array(WINDOW)];
-  for (const p of layout(tl)) {
+  const wins = new Map<number, AudioWindow>();
+  let nextFlush = 0;
+  const win = (idx: number): AudioWindow => {
+    let w = wins.get(idx);
+    if (!w) { w = [new Float32Array(WINDOW), new Float32Array(WINDOW)]; wins.set(idx, w); }
+    return w;
+  };
+  const takeReady = (limitSample: number): AudioWindow[] => {
+    const out: AudioWindow[] = [];
+    while ((nextFlush + 1) * WINDOW <= limitSample && nextFlush * WINDOW < length) {
+      const w = win(nextFlush); wins.delete(nextFlush);
+      const len = Math.min(WINDOW, length - nextFlush * WINDOW);
+      out.push(len === WINDOW ? w : [w[0].slice(0, len), w[1].slice(0, len)]);
+      nextFlush++;
+    }
+    return out;
+  };
+
+  const placed = layout(tl);
+  for (let pi = 0; pi < placed.length; pi++) {
+    const p = placed[pi];
+    const nextStart = pi + 1 < placed.length ? Math.floor(placed[pi + 1].start * SR) : Infinity;
+    for (const w of takeReady(Math.min(Math.floor(p.start * SR), nextStart))) yield w;
     const sink = media.get(p.clip.mediaId)?.audio;
     if (!sink) continue;
     const { inPoint, outPoint, volume } = p.clip;
+    const sp = speedOf(p.clip);
+    const dur = p.end - p.start;
     for await (const { buffer, timestamp } of sink.buffers(inPoint, outPoint)) {
       if (signal?.aborted) throw new ExportCancelled();
       const from = Math.max(timestamp, inPoint);
@@ -97,31 +120,33 @@ async function* audioWindows(
       if (to - from <= 0) continue;
       const rate = buffer.sampleRate;
       const srcStart = Math.round((from - timestamp) * rate);
-      let d = Math.round((p.start + (from - inPoint)) * SR);
-      const dEnd = Math.min(d + Math.round((to - from) * SR), length);
-      let i = 0;
-      while (d < dEnd) {
-        while (d >= winStart + WINDOW) { yield win; winStart += WINDOW; win = [new Float32Array(WINDOW), new Float32Array(WINDOW)]; }
-        const n = Math.min(dEnd, winStart + WINDOW) - d;
-        for (let c = 0; c < 2; c++) {
-          const src = buffer.getChannelData(Math.min(c, buffer.numberOfChannels - 1));
-          const dst = win[c];
-          for (let k = 0; k < n; k++) {
-            const pos = srcStart + ((i + k) * rate) / SR;
-            const i0 = Math.floor(pos);
-            const v = rate === SR ? src[i0] : src[i0] + ((src[Math.min(i0 + 1, src.length - 1)] - src[i0]) * (pos - i0));
-            dst[d - winStart + k] += (v ?? 0) * volume;
-          }
+      const d0 = Math.round((p.start + (from - inPoint) / sp) * SR);
+      const n = Math.min(Math.round(((to - from) / sp) * SR), length - d0);
+      const step = (rate * sp) / SR;                    // amostras de origem por amostra de saída
+      for (let c = 0; c < 2; c++) {
+        const src = buffer.getChannelData(Math.min(c, buffer.numberOfChannels - 1));
+        let curIdx = -1; let cur: AudioWindow | null = null;
+        for (let i = 0; i < n; i++) {
+          const abs = d0 + i;
+          const idx = Math.floor(abs / WINDOW);
+          if (idx !== curIdx) { curIdx = idx; cur = win(idx); }
+          const pos = srcStart + i * step;
+          const i0 = Math.floor(pos);
+          const v = step === 1 ? src[i0] : src[i0] + ((src[Math.min(i0 + 1, src.length - 1)] - src[i0]) * (pos - i0));
+          const rel = abs / SR - p.start;
+          const g = volume * fadeFactor(rel, dur, p.audioFadeIn, p.audioFadeOut);
+          cur![c][abs - idx * WINDOW] += (v ?? 0) * g;
         }
-        d += n; i += n;
       }
+      for (const w of takeReady(Math.min(d0 + n, nextStart))) yield w;
     }
   }
-  // fecha: janelas restantes até o fim da montagem (a última é cortada no tamanho exato)
-  while (winStart < length) {
-    const len = Math.min(WINDOW, length - winStart);
-    yield len === WINDOW ? win : [win[0].slice(0, len), win[1].slice(0, len)];
-    winStart += WINDOW; win = [new Float32Array(WINDOW), new Float32Array(WINDOW)];
+  for (const w of takeReady(Infinity)) yield w;
+  // janelas finais ainda não criadas (silêncio até o fim da montagem)
+  while (nextFlush * WINDOW < length) {
+    const len = Math.min(WINDOW, length - nextFlush * WINDOW);
+    yield [new Float32Array(len), new Float32Array(len)];
+    nextFlush++;
   }
 }
 
@@ -157,9 +182,6 @@ export async function exportTimeline(
   const asrc = audioGen && a ? new AudioBufferSource({ codec: a, bitrate: 128_000 }) : null;
   if (asrc) output.addAudioTrack(asrc);
 
-  // um decodificador por mídia, já na largura da saída (evita ampliar um quadro reduzido do preview)
-  const sinks = new Map<string, ReturnType<OpenedMedia['makeVideoSink']>>();
-  const sinkFor = (m: OpenedMedia) => { let k = sinks.get(m.ref.id); if (!k) { k = m.makeVideoSink(W); sinks.set(m.ref.id, k); } return k; };
   let audioPos = 0;       // amostras já enviadas ao encoder
   let audioDone = false;
   const audioTotal = Math.max(1, Math.ceil(total * SR));
@@ -181,37 +203,54 @@ export async function exportTimeline(
 
   try {
     await output.start();
-    let i = 0;
-    for (const p of placed) {
-      const m = opened.get(p.clip.mediaId)!;
-      const first = Math.ceil(p.start * fps - 1e-6);
-      const last = Math.min(frames, Math.ceil(p.end * fps - 1e-6));
-      if (last <= first) continue;
-      const times = (function* () {
-        for (let k = first; k < last; k++) yield p.clip.inPoint + (k / fps - p.start);
-      })();
-      let k = first;
-      let held: Drawable | null = null;
-      const it = sinkFor(m).canvasesAtTimestamps(times)[Symbol.asyncIterator]();
-      for (;;) {
-        const tD = performance.now();
-        const nx = await it.next();
-        timing.decodeMs += performance.now() - tD;
-        if (nx.done) break;
-        const wrapped = nx.value;
-        if (signal?.aborted) throw new ExportCancelled();
-        if (wrapped) held = wrapped.canvas as Drawable;
-        const tC = performance.now();
-        composeFrame(ctx, W, H, held, tl, k / fps);
-        timing.composeMs += performance.now() - tC;
-        const tE = performance.now();
-        await vsrc.add(k / fps, 1 / fps);
-        timing.encodeMs += performance.now() - tE;
-        i++;
-        if (asrc) await pushAudio(Math.round(((k + 1) / fps) * SR));
-        if (k % 5 === 0) onProgress?.(i / frames, 'video');
-        k++;
+    // Quais quadros de saída cada clipe cobre (inclui a sobreposição das transições). Cada clipe tem
+    // seu próprio decodificador e seu iterador: avançam juntos, um passo por quadro de saída.
+    const byClip = new Map<string, number[]>();
+    for (let k = 0; k < frames; k++) for (const L of activeLayers(tl, k / fps)) {
+      let ks = byClip.get(L.clip.id); if (!ks) { ks = []; byClip.set(L.clip.id, ks); }
+      ks.push(k);
+    }
+    interface Feed { it: AsyncIterator<{ canvas: unknown } | null>; held: Drawable | null; left: number }
+    const feeds = new Map<string, Feed>();
+    const placedById = new Map<string, PlacedClip>(placed.map(p => [p.clip.id, p]));
+    const feedFor = (id: string): Feed => {
+      let f = feeds.get(id);
+      if (!f) {
+        const p = placedById.get(id)!;
+        const ks = byClip.get(id)!;
+        const sp = speedOf(p.clip);
+        const times = (function* () { for (const k of ks) yield p.clip.inPoint + (k / fps - p.start) * sp; })();
+        const sink = opened.get(p.clip.mediaId)!.makeVideoSink(W);
+        f = { it: sink.canvasesAtTimestamps(times)[Symbol.asyncIterator]() as AsyncIterator<{ canvas: unknown } | null>, held: null, left: ks.length };
+        feeds.set(id, f);
       }
+      return f;
+    };
+
+    let i = 0;
+    for (let k = 0; k < frames; k++) {
+      if (signal?.aborted) throw new ExportCancelled();
+      const t = k / fps;
+      const layers = activeLayers(tl, t);
+      const drawn: Array<Drawable | null> = [];
+      for (const L of layers) {
+        const f = feedFor(L.clip.id);
+        const tD = performance.now();
+        const nx = await f.it.next();
+        timing.decodeMs += performance.now() - tD;
+        if (!nx.done && nx.value) f.held = nx.value.canvas as Drawable;
+        drawn.push(f.held);
+        if (--f.left <= 0) { try { await f.it.return?.(undefined); } catch { /* ignore */ } feeds.delete(L.clip.id); }
+      }
+      const tC = performance.now();
+      composeFrame(ctx, W, H, drawn, tl, t);
+      timing.composeMs += performance.now() - tC;
+      const tE = performance.now();
+      await vsrc.add(t, 1 / fps);
+      timing.encodeMs += performance.now() - tE;
+      i++;
+      if (asrc) await pushAudio(Math.round(((k + 1) / fps) * SR));
+      if (k % 5 === 0) onProgress?.(i / frames, 'video');
     }
     if (signal?.aborted) throw new ExportCancelled();
     await pushAudio(audioTotal);

@@ -3,15 +3,17 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
-  setClipVolume, setClipCamera, setLineStep, splitAt, totalDuration, trimClip, undo, updateOverlay, makeId, round3, MIN_CLIP, Timeline
+  setClipVolume, setClipCamera, setLineStep, setClipSpeed, setClipFades, setClipTransition, addSubtitles, snapTime, speedOf, splitAt, totalDuration, trimClip, undo, updateOverlay, makeId, round3, MIN_CLIP, Timeline
 } from '../../video/timeline';
 import { buildVideoProjectBlob, parseVideoProject, matchesSaved, SavedMedia } from '../../video/videoProject';
 import { openMedia, MediaError, OpenedMedia } from '../../video/mediaIO';
 import { composeFrame, Drawable } from '../../video/compositor';
 import { PreviewAudio } from '../../video/previewAudio';
+import { parseSrt, MAX_SRT_BYTES } from '../../video/srt';
+import { computePeaks, sliceBars } from '../../video/waveform';
 import { exportTimeline, ExportCancelled, ExportResult } from '../../video/exporter';
 
 const PREVIEW_W = 640;
@@ -21,12 +23,26 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart
 
 
 /** Bloco de clipe com arrasto próprio: solta sobre outro clipe para reordenar (a lib não reordena trilha sequencial). */
-const ClipBlock: React.FC<{ id: string; thumb?: string; label: string; selected: boolean; muted: boolean; onSelect: () => void; onReorder: (toIndex: number) => void }> =
-  ({ id, thumb, label, selected, muted, onSelect, onReorder }) => {
+const ClipBlock: React.FC<{ id: string; wave?: { peaks: Float32Array; mediaDur: number; inP: number; outP: number }; thumb?: string; label: string; selected: boolean; muted: boolean; onSelect: () => void; onReorder: (toIndex: number) => void }> =
+  ({ id, wave, thumb, label, selected, muted, onSelect, onReorder }) => {
     const [dx, setDx] = useState(0);
+    const cvRef = useRef<HTMLCanvasElement>(null);
+    const boxRef = useRef<HTMLDivElement>(null);
+    // desenha a forma de onda do trecho visível do clipe (sem custo quando não há áudio)
+    useEffect(() => {
+      const cv = cvRef.current, box = boxRef.current;
+      if (!cv || !box || !wave) return;
+      const w = Math.max(10, Math.floor(box.clientWidth)), h = 14;
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d')!;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      const bars = sliceBars(wave.peaks, wave.mediaDur, wave.inP, wave.outP, Math.floor(w / 2));
+      bars.forEach((v, i) => { const bh = Math.max(1, Math.round(v * h)); ctx.fillRect(i * 2, h - bh, 1, bh); });
+    }, [wave, boxRef.current?.clientWidth]);
     const start = useRef<{ x: number; moved: boolean } | null>(null);
     return (
-      <div data-testid="clip-block" data-clip-id={id} style={{ backgroundImage: thumb ? `linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.15)), url(${thumb})` : undefined, backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', transform: dx ? `translateX(${dx}px)` : undefined, zIndex: dx ? 20 : undefined, touchAction: 'none', cursor: 'grab' }}
+      <div ref={boxRef} data-testid="clip-block" data-clip-id={id} style={{ backgroundImage: thumb ? `linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.15)), url(${thumb})` : undefined, backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', transform: dx ? `translateX(${dx}px)` : undefined, zIndex: dx ? 20 : undefined, touchAction: 'none', cursor: 'grab' }}
         onPointerDown={e => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); start.current = { x: e.clientX, moved: false }; onSelect(); }}
         onPointerMove={e => { const st = start.current; if (!st) return; const d = e.clientX - st.x; if (Math.abs(d) > 4) st.moved = true; if (st.moved) setDx(d); }}
         onPointerUp={e => {
@@ -39,8 +55,9 @@ const ClipBlock: React.FC<{ id: string; thumb?: string; label: string; selected:
           onReorder(others.filter(c => c < target).length);
         }}
         onPointerCancel={() => { start.current = null; setDx(0); }}
-        className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-haze-accent/25 border border-haze-accent/60 select-none ${selected ? 'ring-2 ring-white' : ''}`}>
+        className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-haze-accent/25 border border-haze-accent/60 select-none relative ${selected ? 'ring-2 ring-white' : ''}`}>
         {muted && <VolumeX className="w-3 h-3 shrink-0" />}<span className="truncate">{label}</span>
+        {wave && <canvas ref={cvRef} data-testid="waveform" className="absolute left-0 bottom-0 w-full pointer-events-none" style={{ height: 14 }} />}
       </div>
     );
   };
@@ -60,6 +77,7 @@ export const VideoStudioView: React.FC = () => {
   const [fps, setFps] = useState(30);
   const [zoom, setZoom] = useState(140);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [peaks, setPeaks] = useState<Record<string, Float32Array>>({});
   const [exp, setExp] = useState<{ phase: string; pct: number } | null>(null);
   const [result, setResult] = useState<{ r: ExportResult; url: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -113,6 +131,17 @@ export const VideoStudioView: React.FC = () => {
     }
   };
 
+  // ------------------------------------------------------------ legendas (.srt)
+  const importSrt = async (file: File | undefined) => {
+    if (!file) return;
+    setMessage(null);
+    if (file.size > MAX_SRT_BYTES) { setMessage(`"${file.name}" é grande demais para ser uma legenda (limite de 2 MB).`); return; }
+    const { cues, skipped } = parseSrt(await file.text());
+    if (!cues.length) { setMessage(`Nenhuma legenda válida em "${file.name}".`); return; }
+    apply(x => addSubtitles(x, cues));
+    setMessage(`${cues.length} legenda(s) importada(s)${skipped ? `; ${skipped} bloco(s) inválido(s) ignorado(s)` : ''}.`);
+  };
+
   // ------------------------------------------------------------ projeto .haze (vídeo)
   const savedMetas = (): SavedMedia[] => [
     ...library.map(m => ({ ...m.ref, size: m.file.size })),
@@ -164,6 +193,21 @@ export const VideoStudioView: React.FC = () => {
   }, [tl, t, previewH, library]);
 
   useEffect(() => { tlStateRef.current?.setTime(t); }, [t]);
+
+  // ------------------------------------------------------------ forma de onda (uma vez por mídia, em segundo plano)
+  useEffect(() => {
+    const ac = new AbortController();
+    (async () => {
+      for (const m of library) {
+        if (ac.signal.aborted) return;
+        if (!m.audio || peaks[m.ref.id]) continue;
+        const p = await computePeaks(m, ac.signal);
+        if (p && !ac.signal.aborted) setPeaks(x => ({ ...x, [m.ref.id]: p }));
+      }
+    })();
+    return () => ac.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [library]);
 
   // ------------------------------------------------------------ miniaturas dos clipes (1º quadro do trecho)
   useEffect(() => {
@@ -227,7 +271,7 @@ export const VideoStudioView: React.FC = () => {
   ], [placed, tl.overlays]);
 
   const onMoveEnd = ({ action, row, start }: { action: { id: string }; row: { id: string }; start: number }) => {
-    if (row.id === 'chat') apply(x => updateOverlay(x, action.id, { start }));
+    if (row.id === 'chat') apply(x => updateOverlay(x, action.id, { start: snapTime(x, start, action.id) }));
     else {
       // nova ordem = ordenar pelos inícios, com o clipe arrastado na posição solta
       const others = placed.filter(p => p.clip.id !== action.id).map(p => ({ id: p.clip.id, s: p.start }));
@@ -318,6 +362,9 @@ export const VideoStudioView: React.FC = () => {
             </div>
           )}
 
+          <label className={`${btn} cursor-pointer`}><Captions className="w-4 h-4" /> Importar legendas (.srt)
+            <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
+          </label>
           <div className="border-t border-haze-border pt-3 space-y-2">
             <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
             <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
@@ -381,7 +428,7 @@ export const VideoStudioView: React.FC = () => {
                     const c = tl.clips.find(x => x.id === action.id);
                     const label = isClip ? (mediaRef.current.get(c?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === c?.mediaId)?.name ?? 'clipe') + ' (offline)')) : (tl.overlays.find(x => x.id === action.id)?.text ?? 'chat');
                     const sel = action.id === selected;
-                    if (isClip) return <ClipBlock id={action.id} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={label} selected={sel} muted={(c?.volume ?? 1) === 0}
+                    if (isClip) return <ClipBlock id={action.id} wave={c && peaks[c.mediaId] && mediaRef.current.get(c.mediaId) ? { peaks: peaks[c.mediaId], mediaDur: mediaRef.current.get(c.mediaId)!.ref.duration, inP: c.inPoint, outP: c.outPoint } : undefined} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={c && speedOf(c) !== 1 ? `${label} ×${speedOf(c)}` : label} selected={sel} muted={(c?.volume ?? 1) === 0}
                       onSelect={() => setSelected(action.id)} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
                     return (
                       <div data-testid="chat-block" data-clip-id={action.id}
@@ -413,6 +460,26 @@ export const VideoStudioView: React.FC = () => {
                   onBlur={e => apply(x => trimClip(x, selClip.id, { outPoint: +e.target.value }, selMedia.ref.duration))} />
               </div>
               <div className="text-haze-muted">duração {fmt(clipDuration(selClip))}</div>
+              <div className="flex items-center gap-2">velocidade
+                <select data-testid="speed" value={speedOf(selClip)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
+                  onChange={e => apply(x => setClipSpeed(x, selClip.id, +e.target.value))}>
+                  {[0.25, 0.5, 0.75, 1, 1.5, 2, 4].map(v => <option key={v} value={v}>{v}×</option>)}
+                </select>
+                <span className="text-haze-faint">muda o tom</span>
+              </div>
+              <div className="flex items-center gap-2">fade (s) entrada
+                <input data-testid="fade-in" type="number" min="0" step="0.1" className={input} key={`fi-${selClip.id}-${selClip.fadeIn ?? 0}`} defaultValue={selClip.fadeIn ?? 0}
+                  onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeIn: +e.target.value }))} />
+                saída
+                <input data-testid="fade-out" type="number" min="0" step="0.1" className={input} key={`fo-${selClip.id}-${selClip.fadeOut ?? 0}`} defaultValue={selClip.fadeOut ?? 0}
+                  onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeOut: +e.target.value }))} />
+              </div>
+              <div className="flex items-center gap-2">transição (s)
+                <input data-testid="transition" type="number" min="0" max="5" step="0.1" className={input} disabled={tl.clips[0]?.id === selClip.id}
+                  title={tl.clips[0]?.id === selClip.id ? 'O primeiro clipe não tem clipe anterior' : 'Fusão com o clipe anterior (0 = corte seco)'}
+                  key={`tr-${selClip.id}-${selClip.transition?.duration ?? 0}`} defaultValue={selClip.transition?.duration ?? 0}
+                  onBlur={e => apply(x => setClipTransition(x, selClip.id, +e.target.value))} />
+              </div>
               <div className="flex items-center gap-2">câmera
                 <select data-testid="cam-preset" value={selClip.camera?.preset ?? 'none'} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
                   onChange={e => {

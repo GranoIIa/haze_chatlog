@@ -3,7 +3,7 @@
  * (`AudioContext.currentTime`), então imagem e som não se afastam por construção.
  * Agenda os buffers decodificados um pouco à frente, clipe por clipe, com o volume de cada um.
  */
-import { layout, totalDuration, Timeline } from './timeline';
+import { layout, speedOf, totalDuration, Timeline } from './timeline';
 import type { OpenedMedia } from './mediaIO';
 
 export class PreviewAudio {
@@ -39,24 +39,32 @@ export class PreviewAudio {
       const sink = media.get(p.clip.mediaId)?.audio;
       if (!sink || p.clip.volume <= 0) continue;
       const { inPoint, outPoint, volume } = p.clip;
-      const srcFrom = inPoint + Math.max(0, fromT - p.start);
+      const sp = speedOf(p.clip);
+      const srcFrom = inPoint + Math.max(0, fromT - p.start) * sp;
+      // um ganho por clipe: volume + entrada/saída gradual + fusão da transição (rampas de áudio efetivas)
+      const cg = ctx.createGain();
+      cg.connect(ctx.destination);
+      const tIn = this.baseCtx + (p.start - this.baseT), tOut = this.baseCtx + (p.end - this.baseT);
+      if (p.audioFadeIn > 0) { cg.gain.setValueAtTime(0, tIn); cg.gain.linearRampToValueAtTime(volume, tIn + p.audioFadeIn); }
+      else cg.gain.setValueAtTime(volume, tIn);
+      if (p.audioFadeOut > 0) { cg.gain.setValueAtTime(volume, tOut - p.audioFadeOut); cg.gain.linearRampToValueAtTime(0, tOut); }
       try {
         for await (const { buffer, timestamp } of sink.buffers(srcFrom, outPoint)) {
           if (this.stopped) return;
           const from = Math.max(timestamp, srcFrom);
           const to = Math.min(timestamp + buffer.duration, outPoint);
           if (to - from <= 0) continue;
-          const tt = p.start + (from - inPoint);                  // quando começa na timeline
+          const tt = p.start + (from - inPoint) / sp;             // quando começa na timeline
           const when = this.baseCtx + (tt - this.baseT);
           // não deixa o decodificador ficar muito à frente (memória) nem agenda no passado
-          while (!this.stopped && when - ctx.currentTime > 3) await new Promise(r => setTimeout(r, 100));
+          while (!this.stopped && when - ctx.currentTime > 6) await new Promise(r => setTimeout(r, 100));
           if (this.stopped) return;
           const node = ctx.createBufferSource();
           node.buffer = buffer;
-          const g = ctx.createGain(); g.gain.value = volume;
-          node.connect(g).connect(ctx.destination);
+          node.playbackRate.value = sp;                           // velocidade (muda o tom, igual à exportação)
+          node.connect(cg);
           const startAt = Math.max(when, ctx.currentTime);
-          const skip = Math.max(0, startAt - when);                // se atrasou, pula o início
+          const skip = Math.max(0, (startAt - when) * sp);        // se atrasou, pula o início (em tempo da mídia)
           node.start(startAt, from - timestamp + skip, to - from - skip);
           node.onended = () => this.nodes.delete(node);
           this.nodes.add(node);

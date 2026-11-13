@@ -34,6 +34,13 @@ export interface Clip {
   id: string;
   mediaId: string;
   camera?: ClipCamera;
+  /** Velocidade de reprodução (0,25 a 4). Ausente = 1. A duração na timeline é (saída - entrada) / velocidade. */
+  speed?: number;
+  /** Entrada/saída gradual (s, tempo da timeline): imagem vinda do preto e som subindo; o inverso no fim. */
+  fadeIn?: number;
+  fadeOut?: number;
+  /** Transição de entrada: o clipe começa `duration` s antes do fim do anterior (fusão de imagem e de som). */
+  transition?: { duration: number };
   /** Ponto inicial e final DENTRO da mídia original (s). Duração = outPoint - inPoint. */
   inPoint: number;
   outPoint: number;
@@ -46,6 +53,8 @@ export interface ChatOverlay {
   kind?: 'chat' | 'text';
   /** Cor do texto livre (#rrggbb). */
   color?: string;
+  /** 'center' centraliza no quadro (legendas); padrão 'left' a partir de x. */
+  align?: 'left' | 'center';
   /** Instante de entrada de cada linha, relativo ao início do overlay (s). Ausente = tudo de uma vez. */
   lineOffsets?: number[];
   /** Tempo absoluto na timeline (s). */
@@ -64,7 +73,13 @@ export interface Timeline {
   overlays: ChatOverlay[];
 }
 
-export interface PlacedClip { clip: Clip; start: number; end: number }
+export interface PlacedClip {
+  clip: Clip; start: number; end: number;
+  /** Sobreposição com o clipe anterior (transição), em s. */
+  overlap: number;
+  /** Rampas de ÁUDIO efetivas (fade do clipe ou duração da transição, o que for maior). */
+  audioFadeIn: number; audioFadeOut: number;
+}
 
 export const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 
@@ -74,15 +89,26 @@ export const makeId = (prefix: string): string =>
 
 export const emptyTimeline = (): Timeline => ({ version: 1, clips: [], overlays: [] });
 
-export const clipDuration = (c: Clip): number => round3(c.outPoint - c.inPoint);
+export const MIN_SPEED = 0.25;
+export const MAX_SPEED = 4;
+export const speedOf = (c: Clip): number => c.speed ?? 1;
+/** Duração do clipe na TIMELINE (já considera a velocidade). */
+export const clipDuration = (c: Clip): number => round3((c.outPoint - c.inPoint) / speedOf(c));
 
-/** Posições derivadas da ordem dos clipes. */
+/** Posições derivadas da ordem dos clipes e das transições. */
 export function layout(tl: Timeline): PlacedClip[] {
-  let t = 0;
-  return tl.clips.map(clip => {
-    const start = t;
-    t = round3(t + clipDuration(clip));
-    return { clip, start, end: t };
+  const durs = tl.clips.map(clipDuration);
+  const overlaps = tl.clips.map((c, i) =>
+    i > 0 && c.transition ? round3(Math.max(0, Math.min(c.transition.duration, durs[i - 1] / 2, durs[i] / 2))) : 0);
+  let end = 0;
+  return tl.clips.map((clip, i) => {
+    const start = round3(Math.max(0, end - overlaps[i]));
+    end = round3(start + durs[i]);
+    return {
+      clip, start, end, overlap: overlaps[i],
+      audioFadeIn: Math.max(clip.fadeIn ?? 0, overlaps[i]),
+      audioFadeOut: Math.max(clip.fadeOut ?? 0, i + 1 < tl.clips.length ? overlaps[i + 1] : 0)
+    };
   });
 }
 
@@ -91,14 +117,34 @@ export const totalDuration = (tl: Timeline): number => {
   return l.length ? l[l.length - 1].end : 0;
 };
 
-/** Qual clipe está sob o tempo `t` e em que instante da mídia original. */
-export function locate(tl: Timeline, t: number): { clip: Clip; start: number; sourceTime: number } | null {
+/** Fator 0..1 das rampas de entrada/saída gradual (clipe) no instante `rel` (s desde o início do clipe). */
+export function fadeFactor(rel: number, dur: number, fadeIn: number, fadeOut: number): number {
+  let f = 1;
+  if (fadeIn > 0) f = Math.min(f, Math.max(0, rel / fadeIn));
+  if (fadeOut > 0) f = Math.min(f, Math.max(0, (dur - rel) / fadeOut));
+  return Math.max(0, Math.min(1, f));
+}
+
+export interface ActiveLayer { clip: Clip; start: number; sourceTime: number; alpha: number }
+
+/** Todos os clipes visíveis em `t` (mais de um durante uma transição), de baixo para cima, com a opacidade de cada um. */
+export function activeLayers(tl: Timeline, t: number): ActiveLayer[] {
+  const out: ActiveLayer[] = [];
   for (const p of layout(tl)) {
-    if (t >= p.start - TIME_EPS && t < p.end - TIME_EPS) {
-      return { clip: p.clip, start: p.start, sourceTime: round3(p.clip.inPoint + (t - p.start)) };
-    }
+    if (!(t >= p.start - TIME_EPS && t < p.end - TIME_EPS)) continue;
+    const rel = t - p.start;
+    const dur = p.end - p.start;
+    const ramp = p.overlap > 0 ? Math.min(1, rel / p.overlap) : 1; // o clipe que entra surge por cima
+    const fade = fadeFactor(rel, dur, p.clip.fadeIn ?? 0, p.clip.fadeOut ?? 0);
+    out.push({ clip: p.clip, start: p.start, sourceTime: round3(p.clip.inPoint + rel * speedOf(p.clip)), alpha: ramp * fade });
   }
-  return null;
+  return out;
+}
+
+/** Qual clipe está sob o tempo `t` (o de cima, se houver transição) e em que instante da mídia original. */
+export function locate(tl: Timeline, t: number): { clip: Clip; start: number; sourceTime: number } | null {
+  const l = activeLayers(tl, t);
+  return l.length ? l[l.length - 1] : null;
 }
 
 // ---------------------------------------------------------------- edição (imutável)
@@ -116,15 +162,16 @@ export function trimClip(
     ...tl,
     clips: tl.clips.map(c => {
       if (c.id !== clipId) return c;
+      const minSrc = MIN_CLIP * speedOf(c);
       let a = change.inPoint ?? c.inPoint;
       let b = change.outPoint ?? c.outPoint;
       if (!Number.isFinite(a) || !Number.isFinite(b)) return c;
       a = Math.max(0, Math.min(a, mediaDuration));
       b = Math.max(0, Math.min(b, mediaDuration));
       // Se o usuário puxou uma ponta além da outra, a ponta movida para em MIN_CLIP da fixa.
-      if (change.inPoint !== undefined && b - a < MIN_CLIP) a = b - MIN_CLIP;
-      if (change.outPoint !== undefined && b - a < MIN_CLIP) b = a + MIN_CLIP;
-      if (a < 0 || b > mediaDuration + TIME_EPS || b - a < MIN_CLIP - TIME_EPS) return c;
+      if (change.inPoint !== undefined && b - a < minSrc) a = b - minSrc;
+      if (change.outPoint !== undefined && b - a < minSrc) b = a + minSrc;
+      if (a < 0 || b > mediaDuration + TIME_EPS || b - a < minSrc - TIME_EPS) return c;
       return { ...c, inPoint: round3(a), outPoint: round3(b) };
     })
   };
@@ -134,9 +181,14 @@ export function trimClip(
 export function splitAt(tl: Timeline, t: number, newId = makeId('clip')): Timeline {
   const hit = layout(tl).find(p => t > p.start + MIN_CLIP - TIME_EPS && t < p.end - MIN_CLIP + TIME_EPS);
   if (!hit) return tl;
-  const cut = round3(hit.clip.inPoint + (t - hit.start));
-  const left: Clip = { ...hit.clip, outPoint: cut };
-  const right: Clip = { ...hit.clip, id: newId, inPoint: cut };
+  const cut = round3(hit.clip.inPoint + (t - hit.start) * speedOf(hit.clip));
+  // a entrada (fade/transição) fica na 1ª metade, a saída gradual na 2ª
+  const { fadeOut: fo, ...leftBase } = hit.clip;
+  const { fadeIn: _fi, transition: _tr, ...rightBase } = hit.clip;
+  void _fi; void _tr;
+  const left: Clip = { ...leftBase, outPoint: cut };
+  const right: Clip = { ...rightBase, id: newId, inPoint: cut };
+  void fo;
   const i = tl.clips.findIndex(c => c.id === hit.clip.id);
   const clips = [...tl.clips];
   clips.splice(i, 1, left, right);
@@ -166,7 +218,7 @@ export function addOverlay(tl: Timeline, o: Partial<ChatOverlay> & { text: strin
   const overlay: ChatOverlay = {
     id, start: round3(Math.max(0, o.start ?? 0)), duration: round3(Math.max(MIN_CLIP, o.duration ?? 3)),
     text: o.text, x: o.x ?? 24, y: o.y ?? 24, fontSize: o.fontSize ?? 22,
-    ...(o.kind === 'text' ? { kind: 'text' as const, color: o.color ?? '#ffffff' } : {})
+    ...(o.kind === 'text' ? { kind: 'text' as const, color: o.color ?? '#ffffff', ...(o.align === 'center' ? { align: 'center' as const } : {}) } : {})
   };
   return { ...tl, overlays: [...tl.overlays, overlay] };
 }
@@ -190,6 +242,61 @@ export const removeOverlay = (tl: Timeline, id: string): Timeline =>
 export const overlaysAt = (tl: Timeline, t: number): ChatOverlay[] =>
   tl.overlays.filter(o => t >= o.start - TIME_EPS && t < o.start + o.duration - TIME_EPS);
 
+
+export function setClipSpeed(tl: Timeline, clipId: string, speed: number): Timeline {
+  if (!Number.isFinite(speed)) return tl;
+  const v = round3(Math.max(MIN_SPEED, Math.min(MAX_SPEED, speed)));
+  return { ...tl, clips: tl.clips.map(c => {
+    if (c.id !== clipId) return c;
+    if (v === 1) { const { speed: _s, ...rest } = c; void _s; return rest; }
+    return { ...c, speed: v };
+  }) };
+}
+
+/** Entrada/saída gradual em segundos (0 remove). Limitada à metade da duração do clipe. */
+export function setClipFades(tl: Timeline, clipId: string, f: { fadeIn?: number; fadeOut?: number }): Timeline {
+  return { ...tl, clips: tl.clips.map(c => {
+    if (c.id !== clipId) return c;
+    const half = clipDuration(c) / 2;
+    const n: Clip = { ...c };
+    const put = (k: 'fadeIn' | 'fadeOut', v: number | undefined) => {
+      if (v === undefined || !Number.isFinite(v)) return;
+      const x = round3(Math.max(0, Math.min(half, v)));
+      if (x > 0) n[k] = x; else delete n[k];
+    };
+    put('fadeIn', f.fadeIn); put('fadeOut', f.fadeOut);
+    return n;
+  }) };
+}
+
+/** Transição (fusão) da entrada do clipe com o anterior; 0 remove. */
+export function setClipTransition(tl: Timeline, clipId: string, duration: number): Timeline {
+  return { ...tl, clips: tl.clips.map(c => {
+    if (c.id !== clipId) return c;
+    if (!(duration > 0) || !Number.isFinite(duration)) { const { transition: _t, ...rest } = c; void _t; return rest; }
+    return { ...c, transition: { duration: round3(Math.min(5, duration)) } };
+  }) };
+}
+
+/** Gruda `t` na borda mais próxima (clipes e outros textos) se estiver a menos de `threshold` s. */
+export function snapTime(tl: Timeline, t: number, ignoreOverlayId?: string, threshold = 0.12): number {
+  const cands = [0];
+  for (const p of layout(tl)) cands.push(p.start, p.end);
+  for (const o of tl.overlays) if (o.id !== ignoreOverlayId) cands.push(o.start, o.start + o.duration);
+  let best = t, bd = threshold;
+  for (const c of cands) { const d = Math.abs(c - t); if (d <= bd) { bd = d; best = c; } }
+  return round3(best);
+}
+
+/** Cria uma legenda (texto livre centralizado, embaixo) para cada trecho do SRT. */
+export function addSubtitles(tl: Timeline, cues: Array<{ start: number; end: number; text: string }>): Timeline {
+  const made: ChatOverlay[] = cues.map(c => ({
+    id: makeId('sub'), kind: 'text', align: 'center', color: '#ffffff',
+    start: round3(Math.max(0, c.start)), duration: round3(Math.max(MIN_CLIP, c.end - c.start)),
+    text: c.text, x: 0, y: 630, fontSize: 28
+  }));
+  return { ...tl, overlays: [...tl.overlays, ...made] };
+}
 
 const NL = String.fromCharCode(10);
 const CAM_PRESETS = ['bodycam', 'cctv', 'noir'];
@@ -263,7 +370,7 @@ export function validate(tl: Timeline, media: Map<string, MediaRef>): string[] {
     const m = media.get(c.mediaId);
     if (!m) { errs.push(`clipe ${c.id}: mídia ausente (${c.mediaId})`); continue; }
     if (!(c.inPoint >= 0) || !(c.outPoint <= m.duration + TIME_EPS)) errs.push(`clipe ${c.id}: pontos fora da mídia`);
-    if (!(c.outPoint - c.inPoint >= MIN_CLIP - TIME_EPS)) errs.push(`clipe ${c.id}: duração menor que ${MIN_CLIP}s`);
+    if (!(clipDuration(c) >= MIN_CLIP - TIME_EPS)) errs.push(`clipe ${c.id}: duração menor que ${MIN_CLIP}s`);
   }
   const total = totalDuration(tl);
   for (const o of tl.overlays) {
@@ -284,8 +391,15 @@ export function sanitizeTimeline(raw: unknown): Timeline {
   for (const c of Array.isArray(r.clips) ? r.clips.slice(0, 500) : []) {
     if (typeof c?.id !== 'string' || typeof c?.mediaId !== 'string') continue;
     const a = num(c.inPoint, 0), b = num(c.outPoint, 0);
-    if (a < 0 || b - a < MIN_CLIP - TIME_EPS) continue;
+    const sp = Math.max(MIN_SPEED, Math.min(MAX_SPEED, num(c.speed, 1)));
+    if (a < 0 || (b - a) / sp < MIN_CLIP - TIME_EPS) continue;
     const clip: Clip = { id: c.id.slice(0, 64), mediaId: c.mediaId.slice(0, 64), inPoint: round3(a), outPoint: round3(b), volume: Math.max(0, Math.min(2, num(c.volume, 1))) };
+    if (sp !== 1) clip.speed = round3(sp);
+    const half = (b - a) / sp / 2;
+    const fi = Math.min(half, Math.max(0, num(c.fadeIn, 0))), fo = Math.min(half, Math.max(0, num(c.fadeOut, 0)));
+    if (fi > 0) clip.fadeIn = round3(fi);
+    if (fo > 0) clip.fadeOut = round3(fo);
+    if (c.transition && num(c.transition.duration, 0) > 0) clip.transition = { duration: round3(Math.min(5, num(c.transition.duration, 0))) };
     const cam = c.camera;
     if (cam && CAM_PRESETS.includes(cam.preset) && DATE_RE.test(cam.date) && TIME_RE.test(cam.time)) {
       const str = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : undefined);
@@ -299,7 +413,7 @@ export function sanitizeTimeline(raw: unknown): Timeline {
     const offs = Array.isArray(o.lineOffsets) && o.lineOffsets.length === lines && o.lineOffsets.every((v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0)
       ? o.lineOffsets.map((v: number) => round3(v)) : undefined;
     tl.overlays.push({
-      ...(o.kind === 'text' ? { kind: 'text' as const, color: typeof o.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : '#ffffff' } : {}),
+      ...(o.kind === 'text' ? { kind: 'text' as const, color: typeof o.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : '#ffffff', ...(o.align === 'center' ? { align: 'center' as const } : {}) } : {}),
       ...(offs ? { lineOffsets: offs } : {}),
       id: o.id.slice(0, 64), text: o.text.slice(0, 2000), start: Math.max(0, round3(num(o.start, 0))),
       duration: Math.max(MIN_CLIP, round3(num(o.duration, 3))), x: num(o.x, 24), y: num(o.y, 24),
