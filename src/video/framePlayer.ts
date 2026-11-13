@@ -88,7 +88,17 @@ export class FramePlayer {
 
           const it = sink.canvases(Math.max(0, s)) as AsyncGenerator<W, void, unknown>;
           const cur = (await it.next()).value ?? null;
+          if (this.isDisposed || currentEpoch !== this.epoch) {
+            try { await it.return(undefined); } catch { /* ignore */ }
+            return null;
+          }
+
           const nxt = cur ? ((await it.next()).value ?? null) : null;
+          if (this.isDisposed || currentEpoch !== this.epoch) {
+            try { await it.return(undefined); } catch { /* ignore */ }
+            return null;
+          }
+
           g = { it, cur, nxt };
           this.st.set(key, g);
           break;
