@@ -1371,8 +1371,14 @@ export const ChatLogView: React.FC = () => {
 
       const gifBlob = await new Promise<Blob>((resolve, reject) => {
         worker.onmessage = (e) => {
-          if (e.data.type === 'BLOB') resolve(e.data.blob);
-          else if (e.data.type === 'ERROR') reject(new Error(e.data.error));
+          if (e.data.type === 'DONE' || e.data.type === 'BLOB') {
+            resolve(e.data.blob);
+          } else if (e.data.type === 'ERROR') {
+            reject(new Error(e.data.error || 'Erro ao codificar o GIF'));
+          }
+        };
+        worker.onerror = (err) => {
+          reject(new Error(err.message || 'Falha no Web Worker do GIF'));
         };
         worker.postMessage({ type: 'FINISH' });
       });
@@ -1383,8 +1389,10 @@ export const ChatLogView: React.FC = () => {
       const link = document.createElement('a');
       link.href = url;
       link.download = `haze-rp-edit-${Date.now()}.gif`;
+      document.body.appendChild(link);
       link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
       showNotice('GIF animado editado exportado com sucesso!');
     } catch (err) {
       showNotice(err instanceof Error ? err.message : 'Não foi possível exportar o GIF.', 'error');
