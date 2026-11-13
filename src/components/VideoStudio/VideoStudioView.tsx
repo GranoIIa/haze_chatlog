@@ -3,19 +3,46 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, ChevronLeft, ChevronRight, MessageSquarePlus } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
   setClipVolume, splitAt, totalDuration, trimClip, undo, updateOverlay, makeId, round3, MIN_CLIP, Timeline
 } from '../../video/timeline';
 import { openMedia, MediaError, OpenedMedia } from '../../video/mediaIO';
 import { composeFrame, Drawable } from '../../video/compositor';
+import { PreviewAudio } from '../../video/previewAudio';
 import { exportTimeline, ExportCancelled, ExportResult } from '../../video/exporter';
 
 const PREVIEW_W = 640;
 const SIZES: Array<[string, number, number]> = [['1280×720', 1280, 720], ['1920×1080', 1920, 1080], ['854×480', 854, 480]];
 const EFFECTS: Record<string, TimelineEffect> = { clip: { id: 'clip', name: 'Clipe' }, chat: { id: 'chat', name: 'Chat' } };
 const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, '0')}`;
+
+
+/** Bloco de clipe com arrasto próprio: solta sobre outro clipe para reordenar (a lib não reordena trilha sequencial). */
+const ClipBlock: React.FC<{ id: string; thumb?: string; label: string; selected: boolean; muted: boolean; onSelect: () => void; onReorder: (toIndex: number) => void }> =
+  ({ id, thumb, label, selected, muted, onSelect, onReorder }) => {
+    const [dx, setDx] = useState(0);
+    const start = useRef<{ x: number; moved: boolean } | null>(null);
+    return (
+      <div data-testid="clip-block" data-clip-id={id} style={{ backgroundImage: thumb ? `linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.15)), url(${thumb})` : undefined, backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', transform: dx ? `translateX(${dx}px)` : undefined, zIndex: dx ? 20 : undefined, touchAction: 'none', cursor: 'grab' }}
+        onPointerDown={e => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); start.current = { x: e.clientX, moved: false }; onSelect(); }}
+        onPointerMove={e => { const st = start.current; if (!st) return; const d = e.clientX - st.x; if (Math.abs(d) > 4) st.moved = true; if (st.moved) setDx(d); }}
+        onPointerUp={e => {
+          const st = start.current; start.current = null; setDx(0);
+          if (!st?.moved) return;
+          const me = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const target = me.left + me.width / 2 - dx + (e.clientX - st.x); // centro original + deslocamento do ponteiro
+          const others = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="clip-block"]'))
+            .filter(b => b.dataset.clipId !== id).map(b => { const r = b.getBoundingClientRect(); return r.left + r.width / 2; });
+          onReorder(others.filter(c => c < target).length);
+        }}
+        onPointerCancel={() => { start.current = null; setDx(0); }}
+        className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-haze-accent/25 border border-haze-accent/60 select-none ${selected ? 'ring-2 ring-white' : ''}`}>
+        {muted && <VolumeX className="w-3 h-3 shrink-0" />}<span className="truncate">{label}</span>
+      </div>
+    );
+  };
 
 export const VideoStudioView: React.FC = () => {
   const [hist, setHist] = useState(() => createHistory());
@@ -30,6 +57,8 @@ export const VideoStudioView: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [sizeIdx, setSizeIdx] = useState(0);
   const [fps, setFps] = useState(30);
+  const [zoom, setZoom] = useState(140);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [exp, setExp] = useState<{ phase: string; pct: number } | null>(null);
   const [result, setResult] = useState<{ r: ExportResult; url: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -90,28 +119,60 @@ export const VideoStudioView: React.FC = () => {
 
   useEffect(() => { tlStateRef.current?.setTime(t); }, [t]);
 
-  // ------------------------------------------------------------ reprodução (preview sem áudio)
+  // ------------------------------------------------------------ miniaturas dos clipes (1º quadro do trecho)
   useEffect(() => {
-    if (!playing) return;
-    let raf = 0; let last = performance.now();
-    const tick = (now: number) => {
-      const dt = (now - last) / 1000; last = now;
-      setT(cur => {
-        const n = cur + dt;
-        if (n >= total) { setPlaying(false); return total > 0 ? Math.max(0, total - 0.001) : 0; }
-        return n;
-      });
+    let dead = false;
+    (async () => {
+      for (const c of tl.clips) {
+        const key = `${c.mediaId}@${c.inPoint}`;
+        if (thumbs[key]) continue;
+        try {
+          const w = await mediaRef.current.get(c.mediaId)?.video?.getCanvas(c.inPoint);
+          if (!w || dead) continue;
+          const cv = document.createElement('canvas'); cv.width = 96; cv.height = 54;
+          const ctx = cv.getContext('2d')!; const src = w.canvas as Drawable;
+          const sc = Math.max(96 / src.width, 54 / src.height);
+          ctx.drawImage(src, (96 - src.width * sc) / 2, (54 - src.height * sc) / 2, src.width * sc, src.height * sc);
+          const url = cv.toDataURL('image/jpeg', 0.6);
+          if (!dead) setThumbs(m => ({ ...m, [key]: url }));
+        } catch { /* sem miniatura: o bloco continua utilizável */ }
+      }
+    })();
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tl.clips, library]);
+
+  // ------------------------------------------------------------ reprodução (relógio = relógio do áudio)
+  const audioRef = useRef<PreviewAudio | null>(null);
+  const [audioStatus, setAudioStatus] = useState('parado');
+  const tRef = useRef(0); tRef.current = t;
+  useEffect(() => {
+    if (!playing || total <= 0) return;
+    const pa = new PreviewAudio();
+    audioRef.current = pa;
+    let raf = 0; let alive = true;
+    const startAt = tRef.current >= total - 0.05 ? 0 : tRef.current;
+    void pa.start(tl, mediaRef.current, startAt).then(() => { if (alive) setAudioStatus('ativo'); });
+    const tick = () => {
+      if (!alive) return;
+      const now = pa.time();
+      if (now >= total) { setT(Math.max(0, total - 0.001)); setPlaying(false); return; }
+      setT(now);
+      setAudioStatus(`ativo · ${pa.scheduled} trechos`);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [playing, total]);
+    return () => { alive = false; cancelAnimationFrame(raf); const stopT = pa.stop(); audioRef.current = null; setAudioStatus('parado'); setT(Math.min(stopT, Math.max(0, total - 0.001))); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing]);
+  // qualquer edição durante a reprodução pausa (o áudio agendado seria da versão antiga)
+  useEffect(() => { setPlaying(false); }, [tl]);
 
   // ------------------------------------------------------------ timeline (react-timeline-editor)
   const editorData: TimelineRow[] = useMemo(() => [
     {
       id: 'video',
-      actions: placed.map(p => ({ id: p.clip.id, start: p.start, end: p.end, effectId: 'clip', flexible: true, movable: true }))
+      actions: placed.map(p => ({ id: p.clip.id, start: p.start, end: p.end, effectId: 'clip', flexible: true, movable: false }))
     },
     {
       id: 'chat',
@@ -224,9 +285,12 @@ export const VideoStudioView: React.FC = () => {
             <span className="text-xs font-mono text-haze-muted" data-testid="playhead">{fmt(t)} / {fmt(total)}</span>
             <label className="text-xs text-haze-muted flex items-center gap-1">ir para (s)
               <input data-testid="playhead-input" type="number" step="0.01" min="0" className={input} value={Number(t.toFixed(2))}
-                onChange={e => setT(Math.max(0, Number.isFinite(+e.target.value) ? +e.target.value : 0))} />
+                onChange={e => { setPlaying(false); setT(Math.max(0, Number.isFinite(+e.target.value) ? +e.target.value : 0)); }} />
             </label>
-            <span className="text-[11px] text-haze-faint">(preview sem áudio no POC; o áudio entra na exportação)</span>
+            <span className="text-[11px] text-haze-faint" data-testid="audio-status">áudio: {audioStatus}</span>
+            <label className="text-xs text-haze-muted flex items-center gap-1">zoom
+              <input data-testid="zoom" type="range" min="60" max="400" step="10" value={zoom} onChange={e => setZoom(+e.target.value)} />
+            </label>
             <div className="ml-auto flex gap-2">
               <button className={btn} data-testid="undo" disabled={!hist.past.length} onClick={() => setHist(undo)}><Undo2 className="w-4 h-4" /> Desfazer</button>
               <button className={btn} data-testid="redo" disabled={!hist.future.length} onClick={() => setHist(redo)}><Redo2 className="w-4 h-4" /> Refazer</button>
@@ -237,23 +301,24 @@ export const VideoStudioView: React.FC = () => {
             <div className="flex items-center gap-3 text-[11px] text-haze-muted px-1 pb-1"><span>Trilha 1: vídeo</span><span>Trilha 2: chat</span></div>
             {tl.clips.length === 0 && tl.overlays.length === 0
               ? <div className="h-24 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
-              : <TimelineUI ref={tlStateRef} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={140} startLeft={16} rowHeight={34}
+              : <TimelineUI ref={tlStateRef} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
                   autoScroll gridSnap dragLine={false}
                   getActionRender={(action) => {
                     const isClip = action.effectId === 'clip';
                     const c = tl.clips.find(x => x.id === action.id);
                     const label = isClip ? (mediaRef.current.get(c?.mediaId ?? '')?.ref.name ?? 'clipe') : (tl.overlays.find(x => x.id === action.id)?.text ?? 'chat');
                     const sel = action.id === selected;
+                    if (isClip) return <ClipBlock id={action.id} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={label} selected={sel} muted={(c?.volume ?? 1) === 0}
+                      onSelect={() => setSelected(action.id)} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
                     return (
-                      <div data-testid={isClip ? 'clip-block' : 'chat-block'} data-clip-id={action.id}
-                        onClick={() => isClip && setSelected(action.id)}
-                        className={`h-full w-full px-2 flex items-center text-[11px] truncate rounded ${isClip ? 'bg-haze-accent/25 border border-haze-accent/60' : 'bg-sky-500/25 border border-sky-400/60'} ${sel ? 'ring-2 ring-white' : ''}`}>
+                      <div data-testid="chat-block" data-clip-id={action.id}
+                        className="h-full w-full px-2 flex items-center text-[11px] truncate rounded bg-sky-500/25 border border-sky-400/60">
                         {label}
                       </div>
                     );
                   }}
-                  onClickTimeArea={(time) => { setT(Math.max(0, time)); return undefined; }}
-                  onCursorDrag={(time) => setT(Math.max(0, time))}
+                  onClickTimeArea={(time) => { setPlaying(false); setT(Math.max(0, time)); return undefined; }}
+                  onCursorDrag={(time) => { setPlaying(false); setT(Math.max(0, time)); }}
                   onActionMoveEnd={onMoveEnd as any}
                   onActionResizeEnd={onResizeEnd as any}
                 />}
@@ -280,6 +345,7 @@ export const VideoStudioView: React.FC = () => {
                 <span>{Math.round(selClip.volume * 100)}%</span>
               </div>
               <div className="flex flex-wrap gap-2">
+                <button className={btn} data-testid="mute" onClick={() => apply(x => setClipVolume(x, selClip.id, selClip.volume === 0 ? 1 : 0))}>{selClip.volume === 0 ? 'Ativar som' : 'Silenciar'}</button>
                 <button className={btn} data-testid="move-left" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) - 1))}>← Antes</button>
                 <button className={btn} data-testid="move-right" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) + 1))}>Depois →</button>
                 <button className={btn} data-testid="remove-clip" onClick={() => { apply(x => removeClip(x, selClip.id)); setSelected(null); }}><Trash2 className="w-4 h-4" /> Remover</button>

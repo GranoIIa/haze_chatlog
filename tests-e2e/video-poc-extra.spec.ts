@@ -32,8 +32,7 @@ test.beforeAll(() => {
 });
 
 test.describe('Video Studio (POC): arrasto e desempenho', () => {
-  // ABERTO: em duas tentativas o arrasto da lib não reordenou a trilha sequencial (ver QA_REPORT). Reordenar só está comprovado pelos botões.
-  test.fixme('arrastar um clipe na timeline reorganiza a trilha', async ({ page }) => {
+  test('arrastar um clipe na timeline reorganiza a trilha', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('tab-video').click();
     await page.getByTestId('video-file-input').setInputFiles([fileA, fileB]);
