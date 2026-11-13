@@ -99,9 +99,34 @@ describe('Tier 5: Diálogos, seções e canal de texto', () => {
   });
 
   test('T5_GIF_08_DecodeGifGracefulFallback: no Node ou sem ImageDecoder retorna null com segurança', async () => {
-    const { decodeGif } = await import('../../src/utils/gifDecoder');
+    const { decodeGif, DEFAULT_DECODE_OPTIONS } = await import('../../src/utils/gifDecoder');
     const fakeBlob = new Blob(['GIF89a'], { type: 'image/gif' });
     const result = await decodeGif(fakeBlob);
     assertEqual(result, null);
+    assertEqual(DEFAULT_DECODE_OPTIONS.maxFrames, 120);
+    assertEqual(DEFAULT_DECODE_OPTIONS.maxWidth, 1280);
+  });
+
+  test('T5_GIF_09_EncoderDelayInMilliseconds: SimpleGifEncoder converte ms para centisegundos corretamente', async () => {
+    const { SimpleGifEncoder } = await import('../../src/utils/gifEncoder');
+    const enc = new SimpleGifEncoder(2, 2, 100, 16);
+    enc.start();
+    const blackPixels = new Uint8ClampedArray(2 * 2 * 4).fill(255);
+    // Passando 100 ms para addFrame
+    enc.addFrame(blackPixels, 100);
+    const buf = enc['outBuffer'].toSubarray();
+
+    // Procura o Graphic Control Extension [0x21, 0xf9, 0x04, 0x00]
+    let gceIdx = -1;
+    for (let i = 0; i < buf.length - 4; i++) {
+      if (buf[i] === 0x21 && buf[i + 1] === 0xf9 && buf[i + 2] === 0x04 && buf[i + 3] === 0x00) {
+        gceIdx = i;
+        break;
+      }
+    }
+    assert(gceIdx >= 0, 'GCE block not found');
+    const delayCentis = buf[gceIdx + 4] | (buf[gceIdx + 5] << 8);
+    // 100 ms / 10 = 10 centisegundos. Não pode ser 1 centisegundo (dupla divisão)
+    assertEqual(delayCentis, 10);
   });
 });

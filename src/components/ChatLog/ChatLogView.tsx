@@ -88,10 +88,33 @@ export const ChatLogView: React.FC = () => {
   const gifFramesRef = useRef<DecodedFrame[]>([]);
   gifFramesRef.current = gifFrames;
   const currentFrameIdxRef = useRef<number>(0);
+  const gifLoadGenRef = useRef<number>(0);
+  const gifAbortControllerRef = useRef<AbortController | null>(null);
 
   const processGifBlob = async (blob: Blob) => {
+    // Cancela eventual decodificação anterior ainda em andamento
+    if (gifAbortControllerRef.current) {
+      gifAbortControllerRef.current.abort();
+    }
+    const abortCtrl = new AbortController();
+    gifAbortControllerRef.current = abortCtrl;
+    const currentGen = ++gifLoadGenRef.current;
+
     try {
-      const decoded = await decodeGif(blob);
+      const decoded = await decodeGif(blob, { signal: abortCtrl.signal });
+
+      // Se um novo upload foi iniciado enquanto este decodificava, descarta e limpa
+      if (currentGen !== gifLoadGenRef.current || abortCtrl.signal.aborted) {
+        if (decoded?.frames) {
+          decoded.frames.forEach(f => {
+            if ('close' in f.image && typeof (f.image as any).close === 'function') {
+              (f.image as any).close();
+            }
+          });
+        }
+        return;
+      }
+
       if (decoded && decoded.frames.length > 0) {
         // Libera bitmaps anteriores da memória da GPU
         gifFramesRef.current.forEach(f => {
@@ -114,7 +137,9 @@ export const ChatLogView: React.FC = () => {
         }));
       }
     } catch (e) {
-      console.warn('[processGifBlob] Erro ao decodificar:', e);
+      if (!abortCtrl.signal.aborted) {
+        console.warn('[processGifBlob] Erro ao decodificar:', e);
+      }
     }
   };
 
@@ -412,6 +437,9 @@ export const ChatLogView: React.FC = () => {
   };
 
   const clearBackground = () => {
+    if (gifAbortControllerRef.current) {
+      gifAbortControllerRef.current.abort();
+    }
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
       currentBlobUrlRef.current = null;
@@ -433,6 +461,9 @@ export const ChatLogView: React.FC = () => {
   // Limpeza de recursos ao desmontar componente
   useEffect(() => {
     return () => {
+      if (gifAbortControllerRef.current) {
+        gifAbortControllerRef.current.abort();
+      }
       if (currentBlobUrlRef.current) {
         URL.revokeObjectURL(currentBlobUrlRef.current);
         currentBlobUrlRef.current = null;
@@ -1328,11 +1359,16 @@ export const ChatLogView: React.FC = () => {
     setIsExportingGif(true);
     setGifExportProgress(0);
 
+    let worker: Worker | null = null;
+    let urlToRevoke: string | null = null;
+
     try {
       const frames = gifFramesRef.current;
       const fps = gifMeta?.fps || 12;
       const defaultIntervalMs = 1000 / fps;
-      const totalFrames = frames.length > 0 ? frames.length : Math.max(1, Math.round(Math.min(10, Math.max(0.5, gifMeta?.duration || 3)) * fps));
+      const totalFrames = frames.length > 0
+        ? frames.length
+        : Math.max(1, Math.round(Math.min(10, Math.max(0.5, gifMeta?.duration || 3)) * fps));
 
       const exportW = Math.min(800, canvasDims.width);
       const exportH = Math.round((exportW / canvasDims.width) * canvasDims.height);
@@ -1340,63 +1376,97 @@ export const ChatLogView: React.FC = () => {
       exportCanvas.width = exportW;
       exportCanvas.height = exportH;
       const expCtx = exportCanvas.getContext('2d', { willReadFrequently: true });
-      if (!expCtx) throw new Error('Canvas indisponível');
+      if (!expCtx) throw new Error('Canvas indisponível para renderização');
 
-      const worker = new Worker(new URL('../GifLab/gifWorker.ts', import.meta.url), { type: 'module' });
+      // Instancia o worker e registra os listeners ANTES de qualquer envio de quadros
+      worker = new Worker(new URL('../GifLab/gifWorker.ts', import.meta.url), { type: 'module' });
 
+      let workerError: Error | null = null;
+      let onDoneResolve: ((blob: Blob) => void) | null = null;
+      let onDoneReject: ((err: Error) => void) | null = null;
+
+      const finishPromise = new Promise<Blob>((resolve, reject) => {
+        onDoneResolve = resolve;
+        onDoneReject = reject;
+      });
+
+      worker.onmessage = (e: MessageEvent) => {
+        const d = e.data;
+        if (d.type === 'DONE' || d.type === 'BLOB') {
+          onDoneResolve?.(d.blob);
+        } else if (d.type === 'ERROR') {
+          const err = new Error(d.error || 'Erro na codificação do GIF');
+          workerError = err;
+          onDoneReject?.(err);
+        }
+      };
+
+      worker.onerror = (evt) => {
+        const err = new Error(evt.message || 'Falha no Web Worker do GIF');
+        workerError = err;
+        onDoneReject?.(err);
+      };
+
+      // Inicializa o encoder passando o delay em milissegundos (o SimpleGifEncoder faz a conversão interna correta)
       worker.postMessage({
         type: 'START',
         width: exportW,
         height: exportH,
-        delay: Math.round(defaultIntervalMs / 10),
+        delay: Math.round(defaultIntervalMs),
         colors: 128,
         totalFrames
       });
 
+      // Envia os frames com verificação precoce de erros
       for (let f = 0; f < totalFrames; f++) {
+        if (workerError) throw workerError;
+
         const frameSource = frames.length > 0 ? frames[f].image : undefined;
-        const frameDelay = frames.length > 0 ? Math.max(2, Math.round(frames[f].durationMs / 10)) : Math.max(2, Math.round(defaultIntervalMs / 10));
+        // Delay em milissegundos (sem dupla divisão por 10; mínimo 20 ms)
+        const frameDelayMs = frames.length > 0
+          ? Math.max(20, Math.round(frames[f].durationMs))
+          : Math.max(20, Math.round(defaultIntervalMs));
 
         drawScene(expCtx, exportW, exportH, exportW / canvasDims.width, frameSource);
         const imgData = expCtx.getImageData(0, 0, exportW, exportH);
+
         worker.postMessage({
           type: 'ADD_FRAME',
           buffer: imgData.data.buffer,
-          delay: frameDelay
+          delay: frameDelayMs
         }, [imgData.data.buffer]);
 
-        setGifExportProgress(Math.round(((f + 1) / totalFrames) * 100));
-        await new Promise(r => setTimeout(r, 10));
+        setGifExportProgress(Math.round(((f + 1) / totalFrames) * 95));
+        await new Promise(r => setTimeout(r, 8));
       }
 
-      const gifBlob = await new Promise<Blob>((resolve, reject) => {
-        worker.onmessage = (e) => {
-          if (e.data.type === 'DONE' || e.data.type === 'BLOB') {
-            resolve(e.data.blob);
-          } else if (e.data.type === 'ERROR') {
-            reject(new Error(e.data.error || 'Erro ao codificar o GIF'));
-          }
-        };
-        worker.onerror = (err) => {
-          reject(new Error(err.message || 'Falha no Web Worker do GIF'));
-        };
-        worker.postMessage({ type: 'FINISH' });
-      });
+      if (workerError) throw workerError;
 
-      worker.terminate();
+      // Solicita término e aguarda resolução segura do Blob
+      worker.postMessage({ type: 'FINISH' });
+      const gifBlob = await finishPromise;
+
+      setGifExportProgress(100);
 
       const url = URL.createObjectURL(gifBlob);
+      urlToRevoke = url;
       const link = document.createElement('a');
       link.href = url;
       link.download = `haze-rp-edit-${Date.now()}.gif`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
       showNotice('GIF animado editado exportado com sucesso!');
     } catch (err) {
       showNotice(err instanceof Error ? err.message : 'Não foi possível exportar o GIF.', 'error');
     } finally {
+      if (worker) {
+        try { worker.terminate(); } catch (_) { /* já finalizado */ }
+      }
+      if (urlToRevoke) {
+        const toRevoke = urlToRevoke;
+        setTimeout(() => URL.revokeObjectURL(toRevoke), 10000);
+      }
       setIsExportingGif(false);
       setGifExportProgress(0);
     }
