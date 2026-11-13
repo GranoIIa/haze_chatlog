@@ -43,7 +43,12 @@ describe('Tier 5: Diálogos, seções e canal de texto', () => {
 
   test('T5_DLG_05_SpeechPrefix: monta a linha de fala com o tom', () => {
     assertEqual(speechPrefix('Sarah Miller', 'sussurrando'), 'Sarah Miller diz (sussurrando): ');
-    assertEqual(speechPrefix('', 'normal'), 'Personagem diz (normal): ');
+    assertEqual(speechPrefix('Oliver Walker', 'normal'), 'Oliver Walker diz: ');
+    assertEqual(speechPrefix('', 'normal'), 'Personagem diz: ');
+    assertEqual(speechPrefix('Oliver Walker', 'gritando'), 'Oliver Walker diz (gritando): ');
+    assertEqual(speechPrefix('Oliver Walker', 'baixo'), 'Oliver Walker diz (baixo): ');
+    assertEqual(speechPrefix('Oliver Walker', 'rádio'), 'Oliver Walker diz (rádio): ');
+    assertEqual(speechPrefix('Oliver Walker', 'celular'), 'Oliver Walker diz (celular): ');
   });
 
   test('T5_SEC_01_SectionOrder: as seções do Editor RP seguem a ordem do fluxo de trabalho', () => {

@@ -16,6 +16,7 @@ import {
 import { CanvasLayersSidebar, PresetKey } from '../RpElements/CanvasLayersSidebar';
 import { CameraPanel } from './panels/CameraPanel';
 import { DialogPanel } from './panels/DialogPanel';
+import { speechPrefix } from '../../utils/dialogEdit';
 import {
   EditorSection, SectionId, SECTION_IDS, loadOpenSections, saveOpenSections
 } from './EditorSection';
@@ -561,7 +562,7 @@ export const ChatLogView: React.FC = () => {
   // Fala do personagem ativo com o tom escolhido (normal, sussurrando, gritando, baixo...)
   const insertSpeech = (tone: string, charName?: string) => {
     const name = charName ?? activeChar?.name ?? 'Personagem';
-    insertAtCursor(`${name} diz (${tone}): `);
+    insertAtCursor(speechPrefix(name, tone));
   };
 
   const insertCharSpeech = (charName: string) => {

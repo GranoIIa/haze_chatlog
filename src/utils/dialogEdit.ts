@@ -28,8 +28,14 @@ export function insertAtSelection(
   return { value: next, selStart: caret, selEnd: caret };
 }
 
-/** Linha de fala do personagem com o tom escolhido (normal, sussurrando, gritando, baixo, rádio, celular). */
-export const speechPrefix = (name: string, tone: string) => `${name || 'Personagem'} diz (${tone}): `;
+/** Linha de fala do personagem com o tom escolhido (normal, sussurrando, gritando, baixo, rádio, celular). Em tom normal, não inclui "(normal)". */
+export const speechPrefix = (name: string, tone: string) => {
+  const speaker = name || 'Personagem';
+  if (!tone || tone.toLowerCase() === 'normal') {
+    return `${speaker} diz: `;
+  }
+  return `${speaker} diz (${tone}): `;
+};
 
 /** Censura: envolve a seleção em ||...||; sem seleção, insere um marcador editável. */
 export function censorSelection(value: string, selStart: number, selEnd: number): EditResult {

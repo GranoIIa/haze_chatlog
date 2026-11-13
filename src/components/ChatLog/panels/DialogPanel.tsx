@@ -125,7 +125,7 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
               key={tone}
               type="button"
               onClick={() => insert(speechPrefix(activeChar?.name ?? '', tone))}
-              title={`${tip} (“diz (${tone}):”)`}
+              title={tone === 'normal' ? `${tip} (“diz:”)` : `${tip} (“diz (${tone}):”)`}
               style={{ color, borderColor: `${color}55` }}
               className={`px-2 py-1.5 rounded-lg border bg-haze-field hover:bg-haze-raised text-xs transition-colors ${tone === 'gritando' ? 'font-extrabold' : 'font-semibold'}`}
             >
