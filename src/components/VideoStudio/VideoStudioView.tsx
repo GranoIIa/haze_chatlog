@@ -94,6 +94,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const [sizeIdx, setSizeIdx] = useState(0);
   const [fps, setFps] = useState(30);
   const [zoom, setZoom] = useState(140);
+  const tlWrapRef = useRef<HTMLDivElement | null>(null);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [peaks, setPeaks] = useState<Record<string, Float32Array>>({});
   const [exp, setExp] = useState<{ phase: string; pct: number } | null>(null);
@@ -116,6 +117,16 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
   const placed = useMemo(() => layout(tl), [tl]);
   const total = totalDuration(tl);
+  /** Ajusta o zoom para a montagem inteira caber na largura da timeline (automático: só reduz, nunca passa de 140). */
+  const userZoomed = useRef(false);
+  const fitZoom = (max = 400) => {
+    const w = tlWrapRef.current?.clientWidth ?? 0;
+    if (w > 0 && total > 0) setZoom(Math.max(10, Math.min(max, Math.floor((w - 16 - 32) / total))));
+  };
+  useEffect(() => {
+    if (total > 0 && !userZoomed.current) fitZoom(140);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total]);
   const [outW, outH] = [SIZES[sizeIdx][1], SIZES[sizeIdx][2]];
   const previewH = Math.round((PREVIEW_W * outH) / outW / 2) * 2;
   const selClip = tl.clips.find(c => c.id === selected) ?? null;
@@ -307,6 +318,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       const activeKeys = new Set<string>();
       for (const L of activeL) activeKeys.add('m' + L.clip.id);
       for (const A of activeC) activeKeys.add('l' + A.layer.id);
+      const nextPlaced = placed.find(p => p.start > now && p.start - now <= 3.0);
+      if (nextPlaced) activeKeys.add('m' + nextPlaced.clip.id);
       fp.prune(activeKeys);
 
       // Decodificação paralela de camadas principais e PiP
@@ -316,6 +329,17 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       ]);
 
       if (!alive) return;
+      // Se durante a decodificação o playhead cruzou para outro clipe principal, descarta o quadro obsoleto
+      // e desenha imediatamente o quadro em cache do novo clipe se disponível.
+      const currentNow = pa.time();
+      const currentActive = activeLayers(tl, currentNow);
+      if (currentActive.length > 0 && activeL.length > 0 && currentActive[0].clip.id !== activeL[0].clip.id) {
+        const peeked = fp.peek('m' + currentActive[0].clip.id);
+        if (peeked) {
+          composeFrame(ctx, cv.width, cv.height, [peeked], tl, currentNow, new Map());
+        }
+        return render(currentNow);
+      }
       const lf = new Map<string, Drawable | null>(layerEntries);
       composeFrame(ctx, cv.width, cv.height, main, tl, now, lf);
     };
@@ -333,6 +357,14 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       }
       setT(now);
       setAudioStatus(`ativo · ${pa.scheduled} trechos`);
+
+      // Pré-aquecimento contínuo no tick: não bloqueado pelo busy do render
+      const nextPlaced = placed.find(p => p.start > now && p.start - now <= 3.0);
+      if (nextPlaced) {
+        const nextMedia = mediaRef.current.get(nextPlaced.clip.mediaId);
+        fp.prefetch('m' + nextPlaced.clip.id, nextMedia?.video, nextPlaced.clip.inPoint);
+      }
+
       if (!busy) {
         busy = true;
         render(now)
@@ -563,7 +595,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             </label>
             <span className="text-[11px] text-haze-faint" data-testid="audio-status">áudio: {audioStatus}</span>
             <label className="text-xs text-haze-muted flex items-center gap-1">zoom
-              <input data-testid="zoom" type="range" min="60" max="400" step="10" value={zoom} onChange={e => setZoom(+e.target.value)} />
+              <input data-testid="zoom" type="range" min="10" max="400" step="5" value={zoom} onChange={e => { userZoomed.current = true; setZoom(+e.target.value); }} />
+              <button className={btn} data-testid="zoom-fit" disabled={!total} onClick={() => { userZoomed.current = false; fitZoom(); }}>Ajustar</button>
             </label>
             <div className="ml-auto flex gap-2">
               <button className={btn} data-testid="undo" disabled={!hist.past.length} onClick={() => setHist(undo)}><Undo2 className="w-4 h-4" /> Desfazer</button>
@@ -571,11 +604,11 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             </div>
           </div>
 
-          {uiMode === 'advanced' && <div className="rounded-xl border border-haze-border bg-haze-panel p-2 overflow-hidden" data-testid="timeline">
+          {uiMode === 'advanced' && <div ref={tlWrapRef} className="rounded-xl border border-haze-border bg-haze-panel p-2 overflow-hidden" data-testid="timeline">
             <div className="flex items-center gap-3 text-[11px] text-haze-muted px-1 pb-1"><span>Trilha 1: vídeo</span><span>Trilha 2: chat</span></div>
             {tl.clips.length === 0 && tl.overlays.length === 0 && !(tl.layers ?? []).length
               ? <div className="h-24 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
-              : <TimelineUI ref={tlStateRef} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
+              : <TimelineUI ref={tlStateRef} style={{ width: '100%', height: 32 + 10 + Math.max(1, editorData.length) * 34 + 16 }} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
                   autoScroll gridSnap dragLine={false}
                   getActionRender={(action) => {
                     const isClip = action.effectId === 'clip';

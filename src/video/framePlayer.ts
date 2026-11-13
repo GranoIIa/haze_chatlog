@@ -32,7 +32,24 @@ export class FramePlayer {
   /** Se o instante pedido passar disto além do quadro seguinte, reabre o iterador (salto/seek). */
   private static readonly JUMP = 0.35;
   /** Número máximo de quadros a decodificar sequencialmente em um tick antes de forçar re-seek direto. */
-  private static readonly MAX_CATCHUP_FRAMES = 8;
+  private static readonly MAX_CATCHUP_FRAMES = 120;
+
+  /**
+   * Obtém de forma síncrona o último quadro decodificado e pronto em cache para a chave.
+   */
+  peek(key: string): Drawable | null {
+    if (this.isDisposed) return null;
+    return (this.st.get(key)?.cur?.canvas as Drawable) ?? null;
+  }
+
+  /**
+   * Pré-aquece o iterador de um clipe prestes a entrar na timeline.
+   * Não enfileira se o iterador já existe ou já está em abertura.
+   */
+  prefetch(key: string, sink: CanvasSink | null | undefined, s: number): void {
+    if (this.isDisposed || !sink || this.st.has(key) || this.queues.has(key)) return;
+    void this.frameAt(key, sink, s);
+  }
 
   async frameAt(key: string, sink: CanvasSink | null | undefined, s: number): Promise<Drawable | null> {
     if (this.isDisposed || !sink) return null;
@@ -51,8 +68,10 @@ export class FramePlayer {
 
   private async step(key: string, sink: CanvasSink, s: number, currentEpoch: number): Promise<Drawable | null> {
     let g = this.st.get(key);
-    const ahead = g ? (g.nxt ?? g.cur)?.timestamp ?? -1 : -1;
-    const shouldReset = !g || !g.cur || s < g.cur.timestamp - 0.001 || s > ahead + FramePlayer.JUMP;
+    // Só reseta se não existe estado ou se houve recuo temporal (seek para trás).
+    // Avanços temporais para a frente são consumidos sequencialmente pelo iterador;
+    // se o salto for excessivo, o limite MAX_CATCHUP_FRAMES abaixo realiza o re-seek.
+    const shouldReset = !g || !g.cur || s < g.cur.timestamp - 0.001;
 
     try {
       if (shouldReset) {
