@@ -16,6 +16,9 @@ import { PreviewAudio } from '../../video/previewAudio';
 import { parseSrt, MAX_SRT_BYTES } from '../../video/srt';
 import { computePeaks, sliceBars } from '../../video/waveform';
 import { exportTimeline, ExportCancelled, ExportResult } from '../../video/exporter';
+import { applyTemplate, findTemplate, EXPORT_PRESETS, findExportPreset, bitrateFor, TARGET_AUDIO_BPS } from '../../video/templates';
+import { TemplatesPanel } from './TemplatesPanel';
+import { GuidedFlow } from './GuidedFlow';
 
 const PREVIEW_W = 640;
 const SIZES: Array<[string, number, number]> = [['1280×720', 1280, 720], ['1920×1080', 1920, 1080], ['854×480', 854, 480]];
@@ -72,6 +75,14 @@ export const VideoStudioView: React.FC = () => {
   const mediaRef = useRef(new Map<string, OpenedMedia>());
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
+  const [selectedOverlay, setSelectedOverlay] = useState<string | null>(null);
+  // Avançado continua o padrão (compatibilidade); o Simples é opcional e lembrado neste navegador.
+  const [uiMode, setUiMode] = useState<'simple' | 'advanced'>(() => {
+    try { return localStorage.getItem('haze-video-mode-v1') === 'simple' ? 'simple' : 'advanced'; } catch { return 'advanced'; }
+  });
+  const changeMode = (m: 'simple' | 'advanced') => { setUiMode(m); try { localStorage.setItem('haze-video-mode-v1', m); } catch { /* sem armazenamento */ } };
+  const [presetId, setPresetId] = useState<string>('custom');
+  const [showTemplates, setShowTemplates] = useState(false);
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -101,6 +112,7 @@ export const VideoStudioView: React.FC = () => {
   const previewH = Math.round((PREVIEW_W * outH) / outW / 2) * 2;
   const selClip = tl.clips.find(c => c.id === selected) ?? null;
   const selLayer = (tl.layers ?? []).find(l => l.id === selectedLayer) ?? null;
+  const selOverlay = tl.overlays.find(o => o.id === selectedOverlay) ?? null;
   const selLayerMedia = selLayer ? mediaRef.current.get(selLayer.mediaId) : undefined;
   const selMedia = selClip ? mediaRef.current.get(selClip.mediaId) : undefined;
 
@@ -129,10 +141,29 @@ export const VideoStudioView: React.FC = () => {
         }
         mediaRef.current.set(m.ref.id, m);
         setLibrary(l => [...l, m]);
+        if (uiMode === 'simple' && !cand) { const ref = m.ref; apply(x => addClip(x, ref)); }
       } catch (e) {
         setMessage(e instanceof MediaError ? e.message : `Não foi possível importar "${f.name}".`);
       }
     }
+  };
+
+  // ------------------------------------------------------------ modelos
+  const applyTemplateById = (templateId: string, picks: Record<string, string | undefined>): string[] => {
+    const def = findTemplate(templateId);
+    if (!def) return ['Modelo desconhecido.'];
+    const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
+    const now = { date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, time: `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` };
+    const media: Record<string, ReturnType<typeof mediaRef.current.get> extends infer M ? (M extends { ref: infer R } ? R : never) | undefined : never> = {};
+    for (const [slot, id] of Object.entries(picks)) media[slot] = id ? mediaRef.current.get(id)?.ref : undefined;
+    const r = applyTemplate(def, media, now);
+    if (r.errors.length) return r.errors;
+    setPlaying(false);
+    apply(() => r.timeline);
+    setSelected(null); setSelectedLayer(null); setSelectedOverlay(null); setT(0);
+    setShowTemplates(false);
+    setMessage(`Modelo "${def.name}" aplicado. Troque os textos entre colchetes e ajuste as cenas; Desfazer volta à montagem anterior.`);
+    return [];
   };
 
   // ------------------------------------------------------------ legendas (.srt)
@@ -315,7 +346,7 @@ export const VideoStudioView: React.FC = () => {
   };
 
   // ------------------------------------------------------------ exportação
-  const startExport = async () => {
+  const startExport = async (forcePreset?: string) => {
     setMessage(null);
     if (pending.length) { setMessage(`Reconecte as mídias do projeto antes de exportar: ${pending.map(p => p.name).join(', ')}.`); return; }
     if (result) { URL.revokeObjectURL(result.url); setResult(null); }
@@ -323,11 +354,24 @@ export const VideoStudioView: React.FC = () => {
     abortRef.current = ac;
     setExp({ phase: 'preparando', pct: 0 });
     try {
+      const preset = findExportPreset(forcePreset ?? presetId);
+      let opts = { width: outW, height: outH, fps } as { width: number; height: number; fps: number; videoBitrate?: number; audioBitrate?: number };
+      if (preset) {
+        opts = { width: preset.width, height: preset.height, fps: preset.fps };
+        if (preset.targetBytes) {
+          const b = bitrateFor(preset.targetBytes, Math.max(0.1, totalDuration(tl)));
+          if (!b.ok) { setMessage(b.message ?? 'Não cabe nesse tamanho.'); setExp(null); abortRef.current = null; return; }
+          opts.videoBitrate = b.videoBps; opts.audioBitrate = TARGET_AUDIO_BPS;
+        }
+      }
       const r = await exportTimeline(tl, mediaRef.current, {
-        width: outW, height: outH, fps, signal: ac.signal,
+        ...opts, signal: ac.signal,
         onProgress: (f, phase) => setExp({ phase, pct: Math.round(f * 100) })
       });
       setResult({ r, url: URL.createObjectURL(r.blob) });
+      if (preset?.targetBytes && r.blob.size > preset.targetBytes) {
+        setMessage(`O arquivo ficou com ${(r.blob.size / 1048576).toFixed(1)} MB, acima dos ${(preset.targetBytes / 1048576).toFixed(0)} MB do destino. Reduza a duração ou tente de novo.`);
+      }
     } catch (e) {
       setMessage(e instanceof ExportCancelled ? 'Exportação cancelada.' : (e as Error).message);
     } finally {
@@ -345,7 +389,14 @@ export const VideoStudioView: React.FC = () => {
         <Clapperboard className="w-5 h-5 text-haze-accent" />
         <h2 className="text-sm font-bold">Video Studio <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded border border-haze-accent/30 text-haze-accent font-mono">POC</span></h2>
         <span className="text-xs text-haze-muted">Edição local: os arquivos não saem do seu computador.</span>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex gap-2 items-center">
+          <nav className="flex p-0.5 rounded-lg bg-haze-panel border border-haze-border" aria-label="Modo do Video Studio">
+            {(['simple', 'advanced'] as const).map(m => (
+              <button key={m} data-testid={`video-mode-${m}`} aria-pressed={uiMode === m} onClick={() => changeMode(m)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold ${uiMode === m ? 'bg-haze-accent-fill text-haze-on-accent' : 'text-haze-muted hover:text-white'}`}>{m === 'simple' ? 'Simples' : 'Avançado'}</button>
+            ))}
+          </nav>
+          <button className={btn} data-testid="templates-toggle" aria-expanded={showTemplates} onClick={() => setShowTemplates(v => !v)}>Modelos</button>
           <button className={btn} data-testid="project-save" disabled={!tl.clips.length && !(tl.layers ?? []).length} onClick={() => void saveProject()}><Save className="w-4 h-4" /> Salvar projeto</button>
           <label className={`${btn} cursor-pointer`}><FolderOpen className="w-4 h-4" /> Abrir projeto
             <input data-testid="project-open-input" type="file" accept=".haze" className="hidden" onChange={e => { void openProject(e.target.files?.[0]); e.target.value = ''; }} />
@@ -354,6 +405,12 @@ export const VideoStudioView: React.FC = () => {
       </div>
 
       {message && <div role="alert" data-testid="video-message" className="px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-xs text-red-300">{message}</div>}
+
+      {showTemplates && (
+        <div className="rounded-xl border border-haze-border bg-haze-panel p-3 max-w-xl">
+          <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_280px] gap-4">
         {/* Biblioteca */}
@@ -438,7 +495,7 @@ export const VideoStudioView: React.FC = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border border-haze-border bg-haze-panel p-2 overflow-hidden" data-testid="timeline">
+          {uiMode === 'advanced' && <div className="rounded-xl border border-haze-border bg-haze-panel p-2 overflow-hidden" data-testid="timeline">
             <div className="flex items-center gap-3 text-[11px] text-haze-muted px-1 pb-1"><span>Trilha 1: vídeo</span><span>Trilha 2: chat</span></div>
             {tl.clips.length === 0 && tl.overlays.length === 0 && !(tl.layers ?? []).length
               ? <div className="h-24 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
@@ -463,7 +520,7 @@ export const VideoStudioView: React.FC = () => {
                     if (isClip) return <ClipBlock id={action.id} wave={c && peaks[c.mediaId] && mediaRef.current.get(c.mediaId) ? { peaks: peaks[c.mediaId], mediaDur: mediaRef.current.get(c.mediaId)!.ref.duration, inP: c.inPoint, outP: c.outPoint } : undefined} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={c && speedOf(c) !== 1 ? `${label} ×${speedOf(c)}` : label} selected={sel} muted={(c?.volume ?? 1) === 0}
                       onSelect={() => { setSelected(action.id); setSelectedLayer(null); }} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
                     return (
-                      <div data-testid="chat-block" data-clip-id={action.id}
+                      <div data-testid="chat-block" data-clip-id={action.id} onPointerDown={() => { setSelectedOverlay(action.id); setSelectedLayer(null); }}
                         className="h-full w-full px-2 flex items-center text-[11px] truncate rounded bg-sky-500/25 border border-sky-400/60">
                         {label}
                       </div>
@@ -474,11 +531,18 @@ export const VideoStudioView: React.FC = () => {
                   onActionMoveEnd={onMoveEnd as any}
                   onActionResizeEnd={onResizeEnd as any}
                 />}
-          </div>
+          </div>}
         </section>
 
-        {/* Inspetor + exportar */}
-        <section className="rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3">
+        {/* Inspetor + exportar (Avançado) ou fluxo guiado (Simples) */}
+        {uiMode === 'simple' && (
+          <section className="rounded-xl border border-haze-border bg-haze-panel p-3">
+            <GuidedFlow tl={tl} mediaOf={id => mediaRef.current.get(id)} apply={apply} presetId={presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId}
+              setPresetId={setPresetId} exporting={exp} result={result} onExport={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
+              onCancel={() => abortRef.current?.abort()} />
+          </section>
+        )}
+        {uiMode === 'advanced' && <section className="rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3">
           {selLayer && selLayerMedia && (() => {
             const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
             const cur = evalTransform(selLayer, rel);
@@ -595,19 +659,41 @@ export const VideoStudioView: React.FC = () => {
           {tl.overlays.length > 0 && (
             <ul className="text-xs space-y-1 border-t border-haze-border pt-2" data-testid="overlay-list">
               {tl.overlays.map(o => (
-                <li key={o.id} className="flex items-center gap-2"><span className="truncate flex-1">{fmt(o.start)} · {o.text}</span>
+                <li key={o.id} className="flex items-center gap-2"><button className={`truncate flex-1 text-left ${o.id === selectedOverlay ? 'text-white font-semibold' : ''}`} data-testid="overlay-select" onClick={() => { setSelectedOverlay(o.id); setSelectedLayer(null); }}>{fmt(o.start)} · {o.text}</button>
                   <button aria-label="Remover chat" className="text-haze-muted hover:text-white" onClick={() => apply(x => removeOverlay(x, o.id))}><Trash2 className="w-3.5 h-3.5" /></button></li>
               ))}
             </ul>
           )}
 
+          {selOverlay && (
+            <div className="space-y-1.5 text-xs border border-sky-400/40 rounded-lg p-2" data-testid="overlay-editor">
+              <div className="font-semibold">Texto selecionado ({selOverlay.kind === 'text' ? 'título/legenda' : 'chat'})</div>
+              <textarea data-testid="ov-text" rows={3} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" key={`t-${selOverlay.id}`} defaultValue={selOverlay.text}
+                onBlur={e => { const v = e.target.value; if (v.trim() && v !== selOverlay.text) apply(x => updateOverlay(x, selOverlay.id, { text: v, lineOffsets: undefined })); }} />
+              <div className="flex items-center gap-2 flex-wrap">
+                início <input data-testid="ov-start" type="number" step="0.1" min="0" className={input} key={`s-${selOverlay.id}-${selOverlay.start}`} defaultValue={selOverlay.start}
+                  onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { start: +e.target.value }))} />
+                duração <input data-testid="ov-duration" type="number" step="0.1" min="0.1" className={input} key={`d-${selOverlay.id}-${selOverlay.duration}`} defaultValue={selOverlay.duration}
+                  onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { duration: +e.target.value }))} />
+                tamanho <input data-testid="ov-size" type="number" step="2" min="10" max="72" className={input} key={`z-${selOverlay.id}-${selOverlay.fontSize}`} defaultValue={selOverlay.fontSize}
+                  onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { fontSize: Math.max(10, Math.min(72, +e.target.value || 22)) }))} />
+                {selOverlay.kind === 'text' && <>cor <input data-testid="ov-color" type="color" value={selOverlay.color ?? '#ffffff'} onChange={e => apply(x => updateOverlay(x, selOverlay.id, { color: e.target.value }))} /></>}
+              </div>
+              <div className="text-haze-faint">Editar o texto desfaz a entrada linha a linha.</div>
+            </div>
+          )}
+
           <div className="border-t border-haze-border pt-3 space-y-2">
             <div className="text-xs font-semibold">Exportar</div>
+            <select data-testid="export-preset" value={presetId} onChange={e => setPresetId(e.target.value)} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
+              <option value="custom">Personalizado (tamanho e fps abaixo)</option>
+              {EXPORT_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
             <div className="flex items-center gap-2 text-xs">
-              <select data-testid="export-size" value={sizeIdx} onChange={e => setSizeIdx(+e.target.value)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border">
+              <select data-testid="export-size" disabled={presetId !== 'custom'} value={sizeIdx} onChange={e => setSizeIdx(+e.target.value)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border">
                 {SIZES.map((s, i) => <option key={s[0]} value={i}>{s[0]}</option>)}
               </select>
-              <select data-testid="export-fps" value={fps} onChange={e => setFps(+e.target.value)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border">
+              <select data-testid="export-fps" disabled={presetId !== 'custom'} value={fps} onChange={e => setFps(+e.target.value)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border">
                 {[24, 30, 60].map(f => <option key={f} value={f}>{f} fps</option>)}
               </select>
             </div>
@@ -623,7 +709,7 @@ export const VideoStudioView: React.FC = () => {
               </div>
             )}
           </div>
-        </section>
+        </section>}
       </div>
     </div>
   );

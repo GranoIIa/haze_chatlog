@@ -21,6 +21,9 @@ export class ExportError extends Error {
 }
 
 export interface ExportOptions {
+  /** Bitrates em bits/s (padrão: qualidade por resolução; áudio 128 kbps). Usados pelos presets de destino. */
+  videoBitrate?: number;
+  audioBitrate?: number;
   width: number;
   height: number;
   fps: number;
@@ -176,9 +179,9 @@ export async function exportTimeline(
   const output = new Output({ format: c.fmt(), target });
   const canvas = new OffscreenCanvas(W, H);
   const ctx = canvas.getContext('2d')!;
-  const vsrc = new CanvasSource(canvas, { codec: v, bitrate: Math.round(W * H * fps * 0.1) });
+  const vsrc = new CanvasSource(canvas, { codec: v, bitrate: opts.videoBitrate ? Math.round(opts.videoBitrate) : Math.round(W * H * fps * 0.1) });
   output.addVideoTrack(vsrc, { frameRate: fps });
-  const asrc = audioGen && a ? new AudioBufferSource({ codec: a, bitrate: 128_000 }) : null;
+  const asrc = audioGen && a ? new AudioBufferSource({ codec: a, bitrate: opts.audioBitrate ?? 128_000 }) : null;
   if (asrc) output.addAudioTrack(asrc);
 
   let audioPos = 0;       // amostras já enviadas ao encoder

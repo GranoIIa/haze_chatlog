@@ -8,7 +8,7 @@ Estimativas em **dias de um desenvolvedor focado**, com faixa (otimista a pessim
 | **VIDEO-F1 Core** | Biblioteca persistente na sessão, miniaturas, preview **com áudio** (Web Audio), cursor/zoom, cortar/dividir/reordenar polidos, volume/mudo, exportar com progresso e cancelamento (Worker deixou de ser requisito: ver F0_REPORT), mix de áudio em streaming, erros e limites | 8 a 14 | Montagem de 3+ clipes exporta com duração ±1 quadro, A/V sincronizado ≤ 40 ms, sem vazamento (memória estável em 5 exportações), cancelamento libera tudo |
 | **VIDEO-F2 Integração RP** | Chat com estilo completo (personagens, tons, cores), texto livre, presets de câmera por clipe (Bodycam/CCTV/Noir), overlays, `.haze` v2 com migração e reimport de mídia | 8 a 12 | `.haze` v1 abrem; v2 ida e volta preserva a timeline; preset aplicado igual ao do Editor RP (cor média) |
 | **VIDEO-F3 Avançado** | Multifaixa com sobreposição, snap, keyframes, transições, velocidade, áudio (fade, ducking, waveform), legendas (SRT) | 15 a 25 | Testes de sobreposição e limites; transição sem quadro duplicado; waveform correta |
-| **VIDEO-F4 Storytelling** | Templates editáveis, fluxo guiado (modo Simples), presets Discord/fórum | 6 a 10 | Template aberto, editado e exportado sem perda; presets respeitam limites de tamanho do destino |
+| **VIDEO-F4 Storytelling, PARCIAL (ver F4_REPORT)** | Templates editáveis, fluxo guiado (modo Simples), presets Discord/fórum | 6 a 10 | Template aberto, editado e exportado sem perda; presets respeitam limites de tamanho do destino |
 | **Total** | | **40 a 66 dias** | |
 
 ## Riscos que movem a estimativa
