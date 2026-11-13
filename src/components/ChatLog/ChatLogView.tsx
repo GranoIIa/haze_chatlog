@@ -40,6 +40,10 @@ import {
   buildProjectBlob, parseProjectFile, ProjectError, ProjectScene, ProjectAsset, PROJECT_EXTENSION
 } from '../../utils/projectFile';
 import { decodeGif, type DecodedFrame } from '../../utils/gifDecoder';
+import {
+  loadAndApplyAllCustomFonts, saveCustomFont, deleteCustomFont, registerFontFace,
+  fontNameFromFileName, isValidFontFile, MAX_FONT_SIZE_BYTES, type CustomFontMeta
+} from '../../utils/customFontStorage';
 
 export const ChatLogView: React.FC = () => {
   // Container Ref para escopo de eventos globais (ex: paste em abas inativas)
@@ -162,6 +166,8 @@ export const ChatLogView: React.FC = () => {
   // Configurações de Tipografia e Estilo (Features 8, 9, 10)
   const [fontSize, setFontSize] = useState<number>(num(saved.fontSize, 20));
   const [fontFamily, setFontFamily] = useState<string>(str(saved.fontFamily, "Arial, Helvetica, sans-serif"));
+  const [customFonts, setCustomFonts] = useState<CustomFontMeta[]>([]);
+  const [fontUploadError, setFontUploadError] = useState<string | null>(null);
   const [lineHeightFactor, setLineHeightFactor] = useState<number>(num(saved.lineHeightFactor, 1.55));
   const [strokeEnabled, setStrokeEnabled] = useState<boolean>(bool(saved.strokeEnabled, true));
   const [strokeWidth, setStrokeWidth] = useState<number>(num(saved.strokeWidth, 2));
@@ -1622,6 +1628,95 @@ export const ChatLogView: React.FC = () => {
     fonts.addEventListener?.('loadingdone', bump);
     return () => fonts.removeEventListener?.('loadingdone', bump);
   }, []);
+
+  // Inicializa fontes personalizadas salvas pelo jogador no IndexedDB
+  useEffect(() => {
+    let mounted = true;
+    loadAndApplyAllCustomFonts()
+      .then(metas => {
+        if (mounted) {
+          setCustomFonts(metas);
+          if (metas.length > 0) {
+            setFontsVersion(v => v + 1);
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('[ChatLogView] Erro ao carregar fontes customizadas:', err);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  const handleFontFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setFontUploadError(null);
+    if (!isValidFontFile(file.name)) {
+      setFontUploadError('Formato inválido. Use arquivos .ttf, .otf, .woff ou .woff2.');
+      return;
+    }
+
+    if (file.size > MAX_FONT_SIZE_BYTES) {
+      setFontUploadError('Arquivo muito grande. O limite máximo para fontes é de 20 MB.');
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const fontName = fontNameFromFileName(file.name);
+      const ok = await registerFontFace(fontName, buffer);
+      if (!ok) {
+        setFontUploadError('Falha ao registrar a fonte no navegador. Verifique se o arquivo está corrompido.');
+        return;
+      }
+
+      const id = `font-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const record = {
+        id,
+        name: fontName,
+        fileName: file.name,
+        fileSize: file.size,
+        uploadedAt: Date.now(),
+        buffer
+      };
+
+      await saveCustomFont(record);
+      setCustomFonts(prev => [
+        ...prev.filter(f => f.name !== fontName),
+        {
+          id,
+          name: fontName,
+          fileName: file.name,
+          fileSize: file.size,
+          uploadedAt: record.uploadedAt
+        }
+      ]);
+
+      // Ativa a nova fonte imediatamente no chat log
+      setFontFamily(fontName);
+      setFontsVersion(v => v + 1);
+    } catch (err: any) {
+      console.error('Erro ao adicionar fonte:', err);
+      setFontUploadError(err?.message || 'Erro ao carregar fonte do computador.');
+    }
+  };
+
+  const handleDeleteCustomFont = async (id: string) => {
+    const target = customFonts.find(f => f.id === id);
+    if (!target) return;
+    try {
+      await deleteCustomFont(id);
+      setCustomFonts(prev => prev.filter(f => f.id !== id));
+      if (fontFamily === target.name) {
+        setFontFamily('Arial, Helvetica, sans-serif');
+      }
+      setFontsVersion(v => v + 1);
+    } catch (err) {
+      console.error('Erro ao excluir fonte:', err);
+    }
+  };
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewSize, setViewSize] = useState({ w: 0, h: 0 });
   useEffect(() => {
@@ -2507,20 +2602,90 @@ export const ChatLogView: React.FC = () => {
           {/* Fonte & Família */}
           <div className="space-y-2 text-xs">
             <div>
-              <label className="text-xs text-haze-muted block mb-1">Família da Fonte</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-haze-muted">Família da Fonte</label>
+                <label
+                  htmlFor="font-file-upload-input"
+                  className="flex items-center gap-1 text-[11px] text-haze-accent hover:underline cursor-pointer font-medium transition-colors"
+                  title="Carregar fonte do seu computador (.ttf, .otf, .woff, .woff2)"
+                >
+                  <Upload className="w-3 h-3" />
+                  <span>Adicionar Fonte do PC</span>
+                  <input
+                    id="font-file-upload-input"
+                    type="file"
+                    accept=".ttf,.otf,.woff,.woff2"
+                    className="hidden"
+                    onChange={handleFontFileUpload}
+                  />
+                </label>
+              </div>
+
+              {fontUploadError && (
+                <div className="p-2 mb-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] text-rose-300">
+                  {fontUploadError}
+                </div>
+              )}
+
               <select
                 value={fontFamily}
                 onChange={(e) => setFontFamily(e.target.value)}
                 className="w-full p-2 rounded-lg bg-haze-field border border-haze-border text-xs text-haze-text focus:outline-none focus:border-haze-accent"
               >
-                <option value="Arial, Helvetica, sans-serif">Arial / GTA Standard</option>
-                <option value="ChaletLondonNineteenSixty, Arial, sans-serif">Chalet London (GTA V, se estiver instalada)</option>
-                <option value='"JetBrains Mono", monospace'>JetBrains Mono (Logs / OOC)</option>
-                <option value='"Trebuchet MS", sans-serif'>Trebuchet MS</option>
-                <option value="Impact, sans-serif">Impact</option>
-                <option value="Georgia, serif">Georgia</option>
+                <optgroup label="Fontes Padrão">
+                  <option value="Arial, Helvetica, sans-serif">Arial / GTA Standard</option>
+                  <option value="ChaletLondonNineteenSixty, Arial, sans-serif">Chalet London (GTA V, se estiver instalada)</option>
+                  <option value='"JetBrains Mono", monospace'>JetBrains Mono (Logs / OOC)</option>
+                  <option value='"Trebuchet MS", sans-serif'>Trebuchet MS</option>
+                  <option value="Impact, sans-serif">Impact</option>
+                  <option value="Georgia, serif">Georgia</option>
+                </optgroup>
+                {customFonts.length > 0 && (
+                  <optgroup label="Fontes Personalizadas (PC)">
+                    {customFonts.map(f => (
+                      <option key={f.id} value={f.name}>
+                        {f.name} ({f.fileName})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
+
+            {/* Lista compacta de fontes customizadas salvas */}
+            {customFonts.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-haze-field border border-haze-border space-y-1.5">
+                <span className="text-[11px] font-semibold text-haze-muted block">Fontes do PC salvas:</span>
+                <div className="space-y-1">
+                  {customFonts.map(f => (
+                    <div key={f.id} className="flex items-center justify-between text-[11px] text-haze-text px-2 py-1 rounded-lg bg-haze-panel border border-haze-border/40">
+                      <span className="truncate max-w-[200px]" style={{ fontFamily: f.name }}>
+                        {f.name} <span className="text-haze-faint text-[10px]">({(f.fileSize / 1024).toFixed(0)} KB)</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {fontFamily !== f.name && (
+                          <button
+                            type="button"
+                            onClick={() => setFontFamily(f.name)}
+                            className="text-haze-accent hover:underline text-[10px] font-medium"
+                          >
+                            Usar
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCustomFont(f.id)}
+                          className="text-rose-400 hover:text-rose-300 p-0.5 rounded transition-colors"
+                          title={`Remover fonte ${f.name}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>

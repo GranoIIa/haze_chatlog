@@ -15,6 +15,7 @@ import {
   nextLighter, outputDims, setCustomSize, withManual, type GifProfileId, type GifSettings
 } from '../../utils/gifSettings';
 import { exportGif, SeekFailure } from './gifExport';
+import { loadAndApplyAllCustomFonts, type CustomFontMeta } from '../../utils/customFontStorage';
 
 export type CropMode = 'original' | 'square';
 
@@ -49,6 +50,15 @@ export const GifLabView: React.FC<GifLabViewProps> = ({ onNavigateToChatLog }) =
   const fps = cfg.fps;
   void fps;
   const [watermark, setWatermark] = useState<string>('');
+  const [customFonts, setCustomFonts] = useState<CustomFontMeta[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    loadAndApplyAllCustomFonts().then(metas => {
+      if (mounted) setCustomFonts(metas);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   // Chat Log sobre o GIF: usa o texto e o estilo criados na aba Chat Log
   const sharedChat = useSyncExternalStore(subscribeSharedChat, getSharedChat);
@@ -992,14 +1002,25 @@ export const GifLabView: React.FC<GifLabViewProps> = ({ onNavigateToChatLog }) =
                 onChange={(e) => requestChatStyle({ fontFamily: e.target.value })}
                 className="w-full p-2 rounded-lg bg-haze-panel border border-haze-border text-xs text-haze-text focus:outline-none focus:border-haze-accent"
               >
-                {[
-                  ['Arial, Helvetica, sans-serif', 'Arial / GTA Standard'],
-                  ['ChaletLondonNineteenSixty, Arial, sans-serif', 'Chalet London (GTA V, se instalada)'],
-                  ['"JetBrains Mono", monospace', 'JetBrains Mono (Logs / OOC)'],
-                  ['"Trebuchet MS", sans-serif', 'Trebuchet MS'],
-                  ['Impact, sans-serif', 'Impact'],
-                  ['Georgia, serif', 'Georgia']
-                ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                <optgroup label="Fontes Padrão">
+                  {[
+                    ['Arial, Helvetica, sans-serif', 'Arial / GTA Standard'],
+                    ['ChaletLondonNineteenSixty, Arial, sans-serif', 'Chalet London (GTA V, se instalada)'],
+                    ['"JetBrains Mono", monospace', 'JetBrains Mono (Logs / OOC)'],
+                    ['"Trebuchet MS", sans-serif', 'Trebuchet MS'],
+                    ['Impact, sans-serif', 'Impact'],
+                    ['Georgia, serif', 'Georgia']
+                  ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </optgroup>
+                {customFonts.length > 0 && (
+                  <optgroup label="Fontes Personalizadas (PC)">
+                    {customFonts.map(f => (
+                      <option key={f.id} value={f.name}>
+                        {f.name} ({f.fileName})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               {([
                 ['Tamanho da fonte', sharedChat.style.fontSize, 12, 48, 1, 'px', (n: number) => requestChatStyle({ fontSize: n })],
