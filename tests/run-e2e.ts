@@ -73,6 +73,7 @@ async function loadTestSuites() {
     await import('./tier5-editor/test_visual_thumb');
     await import('./tier5-editor/test_custom_fonts');
     await import('./tier5-editor/test_censor_tool');
+    await import('./tier5-editor/test_censor_regions');
   }
 
   if (shouldLoadTier(6)) {
