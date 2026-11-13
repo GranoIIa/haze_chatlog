@@ -13,6 +13,7 @@ import { buildVideoProjectBlob, parseVideoProject, matchesSaved, SavedMedia } fr
 import { openMedia, MediaError, OpenedMedia } from '../../video/mediaIO';
 import { composeFrame, Drawable } from '../../video/compositor';
 import { PreviewAudio } from '../../video/previewAudio';
+import { FramePlayer } from '../../video/framePlayer';
 import { parseSrt, MAX_SRT_BYTES } from '../../video/srt';
 import { computePeaks, sliceBars } from '../../video/waveform';
 import { exportTimeline, ExportCancelled, ExportResult } from '../../video/exporter';
@@ -210,7 +211,9 @@ export const VideoStudioView: React.FC = () => {
 
   // ------------------------------------------------------------ preview (mesmo compositor da exportação)
   const drawSeq = useRef(0);
+  const playingRef = useRef(false); playingRef.current = playing;
   useEffect(() => {
+    if (playingRef.current) return; // durante a reprodução quem desenha é o laço sequencial abaixo
     const seq = ++drawSeq.current;
     const cv = canvasRef.current;
     if (!cv) return;
@@ -278,6 +281,17 @@ export const VideoStudioView: React.FC = () => {
     const pa = new PreviewAudio();
     audioRef.current = pa;
     let raf = 0; let alive = true;
+    const fp = new FramePlayer();
+    const cv = canvasRef.current; const ctx = cv?.getContext('2d') ?? null;
+    let busy = false;
+    const render = async (now: number) => {
+      if (!cv || !ctx) return;
+      const main: Array<Drawable | null> = [];
+      for (const L of activeLayers(tl, now)) main.push(await fp.frameAt('m' + L.clip.id, mediaRef.current.get(L.clip.mediaId)?.video, L.sourceTime));
+      const lf = new Map<string, Drawable | null>();
+      for (const A of activeLayerClips(tl, now)) lf.set(A.layer.id, await fp.frameAt('l' + A.layer.id, mediaRef.current.get(A.layer.mediaId)?.video, A.sourceTime));
+      if (alive) composeFrame(ctx, cv.width, cv.height, main, tl, now, lf);
+    };
     const startAt = tRef.current >= total - 0.05 ? 0 : tRef.current;
     void pa.start(tl, mediaRef.current, startAt).then(() => { if (alive) setAudioStatus('ativo'); });
     const tick = () => {
@@ -286,10 +300,11 @@ export const VideoStudioView: React.FC = () => {
       if (now >= total) { setT(Math.max(0, total - 0.001)); setPlaying(false); return; }
       setT(now);
       setAudioStatus(`ativo · ${pa.scheduled} trechos`);
+      if (!busy) { busy = true; render(now).catch(() => { /* quadro perdido: o próximo tick tenta de novo */ }).finally(() => { busy = false; }); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => { alive = false; cancelAnimationFrame(raf); const stopT = pa.stop(); audioRef.current = null; setAudioStatus('parado'); setT(Math.min(stopT, Math.max(0, total - 0.001))); };
+    return () => { alive = false; cancelAnimationFrame(raf); fp.dispose(); const stopT = pa.stop(); audioRef.current = null; setAudioStatus('parado'); setT(Math.min(stopT, Math.max(0, total - 0.001))); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
   // qualquer edição durante a reprodução pausa (o áudio agendado seria da versão antiga)
