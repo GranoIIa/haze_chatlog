@@ -67,7 +67,11 @@ const ClipBlock: React.FC<{ id: string; wave?: { peaks: Float32Array; mediaDur: 
     );
   };
 
-export const VideoStudioView: React.FC = () => {
+export interface VideoStudioViewProps {
+  active?: boolean;
+}
+
+export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true }) => {
   const [hist, setHist] = useState(() => createHistory());
   const tl = hist.present;
   const apply = useCallback((f: (t: Timeline) => Timeline) => setHist(h => commit(h, f(h.present))), []);
@@ -97,6 +101,9 @@ export const VideoStudioView: React.FC = () => {
   const abortRef = useRef<AbortController | null>(null);
   const tlStateRef = useRef<TimelineState>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioRef = useRef<PreviewAudio | null>(null);
+  if (!audioRef.current) audioRef.current = new PreviewAudio();
+  const seekingRef = useRef(false);
 
   const [chatText, setChatText] = useState('Ramon Mendoza diz: Precisamos conversar.');
   const [chatStart, setChatStart] = useState(0);
@@ -121,6 +128,8 @@ export const VideoStudioView: React.FC = () => {
     abortRef.current?.abort();
     mediaRef.current.forEach(m => m.dispose());
     mediaRef.current.clear();
+    audioRef.current?.dispose();
+    audioRef.current = null;
   }, []);
   useEffect(() => () => { if (result) URL.revokeObjectURL(result.url); }, [result]);
 
@@ -213,6 +222,7 @@ export const VideoStudioView: React.FC = () => {
   const drawSeq = useRef(0);
   const playingRef = useRef(false); playingRef.current = playing;
   useEffect(() => {
+    if (!active) return;
     if (playingRef.current) return; // durante a reprodução quem desenha é o laço sequencial abaixo
     const seq = ++drawSeq.current;
     const cv = canvasRef.current;
@@ -223,16 +233,21 @@ export const VideoStudioView: React.FC = () => {
         const m = mediaRef.current.get(mediaId);
         try { return ((await m?.video?.getCanvas(at))?.canvas as Drawable) ?? null; } catch { return null; }
       };
-      const mainFrames: Array<Drawable | null> = [];
-      for (const L of activeLayers(tl, t)) mainFrames.push(await grab(L.clip.mediaId, L.sourceTime));
-      const lf = new Map<string, Drawable | null>();
-      for (const A of activeLayerClips(tl, t)) lf.set(A.layer.id, await grab(A.layer.mediaId, A.sourceTime));
+      const activeL = activeLayers(tl, t);
+      const activeC = activeLayerClips(tl, t);
+      const [mainFrames, layerEntries] = await Promise.all([
+        Promise.all(activeL.map(L => grab(L.clip.mediaId, L.sourceTime))),
+        Promise.all(activeC.map(async A => [A.layer.id, await grab(A.layer.mediaId, A.sourceTime)] as const))
+      ]);
       if (seq !== drawSeq.current) return; // resultado antigo: descarta
+      const lf = new Map<string, Drawable | null>(layerEntries);
       composeFrame(ctx, cv.width, cv.height, mainFrames, tl, t, lf);
     })();
-  }, [tl, t, previewH, library]);
+  }, [tl, t, previewH, library, active]);
 
-  useEffect(() => { tlStateRef.current?.setTime(t); }, [t]);
+  useEffect(() => {
+    if (active) tlStateRef.current?.setTime(t);
+  }, [t, active]);
 
   // ------------------------------------------------------------ forma de onda (uma vez por mídia, em segundo plano)
   useEffect(() => {
@@ -273,42 +288,84 @@ export const VideoStudioView: React.FC = () => {
   }, [tl.clips, library]);
 
   // ------------------------------------------------------------ reprodução (relógio = relógio do áudio)
-  const audioRef = useRef<PreviewAudio | null>(null);
   const [audioStatus, setAudioStatus] = useState('parado');
   const tRef = useRef(0); tRef.current = t;
   useEffect(() => {
     if (!playing || total <= 0) return;
-    const pa = new PreviewAudio();
-    audioRef.current = pa;
+    const pa = audioRef.current!;
     let raf = 0; let alive = true;
     const fp = new FramePlayer();
     const cv = canvasRef.current; const ctx = cv?.getContext('2d') ?? null;
     let busy = false;
+
     const render = async (now: number) => {
       if (!cv || !ctx) return;
-      const main: Array<Drawable | null> = [];
-      for (const L of activeLayers(tl, now)) main.push(await fp.frameAt('m' + L.clip.id, mediaRef.current.get(L.clip.mediaId)?.video, L.sourceTime));
-      const lf = new Map<string, Drawable | null>();
-      for (const A of activeLayerClips(tl, now)) lf.set(A.layer.id, await fp.frameAt('l' + A.layer.id, mediaRef.current.get(A.layer.mediaId)?.video, A.sourceTime));
-      if (alive) composeFrame(ctx, cv.width, cv.height, main, tl, now, lf);
+      const activeL = activeLayers(tl, now);
+      const activeC = activeLayerClips(tl, now);
+
+      // Prune imediato de geradores de clipes que já saíram do campo de visão
+      const activeKeys = new Set<string>();
+      for (const L of activeL) activeKeys.add('m' + L.clip.id);
+      for (const A of activeC) activeKeys.add('l' + A.layer.id);
+      fp.prune(activeKeys);
+
+      // Decodificação paralela de camadas principais e PiP
+      const [main, layerEntries] = await Promise.all([
+        Promise.all(activeL.map(L => fp.frameAt('m' + L.clip.id, mediaRef.current.get(L.clip.mediaId)?.video, L.sourceTime))),
+        Promise.all(activeC.map(async A => [A.layer.id, await fp.frameAt('l' + A.layer.id, mediaRef.current.get(A.layer.mediaId)?.video, A.sourceTime)] as const))
+      ]);
+
+      if (!alive) return;
+      const lf = new Map<string, Drawable | null>(layerEntries);
+      composeFrame(ctx, cv.width, cv.height, main, tl, now, lf);
     };
+
     const startAt = tRef.current >= total - 0.05 ? 0 : tRef.current;
     void pa.start(tl, mediaRef.current, startAt).then(() => { if (alive) setAudioStatus('ativo'); });
+
     const tick = () => {
       if (!alive) return;
       const now = pa.time();
-      if (now >= total) { setT(Math.max(0, total - 0.001)); setPlaying(false); return; }
+      if (now >= total) {
+        setT(Math.max(0, total - 0.001));
+        setPlaying(false);
+        return;
+      }
       setT(now);
       setAudioStatus(`ativo · ${pa.scheduled} trechos`);
-      if (!busy) { busy = true; render(now).catch(() => { /* quadro perdido: o próximo tick tenta de novo */ }).finally(() => { busy = false; }); }
+      if (!busy) {
+        busy = true;
+        render(now)
+          .catch(() => { /* quadro perdido: o próximo tick tenta de novo */ })
+          .finally(() => { busy = false; });
+      }
       raf = requestAnimationFrame(tick);
     };
+
     raf = requestAnimationFrame(tick);
-    return () => { alive = false; cancelAnimationFrame(raf); fp.dispose(); const stopT = pa.stop(); audioRef.current = null; setAudioStatus('parado'); setT(Math.min(stopT, Math.max(0, total - 0.001))); };
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      fp.dispose();
+      const stopT = pa.stop();
+      setAudioStatus('parado');
+      if (!seekingRef.current) {
+        setT(Math.min(stopT, Math.max(0, total - 0.001)));
+      }
+      seekingRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
   // qualquer edição durante a reprodução pausa (o áudio agendado seria da versão antiga)
   useEffect(() => { setPlaying(false); }, [tl]);
+  // quando a aba deixa de ser ativa, pausa imediatamente a reprodução
+  useEffect(() => {
+    if (!active) {
+      if (playing) setPlaying(false);
+      audioRef.current?.stop();
+    }
+  }, [active, playing]);
 
   // ------------------------------------------------------------ timeline (react-timeline-editor)
   const editorData: TimelineRow[] = useMemo(() => [
@@ -493,12 +550,16 @@ export const VideoStudioView: React.FC = () => {
             <button className={btn} data-testid="play" disabled={!total} onClick={() => setPlaying(p => !p)}>
               {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />} {playing ? 'Pausar' : 'Reproduzir'}
             </button>
-            <button className={btn} aria-label="Quadro anterior" disabled={!total} onClick={() => setT(c => Math.max(0, round3(c - 1 / fps)))}><ChevronLeft className="w-4 h-4" /></button>
-            <button className={btn} aria-label="Próximo quadro" disabled={!total} onClick={() => setT(c => Math.min(Math.max(0, total - 0.001), round3(c + 1 / fps)))}><ChevronRight className="w-4 h-4" /></button>
+            <button className={btn} aria-label="Quadro anterior" disabled={!total} onClick={() => { seekingRef.current = true; setPlaying(false); setT(c => Math.max(0, round3(c - 1 / fps))); }}><ChevronLeft className="w-4 h-4" /></button>
+            <button className={btn} aria-label="Próximo quadro" disabled={!total} onClick={() => { seekingRef.current = true; setPlaying(false); setT(c => Math.min(Math.max(0, total - 0.001), round3(c + 1 / fps))); }}><ChevronRight className="w-4 h-4" /></button>
             <span className="text-xs font-mono text-haze-muted" data-testid="playhead">{fmt(t)} / {fmt(total)}</span>
             <label className="text-xs text-haze-muted flex items-center gap-1">ir para (s)
               <input data-testid="playhead-input" type="number" step="0.01" min="0" className={input} value={Number(t.toFixed(2))}
-                onChange={e => { setPlaying(false); setT(Math.max(0, Number.isFinite(+e.target.value) ? +e.target.value : 0)); }} />
+                onChange={e => {
+                  seekingRef.current = true;
+                  setPlaying(false);
+                  setT(Math.max(0, Number.isFinite(+e.target.value) ? +e.target.value : 0));
+                }} />
             </label>
             <span className="text-[11px] text-haze-faint" data-testid="audio-status">áudio: {audioStatus}</span>
             <label className="text-xs text-haze-muted flex items-center gap-1">zoom
@@ -541,8 +602,17 @@ export const VideoStudioView: React.FC = () => {
                       </div>
                     );
                   }}
-                  onClickTimeArea={(time) => { setPlaying(false); setT(Math.max(0, time)); return undefined; }}
-                  onCursorDrag={(time) => { setPlaying(false); setT(Math.max(0, time)); }}
+                  onClickTimeArea={(time) => {
+                    seekingRef.current = true;
+                    setPlaying(false);
+                    setT(Math.max(0, time));
+                    return undefined;
+                  }}
+                  onCursorDrag={(time) => {
+                    seekingRef.current = true;
+                    setPlaying(false);
+                    setT(Math.max(0, time));
+                  }}
                   onActionMoveEnd={onMoveEnd as any}
                   onActionResizeEnd={onResizeEnd as any}
                 />}
