@@ -38,6 +38,7 @@ import {
 import {
   buildProjectBlob, parseProjectFile, ProjectError, ProjectScene, ProjectAsset, PROJECT_EXTENSION
 } from '../../utils/projectFile';
+import { decodeGif, type DecodedFrame } from '../../utils/gifDecoder';
 
 export const ChatLogView: React.FC = () => {
   // Container Ref para escopo de eventos globais (ex: paste em abas inativas)
@@ -81,6 +82,41 @@ export const ChatLogView: React.FC = () => {
   const [gifMeta, setGifMeta] = useState<BackgroundRequest['gifMeta'] | null>(null);
   const [isExportingGif, setIsExportingGif] = useState<boolean>(false);
   const [gifExportProgress, setGifExportProgress] = useState<number>(0);
+
+  // Quadros decodificados do GIF para animação em tempo real e exportação
+  const [gifFrames, setGifFrames] = useState<DecodedFrame[]>([]);
+  const gifFramesRef = useRef<DecodedFrame[]>([]);
+  gifFramesRef.current = gifFrames;
+  const currentFrameIdxRef = useRef<number>(0);
+
+  const processGifBlob = async (blob: Blob) => {
+    try {
+      const decoded = await decodeGif(blob);
+      if (decoded && decoded.frames.length > 0) {
+        // Libera bitmaps anteriores da memória da GPU
+        gifFramesRef.current.forEach(f => {
+          if ('close' in f.image && typeof (f.image as any).close === 'function') {
+            (f.image as any).close();
+          }
+        });
+        gifFramesRef.current = decoded.frames;
+        setGifFrames(decoded.frames);
+        currentFrameIdxRef.current = 0;
+        setIsGif(true);
+        setImageDimensions({ width: decoded.width, height: decoded.height });
+        setGifMeta(prev => ({
+          duration: decoded.totalDurationMs / 1000,
+          frames: decoded.frames.length,
+          fps: Math.round(1000 / (decoded.totalDurationMs / decoded.frames.length)) || 12,
+          width: decoded.width,
+          height: decoded.height,
+          ...(prev || {})
+        }));
+      }
+    } catch (e) {
+      console.warn('[processGifBlob] Erro ao decodificar:', e);
+    }
+  };
 
   // Ajustes de Imagem / Retoque Fotográfico (Estilo Photoshop na GPU/Canvas)
   const [adjustments, setAdjustments] = useState<PhotoAdjustments>({
@@ -358,11 +394,21 @@ export const ChatLogView: React.FC = () => {
     if (!file.type.startsWith('image/')) return;
     const isGifFile = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
     setIsGif(isGifFile);
-    if (!isGifFile) setGifMeta(null);
+    if (!isGifFile) {
+      setGifMeta(null);
+      gifFramesRef.current.forEach(f => {
+        if ('close' in f.image && typeof (f.image as any).close === 'function') (f.image as any).close();
+      });
+      gifFramesRef.current = [];
+      setGifFrames([]);
+    }
     const id = `BG${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     bgBlobs.current.set(id, file);
     bgNames.current.set(id, file.name || 'fundo');
     setBackgroundFromBlob(file, id);
+    if (isGifFile) {
+      processGifBlob(file);
+    }
   };
 
   const clearBackground = () => {
@@ -370,6 +416,12 @@ export const ChatLogView: React.FC = () => {
       URL.revokeObjectURL(currentBlobUrlRef.current);
       currentBlobUrlRef.current = null;
     }
+    gifFramesRef.current.forEach(f => {
+      if ('close' in f.image && typeof (f.image as any).close === 'function') (f.image as any).close();
+    });
+    gifFramesRef.current = [];
+    setGifFrames([]);
+    currentFrameIdxRef.current = 0;
     loadedImageRef.current = null;
     setImageSrc(null);
     setBgId(null);
@@ -385,6 +437,10 @@ export const ChatLogView: React.FC = () => {
         URL.revokeObjectURL(currentBlobUrlRef.current);
         currentBlobUrlRef.current = null;
       }
+      gifFramesRef.current.forEach(f => {
+        if ('close' in f.image && typeof (f.image as any).close === 'function') (f.image as any).close();
+      });
+      gifFramesRef.current = [];
       loadedImageRef.current = null;
     };
   }, []);
@@ -601,12 +657,15 @@ export const ChatLogView: React.FC = () => {
     width: number,
     height: number,
     scale: number = 1,
-    bg?: HTMLImageElement | null
+    bg?: CanvasImageSource | null
   ) => {
     ctx.clearRect(0, 0, width, height);
 
-    // 1. Desenhar Fundo (bg explícito é usado pelo modo Lote)
-    const bgImage = bg === undefined ? loadedImageRef.current : bg;
+    // 1. Desenhar Fundo (bg explícito é usado pelo modo Lote ou pelo quadro atual do GIF)
+    const currentGifFrame = (isGif && gifFramesRef.current.length > 0)
+      ? gifFramesRef.current[currentFrameIdxRef.current]?.image
+      : null;
+    const bgImage = bg === undefined ? (currentGifFrame || loadedImageRef.current) : bg;
     if (bgImage) {
       drawFittedImage(ctx, bgImage, width, height, fitMode, panX, panY, zoom);
     } else {
@@ -670,7 +729,10 @@ export const ChatLogView: React.FC = () => {
 
     canvas.width = canvasDims.width;
     canvas.height = canvasDims.height;
-    drawScene(ctx, canvasDims.width, canvasDims.height, 1);
+    const currentBg = (isGif && gifFramesRef.current.length > 0)
+      ? gifFramesRef.current[currentFrameIdxRef.current]?.image
+      : loadedImageRef.current;
+    drawScene(ctx, canvasDims.width, canvasDims.height, 1, currentBg);
 
     // Retículos da luz enquanto o modo "posicionar luz" está ativo
     if (lightEdit && lighting.enabled) {
@@ -704,7 +766,8 @@ export const ChatLogView: React.FC = () => {
     imageSrc, imageDimensions, outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, darkening, adjustments, rawText, fontSize, fontFamily,
     lineHeightFactor, strokeEnabled, strokeWidth, strokeColor,
     bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
-    censorStyle, showTimestamps, chatPos, characters
+    censorStyle, showTimestamps, chatPos, characters, canvasDims.width, canvasDims.height,
+    isGif, gifFrames
   ]);
 
   // Outros módulos (GIF Lab) podem editar o texto do chat: este componente é o dono do estado
@@ -731,6 +794,9 @@ export const ChatLogView: React.FC = () => {
       }
       const file = new File([blob], name, { type: blob.type || 'image/gif' });
       handleImageUpload(file);
+      if (isGifType) {
+        processGifBlob(blob);
+      }
     });
   }, []);
 
@@ -738,13 +804,34 @@ export const ChatLogView: React.FC = () => {
   useEffect(() => {
     if (!isGif || !isGifPlaying) return;
     let animId: number;
-    let lastTime = 0;
-    const fps = gifMeta?.fps || 24;
-    const interval = 1000 / fps;
+    let lastFrameTime = performance.now();
 
-    const loop = (timestamp: number) => {
-      if (timestamp - lastTime >= interval) {
-        lastTime = timestamp;
+    const loop = (now: number) => {
+      const frames = gifFramesRef.current;
+      if (frames.length > 0) {
+        const curIdx = currentFrameIdxRef.current;
+        const curFrame = frames[curIdx] || frames[0];
+        const duration = curFrame?.durationMs || (1000 / (gifMeta?.fps || 12));
+
+        if (now - lastFrameTime >= duration) {
+          lastFrameTime = now;
+          const nextIdx = (curIdx + 1) % frames.length;
+          currentFrameIdxRef.current = nextIdx;
+
+          const canvas = previewCanvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (ctx) {
+              drawScene(ctx, canvasDims.width, canvasDims.height, 1, frames[nextIdx].image);
+              if (lightEdit && lighting.enabled) {
+                const k = Math.max(1, canvas.width / 1000);
+                drawLightGizmo(ctx, (lighting.x / 100) * canvas.width, (lighting.y / 100) * canvas.height, lighting.color, 'Luz principal', k);
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback enquanto os frames decodificam ou em navegadores sem ImageDecoder
         const canvas = previewCanvasRef.current;
         if (canvas) {
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -763,7 +850,7 @@ export const ChatLogView: React.FC = () => {
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
   }, [
-    isGif, isGifPlaying, gifMeta,
+    isGif, isGifPlaying, gifMeta, gifFrames,
     layers, selectedLayerId, lightEdit, activeCharId, selectedCanvasLayerId, fontsVersion,
     imageSrc, imageDimensions, outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, darkening, adjustments, rawText, fontSize, fontFamily,
     lineHeightFactor, strokeEnabled, strokeWidth, strokeColor,
@@ -1242,10 +1329,10 @@ export const ChatLogView: React.FC = () => {
     setGifExportProgress(0);
 
     try {
+      const frames = gifFramesRef.current;
       const fps = gifMeta?.fps || 12;
-      const duration = Math.min(10, Math.max(0.5, gifMeta?.duration || 3));
-      const totalFrames = Math.max(1, Math.round(duration * fps));
-      const intervalMs = 1000 / fps;
+      const defaultIntervalMs = 1000 / fps;
+      const totalFrames = frames.length > 0 ? frames.length : Math.max(1, Math.round(Math.min(10, Math.max(0.5, gifMeta?.duration || 3)) * fps));
 
       const exportW = Math.min(800, canvasDims.width);
       const exportH = Math.round((exportW / canvasDims.width) * canvasDims.height);
@@ -1261,22 +1348,25 @@ export const ChatLogView: React.FC = () => {
         type: 'START',
         width: exportW,
         height: exportH,
-        delay: Math.round(intervalMs / 10),
+        delay: Math.round(defaultIntervalMs / 10),
         colors: 128,
         totalFrames
       });
 
       for (let f = 0; f < totalFrames; f++) {
-        drawScene(expCtx, exportW, exportH, exportW / canvasDims.width);
+        const frameSource = frames.length > 0 ? frames[f].image : undefined;
+        const frameDelay = frames.length > 0 ? Math.max(2, Math.round(frames[f].durationMs / 10)) : Math.max(2, Math.round(defaultIntervalMs / 10));
+
+        drawScene(expCtx, exportW, exportH, exportW / canvasDims.width, frameSource);
         const imgData = expCtx.getImageData(0, 0, exportW, exportH);
         worker.postMessage({
           type: 'ADD_FRAME',
           buffer: imgData.data.buffer,
-          delay: Math.round(intervalMs / 10)
+          delay: frameDelay
         }, [imgData.data.buffer]);
 
         setGifExportProgress(Math.round(((f + 1) / totalFrames) * 100));
-        await new Promise(r => setTimeout(r, intervalMs));
+        await new Promise(r => setTimeout(r, 10));
       }
 
       const gifBlob = await new Promise<Blob>((resolve, reject) => {
@@ -1333,6 +1423,11 @@ export const ChatLogView: React.FC = () => {
           bgBlobs.current.set(bg.id, bg.blob);
           bgNames.current.set(bg.id, 'fundo');
           storedBgId.current = bg.id;
+          const isGifBlob = bg.blob.type === 'image/gif';
+          if (isGifBlob) {
+            setIsGif(true);
+            processGifBlob(bg.blob);
+          }
           setBackgroundFromBlob(bg.blob, bg.id, resetHistory);
         }
       } catch (_) {

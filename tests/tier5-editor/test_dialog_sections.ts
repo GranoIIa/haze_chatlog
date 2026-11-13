@@ -97,4 +97,11 @@ describe('Tier 5: Diálogos, seções e canal de texto', () => {
     // Como cancelou, não deve ter recebido a segunda chamada
     assertEqual(received.length, 1);
   });
+
+  test('T5_GIF_08_DecodeGifGracefulFallback: no Node ou sem ImageDecoder retorna null com segurança', async () => {
+    const { decodeGif } = await import('../../src/utils/gifDecoder');
+    const fakeBlob = new Blob(['GIF89a'], { type: 'image/gif' });
+    const result = await decodeGif(fakeBlob);
+    assertEqual(result, null);
+  });
 });
