@@ -5,7 +5,7 @@ import { renderChatText } from '../../utils/chatRenderer';
 import { SimplePanel } from './panels/SimplePanel';
 import { applyVisual, findVisual } from '../../utils/visualPresets';
 import { detectSpeakers, newCharactersFor } from '../../utils/chatDetect';
-import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests } from '../../utils/chatStore';
+import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests, subscribeBackgroundRequests, type BackgroundRequest } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
 import { RP_STICKERS } from '../../utils/rpStickers';
@@ -26,7 +26,7 @@ import {
 import { 
   Upload, Download, Plus, Trash2, Sparkles, Sliders, Type, 
   Layers, RefreshCw, Move, Clapperboard, Sun, Contrast,
-  Flame, Zap, Shield, EyeOff, Palette, Crop, MousePointer2, Lightbulb
+  Flame, Zap, Shield, EyeOff, Palette, Crop, MousePointer2, Lightbulb, Copy, Play, Pause, Film
 } from 'lucide-react';
 
 import { STORAGE_KEY, loadSaved, RESOLUTION_PRESETS, MIN_RES, MAX_RES, drawFittedImage, fitGeometry, isFitMode, sanitizeCanvasLayers, num, bool, str, type FitMode, type MouseTool, type ImageLayer } from '../../utils/editorSettings';
@@ -74,6 +74,13 @@ export const ChatLogView: React.FC = () => {
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({ width: 1280, height: 720 });
   const [darkening, setDarkening] = useState<number>(num(saved.darkening, 0.15));
   const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
+
+  // Suporte a GIF animado no fundo da cena
+  const [isGif, setIsGif] = useState<boolean>(false);
+  const [isGifPlaying, setIsGifPlaying] = useState<boolean>(true);
+  const [gifMeta, setGifMeta] = useState<BackgroundRequest['gifMeta'] | null>(null);
+  const [isExportingGif, setIsExportingGif] = useState<boolean>(false);
+  const [gifExportProgress, setGifExportProgress] = useState<number>(0);
 
   // Ajustes de Imagem / Retoque Fotográfico (Estilo Photoshop na GPU/Canvas)
   const [adjustments, setAdjustments] = useState<PhotoAdjustments>({
@@ -349,6 +356,9 @@ export const ChatLogView: React.FC = () => {
 
   const handleImageUpload = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    const isGifFile = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+    setIsGif(isGifFile);
+    if (!isGifFile) setGifMeta(null);
     const id = `BG${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     bgBlobs.current.set(id, file);
     bgNames.current.set(id, file.name || 'fundo');
@@ -363,6 +373,8 @@ export const ChatLogView: React.FC = () => {
     loadedImageRef.current = null;
     setImageSrc(null);
     setBgId(null);
+    setIsGif(false);
+    setGifMeta(null);
     setImageDimensions({ width: 1280, height: 720 });
   };
 
@@ -707,6 +719,57 @@ export const ChatLogView: React.FC = () => {
     if (p.bgEnabled !== undefined) setBgEnabled(p.bgEnabled);
     if (p.bgOpacity !== undefined) setBgOpacity(Math.min(1, Math.max(0, p.bgOpacity)));
   }), []);
+
+  // Recebe imagem de fundo enviada de outros módulos (ex.: GIF cortado no GIF Lab)
+  useEffect(() => {
+    return subscribeBackgroundRequests(({ blob, name, isGif: reqIsGif, gifMeta: reqMeta }) => {
+      const isGifType = reqIsGif ?? (blob.type === 'image/gif' || name.toLowerCase().endsWith('.gif'));
+      setIsGif(isGifType);
+      setIsGifPlaying(true);
+      if (reqMeta) {
+        setGifMeta(reqMeta);
+      }
+      const file = new File([blob], name, { type: blob.type || 'image/gif' });
+      handleImageUpload(file);
+    });
+  }, []);
+
+  // Loop de animação contínua no canvas quando um GIF animado está no fundo
+  useEffect(() => {
+    if (!isGif || !isGifPlaying) return;
+    let animId: number;
+    let lastTime = 0;
+    const fps = gifMeta?.fps || 24;
+    const interval = 1000 / fps;
+
+    const loop = (timestamp: number) => {
+      if (timestamp - lastTime >= interval) {
+        lastTime = timestamp;
+        const canvas = previewCanvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (ctx) {
+            drawScene(ctx, canvasDims.width, canvasDims.height, 1);
+            if (lightEdit && lighting.enabled) {
+              const k = Math.max(1, canvas.width / 1000);
+              drawLightGizmo(ctx, (lighting.x / 100) * canvas.width, (lighting.y / 100) * canvas.height, lighting.color, 'Luz principal', k);
+            }
+          }
+        }
+      }
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, [
+    isGif, isGifPlaying, gifMeta,
+    layers, selectedLayerId, lightEdit, activeCharId, selectedCanvasLayerId, fontsVersion,
+    imageSrc, imageDimensions, outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, darkening, adjustments, rawText, fontSize, fontFamily,
+    lineHeightFactor, strokeEnabled, strokeWidth, strokeColor,
+    bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
+    censorStyle, showTimestamps, chatPos, characters, canvasDims.width, canvasDims.height
+  ]);
 
   // Publica o chat atual (texto + estilo) para outros módulos, como o GIF Lab
   useEffect(() => {
@@ -1169,6 +1232,75 @@ export const ChatLogView: React.FC = () => {
       showNotice('Chat exportado com fundo transparente.');
     } catch (err) {
       showNotice(err instanceof Error ? err.message : 'Não foi possível exportar o chat.', 'error');
+    }
+  };
+
+  // Exportação de GIF animado completo editado no Editor RP
+  const exportGifFromChatLog = async () => {
+    if (isExportingGif) return;
+    setIsExportingGif(true);
+    setGifExportProgress(0);
+
+    try {
+      const fps = gifMeta?.fps || 12;
+      const duration = Math.min(10, Math.max(0.5, gifMeta?.duration || 3));
+      const totalFrames = Math.max(1, Math.round(duration * fps));
+      const intervalMs = 1000 / fps;
+
+      const exportW = Math.min(800, canvasDims.width);
+      const exportH = Math.round((exportW / canvasDims.width) * canvasDims.height);
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = exportW;
+      exportCanvas.height = exportH;
+      const expCtx = exportCanvas.getContext('2d', { willReadFrequently: true });
+      if (!expCtx) throw new Error('Canvas indisponível');
+
+      const worker = new Worker(new URL('../GifLab/gifWorker.ts', import.meta.url), { type: 'module' });
+
+      worker.postMessage({
+        type: 'START',
+        width: exportW,
+        height: exportH,
+        delay: Math.round(intervalMs / 10),
+        colors: 128,
+        totalFrames
+      });
+
+      for (let f = 0; f < totalFrames; f++) {
+        drawScene(expCtx, exportW, exportH, exportW / canvasDims.width);
+        const imgData = expCtx.getImageData(0, 0, exportW, exportH);
+        worker.postMessage({
+          type: 'ADD_FRAME',
+          buffer: imgData.data.buffer,
+          delay: Math.round(intervalMs / 10)
+        }, [imgData.data.buffer]);
+
+        setGifExportProgress(Math.round(((f + 1) / totalFrames) * 100));
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
+
+      const gifBlob = await new Promise<Blob>((resolve, reject) => {
+        worker.onmessage = (e) => {
+          if (e.data.type === 'BLOB') resolve(e.data.blob);
+          else if (e.data.type === 'ERROR') reject(new Error(e.data.error));
+        };
+        worker.postMessage({ type: 'FINISH' });
+      });
+
+      worker.terminate();
+
+      const url = URL.createObjectURL(gifBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `haze-rp-edit-${Date.now()}.gif`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      showNotice('GIF animado editado exportado com sucesso!');
+    } catch (err) {
+      showNotice(err instanceof Error ? err.message : 'Não foi possível exportar o GIF.', 'error');
+    } finally {
+      setIsExportingGif(false);
+      setGifExportProgress(0);
     }
   };
 
@@ -1670,6 +1802,10 @@ export const ChatLogView: React.FC = () => {
             onExport={exportImage}
             onExportChat={exportChatOnly}
             onCopy={copyImage}
+            isGif={isGif}
+            onExportGif={exportGifFromChatLog}
+            isExportingGif={isExportingGif}
+            gifExportProgress={gifExportProgress}
             charactersCard={charactersCard}
             characters={characters}
             activeCharId={activeCharId}
@@ -2530,6 +2666,54 @@ export const ChatLogView: React.FC = () => {
         <EditorSection {...sectionProps('inspetor')} title="Inspetor de propriedades" badge={`${canvasLayers.length} elemento${canvasLayers.length === 1 ? '' : 's'}`}>
           <CanvasLayersSidebar part="inspector" {...sidebarProps} />
         </EditorSection>
+
+        <EditorSection {...sectionProps('salvar')} title="Salvar e exportar">
+          <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-2.5">
+            {isGif && (
+              <button
+                type="button"
+                onClick={exportGifFromChatLog}
+                disabled={isExportingGif}
+                className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 transition-all disabled:opacity-50"
+              >
+                <Film className="w-4 h-4" /> {isExportingGif ? `Gerando GIF animado (${gifExportProgress}%)...` : 'Baixar GIF Animado Editado'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={exportImage}
+              className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent flex items-center justify-center gap-2 shadow-lg shadow-haze-accent/20 transition-all"
+            >
+              <Download className="w-4 h-4" /> Baixar imagem (PNG)
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={copyImage}
+                title="Copia a imagem para a área de transferência (Ctrl+C)"
+                className="py-2 px-2.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 bg-haze-field hover:bg-haze-raised transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copiar imagem
+              </button>
+              <button
+                type="button"
+                onClick={exportChatOnly}
+                title="Baixa só o texto do chat, com fundo transparente (para editar no Photopea)"
+                className="py-2 px-2.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 bg-haze-field hover:bg-haze-raised transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Layers className="w-3.5 h-3.5" /> Só o chat (PNG)
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={exportProject}
+              title="Salva a cena inteira (foto, camadas, chat, ajustes) num arquivo .haze editável"
+              className="w-full py-1.5 rounded-lg text-xs font-semibold border border-haze-accent/40 text-haze-accent hover:bg-haze-accent/10 transition-colors flex items-center justify-center gap-1.5"
+            >
+              💾 Salvar projeto (.haze)
+            </button>
+          </div>
+        </EditorSection>
         </div>
 
       </div>
@@ -2579,6 +2763,28 @@ export const ChatLogView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {isGif && (
+              <button
+                type="button"
+                onClick={() => setIsGifPlaying(p => !p)}
+                title={isGifPlaying ? "Pausar animação do GIF" : "Reproduzir animação do GIF"}
+                className="px-2.5 py-1.5 rounded-lg bg-haze-accent/15 border border-haze-accent/40 text-haze-accent text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {isGifPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                <span>{isGifPlaying ? "Pausar GIF" : "Play GIF"}</span>
+              </button>
+            )}
+            {isGif && (
+              <button
+                type="button"
+                onClick={exportGifFromChatLog}
+                disabled={isExportingGif}
+                title="Exporta a cena editada completa como GIF animado"
+                className="px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Film className="w-4 h-4" /> {isExportingGif ? `Exportando ${gifExportProgress}%` : 'Baixar GIF Editado'}
+              </button>
+            )}
             <button
               onClick={() => setFocusMode(v => !v)}
               aria-pressed={focusMode}

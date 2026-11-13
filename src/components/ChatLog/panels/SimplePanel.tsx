@@ -16,6 +16,10 @@ interface SimplePanelProps {
   onExport: () => void;
   onExportChat: () => void;
   onCopy: () => void;
+  isGif?: boolean;
+  onExportGif?: () => void;
+  isExportingGif?: boolean;
+  gifExportProgress?: number;
   /** Cartão de personagens (mesmo do Modo Avançado). */
   charactersCard: React.ReactNode;
   characters: Character[];
@@ -61,6 +65,7 @@ const useVisualThumbs = (photoSrc: string | null): Record<string, string> => {
 /** Modo Simples: foto → chat → visual → exportar. O resto do editor fica no Modo Avançado. */
 export const SimplePanel: React.FC<SimplePanelProps> = ({
   hasPhoto, photoSrc, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy,
+  isGif, onExportGif, isExportingGif, gifExportProgress,
   charactersCard, characters, activeCharId, onActiveCharChange, onDetect, onPasteText, detectNote
 }) => {
   const thumbs = useVisualThumbs(photoSrc);
@@ -124,6 +129,16 @@ export const SimplePanel: React.FC<SimplePanelProps> = ({
 
     <Step n={4} title="Salvar">
       <div className="grid grid-cols-1 gap-1.5">
+        {isGif && onExportGif && (
+          <button
+            type="button"
+            onClick={onExportGif}
+            disabled={isExportingGif}
+            className="py-2.5 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20 transition-all disabled:opacity-50"
+          >
+            {isExportingGif ? `Gerando GIF animado (${gifExportProgress}%)...` : '🎬 Baixar GIF Animado Editado'}
+          </button>
+        )}
         <button type="button" onClick={onExport}
           className="py-2 rounded-lg text-xs font-bold bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent">
           Baixar imagem (PNG)

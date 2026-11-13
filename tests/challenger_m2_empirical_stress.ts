@@ -261,8 +261,8 @@ runStress('RP_Commands', 'Legacy prefix symbols (*, >, $, !, #, ((), [radio])', 
 
 // 1.11 Conversational tone tags in speech
 runStress('RP_Commands', 'Conversational tone matching in speech lines', () => {
-  assertEqual(parseChatLine('Marcus diz (celular): Alô?').type, 'yellow');
-  assertEqual(parseChatLine('Marcus diz (telefone): Estou chegando.').type, 'yellow');
+  assertEqual(parseChatLine('Marcus diz (celular): Alô?').type, 'white');
+  assertEqual(parseChatLine('Marcus diz (telefone): Estou chegando.').type, 'white');
   assertEqual(parseChatLine('Marcus diz (baixo): Silêncio aí.').type, 'darkgrey');
   assertEqual(parseChatLine('Marcus diz (sussurrando): Não olhe agora.').type, 'darkgrey');
   assertEqual(parseChatLine('Marcus diz (gritando): Cuidado!').type, 'white');

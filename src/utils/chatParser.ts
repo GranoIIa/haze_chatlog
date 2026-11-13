@@ -1,8 +1,8 @@
 import { ParsedLine, ChatLineSegment } from '../types';
 
 export const CHAT_COLORS: Record<string, string> = {
-  me: "#cc99ff",
-  ame: "#cc99ff",
+  me: "#d8b4fe",
+  ame: "#d8b4fe",
   do: "#f5c500",
   white: "#ffffff",
   yellow: "#f5c500",
@@ -15,7 +15,7 @@ export const CHAT_COLORS: Record<string, string> = {
   phone: "#f5c500",
   dispatch: "#f5c500",
   grey: "#cbd5e1",
-  darkgrey: "#64748b",
+  darkgrey: "#94a3b8",
   empty: "transparent"
 };
 
@@ -113,7 +113,7 @@ export function parseChatLine(line: string): ParsedLine {
   } else if (low.startsWith('[rádio]') || low.startsWith('[radio]')) {
     type = 'blue';
   } else if (/\bdiz\b\s*\(\s*(?:celular|telefone)\s*\)/i.test(low)) {
-    type = 'yellow';
+    type = 'white';
   } else if (/\bdiz\b\s*\(\s*(?:sussurrando|sussurando)\s*\)/i.test(low)) {
     type = 'darkgrey';
   } else if (/\bdiz\b\s*\(\s*(?:r[aá]dio)\s*\)/i.test(low)) {

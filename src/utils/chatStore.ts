@@ -58,3 +58,30 @@ export const subscribeChatStyleRequests = (fn: StyleListener): (() => void) => {
   styleListeners.add(fn);
   return () => { styleListeners.delete(fn); };
 };
+
+// ---- Pedidos de carregamento de fundo/GIF (ex.: GIF gerado no GIF Lab enviado para o Editor RP) ----
+
+export interface BackgroundRequest {
+  blob: Blob;
+  name: string;
+  isGif?: boolean;
+  gifMeta?: {
+    duration: number;
+    frames: number;
+    fps: number;
+    width: number;
+    height: number;
+  };
+}
+
+type BackgroundListener = (req: BackgroundRequest) => void;
+const bgListeners = new Set<BackgroundListener>();
+
+export const requestSetBackground = (req: BackgroundRequest): void => {
+  bgListeners.forEach(fn => fn(req));
+};
+
+export const subscribeBackgroundRequests = (fn: BackgroundListener): (() => void) => {
+  bgListeners.add(fn);
+  return () => { bgListeners.delete(fn); };
+};

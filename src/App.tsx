@@ -19,7 +19,7 @@ export function App() {
           <ChatLogView />
         </div>
         <div className={activeTab === 'giflab' ? 'block' : 'hidden'}>
-          <GifLabView />
+          <GifLabView onNavigateToChatLog={() => setActiveTab('chatlog')} />
         </div>
       </main>
 

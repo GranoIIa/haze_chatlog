@@ -50,6 +50,7 @@ export function renderChatText(
     showTimestamps, chatPos
   } = style;
   void height;
+  void characters;
   ctx.save(); // o estado (fonte, linha de base, sombra) não pode vazar para quem desenha depois
 
   // 4. Configurar Tipografia & Escalas
@@ -76,7 +77,7 @@ export function renderChatText(
     }
 
     const parsed: ParsedLine = parseChatLine(line);
-    const lineDefaultColor = CHAT_COLORS[parsed.type] || '#ffffff';
+    const lineDefaultColor = parsed.colorOverride || CHAT_COLORS[parsed.type] || '#ffffff';
 
     // 4.1 Montagem dos Tokens da Linha (Timestamp + Speaker Tag + Conteúdo Redigido)
     const sourceTokens: RenderToken[] = [];
@@ -90,21 +91,14 @@ export function renderChatText(
       });
     }
 
-    // Identificação e coloração do Speaker
-    let matchedChar: Character | undefined;
-    if (parsed.speaker) {
-      matchedChar = characters.find(
-        c => c.name.toLowerCase() === parsed.speaker?.toLowerCase()
-      );
-    }
-
-    // Linha de fala com speaker identificado (ex: "Mike Johnson diz:")
+    // Linha de fala com speaker identificado (ex: "Mike Johnson diz:", "Oliver Walker diz (gritando):")
     const textToScan = parsed.rawText.replace(/^(\[[0-2]\d:[0-5]\d(?::[0-5]\d)?\]|\([0-2]\d:[0-5]\d(?::[0-5]\d)?\))\s*/, '');
-    const speechPrefixMatch = textToScan.match(/^(.+?\s+(?:diz(?:\s*\([^)]*\))?|grita|sussurra)\s*:\s*)/i);
+    const speechPrefixMatch = textToScan.match(/^((?:.+?\s+)?(?:diz(?:\s*\([^)]*\))?|grita|gritando|grito|sussurra|\([^)]*(?:gritando|grito)[^)]*\))\s*:\s*)/i);
 
     if (speechPrefixMatch) {
       const prefixStr = speechPrefixMatch[1];
-      const speakerColor = matchedChar ? matchedChar.color : lineDefaultColor;
+      // A cor do speaker segue o padrão do estilo de texto da linha, sem forçar cor do personagem
+      const speakerColor = lineDefaultColor;
       sourceTokens.push({
         text: prefixStr,
         isCensored: false,
@@ -112,7 +106,14 @@ export function renderChatText(
       });
 
       // Diálogo subsequente
-      const dialogueBody = parsed.messageText !== undefined ? parsed.messageText : textToScan.substring(prefixStr.length);
+      let dialogueBody = textToScan.substring(prefixStr.length);
+
+      // Em fala no tom gritando, somente o texto após ":" fica todo em MAIÚSCULO
+      const isShouting = /\b(?:gritando|grita|grito)\b/i.test(prefixStr);
+      if (isShouting) {
+        dialogueBody = dialogueBody.toUpperCase();
+      }
+
       const dialogueSegments = splitCensoredSegments(dialogueBody);
       dialogueSegments.forEach(seg => {
         sourceTokens.push({
@@ -122,8 +123,8 @@ export function renderChatText(
         });
       });
     } else if (textToScan.startsWith('*') && parsed.speaker) {
-      // Ação RP com personagem identificado
-      const speakerColor = matchedChar ? matchedChar.color : lineDefaultColor;
+      // Ação RP com personagem identificado (* Nome ...) - segue estilo de cor da ação (/me)
+      const speakerColor = lineDefaultColor;
       const actionPrefix = `* ${parsed.speaker} `;
       sourceTokens.push({
         text: actionPrefix,
