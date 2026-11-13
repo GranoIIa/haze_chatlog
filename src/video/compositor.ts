@@ -6,7 +6,7 @@
  */
 import { renderChatText, ChatStyle } from '../utils/chatRenderer';
 import { applyFilmEffects, drawCameraOverlay, CAMERA_PRESET_EFFECTS, DEFAULT_CAMERA, CameraState } from '../utils/cameraFx';
-import { activeLayers, cameraClock, overlaysAt, overlayText, Timeline, ClipCamera } from './timeline';
+import { activeLayerClips, activeLayers, cameraClock, overlaysAt, overlayText, Timeline, ClipCamera } from './timeline';
 
 export type Drawable = CanvasImageSource & { width: number; height: number };
 
@@ -55,7 +55,8 @@ function drawContained(c: CanvasRenderingContext2D, W: number, H: number, frame:
 /** Desenha as camadas de vídeo ativas em `t` (com presets e opacidades) e os textos por cima. */
 export function composeFrame(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-  W: number, H: number, frames: Drawable | null | LayerFrames, tl: Timeline, t: number
+  W: number, H: number, frames: Drawable | null | LayerFrames, tl: Timeline, t: number,
+  layerFrames?: Map<string, Drawable | null>
 ): void {
   const c = ctx as CanvasRenderingContext2D;
   const layers = activeLayers(tl, t);
@@ -88,6 +89,18 @@ export function composeFrame(
       drawCameraOverlay(sx, W, H, cam, '');
       c.save(); c.globalAlpha = L.alpha; c.drawImage(scratch!.c as CanvasImageSource, 0, 0); c.restore();
     });
+  }
+
+  // trilha de sobreposição (picture-in-picture), por cima do vídeo principal e por baixo dos textos
+  for (const A of activeLayerClips(tl, t)) {
+    const f = layerFrames?.get(A.layer.id);
+    if (!f || f.width <= 0 || f.height <= 0 || A.tr.opacity <= 0) continue;
+    const s = Math.min(W / f.width, H / f.height) * A.tr.scale;
+    const w = f.width * s, h = f.height * s;
+    c.save();
+    c.globalAlpha = A.tr.opacity;
+    c.drawImage(f, A.tr.x * W - w / 2, A.tr.y * H - h / 2, w, h);
+    c.restore();
   }
 
   const scale = H / BASE_H;

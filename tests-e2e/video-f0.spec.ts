@@ -135,4 +135,18 @@ test.describe('Video Studio F0: medições', () => {
     const t1 = Date.now(); const tr = await exportOnce(page, '1920×1080', 30, 200_000); const sTr = (Date.now() - t1) / 1000;
     console.log(`F0: transição 1080p30 | corte seco 40 s de vídeo: ${sBase.toFixed(1)} s (${base.timing}) | com fusão 38 s de vídeo: ${sTr.toFixed(1)} s (${tr.timing})`);
   });
+
+  test('F3b: custo da sobreposição (2o decodificador + desenho) em 1080p30: principal 20 s + camada 20 s', async ({ page }) => {
+    test.setTimeout(300_000);
+    const f = src('pip.mp4', '1920x1080', 20);
+    await page.goto('/'); await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-file-input').setInputFiles([f]);
+    await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
+    await page.getByTestId('add-clip-0').click();
+    const t0 = Date.now(); const base = await exportOnce(page, '1920×1080', 30, 200_000); const sBase = (Date.now() - t0) / 1000;
+    await page.getByTestId('playhead-input').fill('0');
+    await page.getByTestId('add-layer-0').click();
+    const t1 = Date.now(); const pip = await exportOnce(page, '1920×1080', 30, 200_000); const sPip = (Date.now() - t1) / 1000;
+    console.log(`F0: sobreposição 1080p30 20 s | sem camada ${sBase.toFixed(1)} s (${base.timing}) | com camada ${sPip.toFixed(1)} s (${pip.timing})`);
+  });
 });

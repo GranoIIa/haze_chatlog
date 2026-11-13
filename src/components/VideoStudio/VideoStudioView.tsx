@@ -3,9 +3,10 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
+  addLayer, updateLayer, trimLayer, removeLayer, addKeyframe, removeKeyframe, evalTransform, activeLayers, activeLayerClips, layerDuration,
   setClipVolume, setClipCamera, setLineStep, setClipSpeed, setClipFades, setClipTransition, addSubtitles, snapTime, speedOf, splitAt, totalDuration, trimClip, undo, updateOverlay, makeId, round3, MIN_CLIP, Timeline
 } from '../../video/timeline';
 import { buildVideoProjectBlob, parseVideoProject, matchesSaved, SavedMedia } from '../../video/videoProject';
@@ -18,7 +19,7 @@ import { exportTimeline, ExportCancelled, ExportResult } from '../../video/expor
 
 const PREVIEW_W = 640;
 const SIZES: Array<[string, number, number]> = [['1280×720', 1280, 720], ['1920×1080', 1920, 1080], ['854×480', 854, 480]];
-const EFFECTS: Record<string, TimelineEffect> = { clip: { id: 'clip', name: 'Clipe' }, chat: { id: 'chat', name: 'Chat' } };
+const EFFECTS: Record<string, TimelineEffect> = { clip: { id: 'clip', name: 'Clipe' }, layer: { id: 'layer', name: 'Sobreposição' }, chat: { id: 'chat', name: 'Chat' } };
 const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, '0')}`;
 
 
@@ -70,6 +71,7 @@ export const VideoStudioView: React.FC = () => {
   const [library, setLibrary] = useState<OpenedMedia[]>([]);
   const mediaRef = useRef(new Map<string, OpenedMedia>());
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -98,6 +100,8 @@ export const VideoStudioView: React.FC = () => {
   const [outW, outH] = [SIZES[sizeIdx][1], SIZES[sizeIdx][2]];
   const previewH = Math.round((PREVIEW_W * outH) / outW / 2) * 2;
   const selClip = tl.clips.find(c => c.id === selected) ?? null;
+  const selLayer = (tl.layers ?? []).find(l => l.id === selectedLayer) ?? null;
+  const selLayerMedia = selLayer ? mediaRef.current.get(selLayer.mediaId) : undefined;
   const selMedia = selClip ? mediaRef.current.get(selClip.mediaId) : undefined;
 
   useEffect(() => () => {
@@ -165,7 +169,7 @@ export const VideoStudioView: React.FC = () => {
       mediaRef.current.clear();
       setLibrary([]); setThumbs({});
       setHist(createHistory(p.timeline));
-      setPending(p.media.filter(m => p.timeline.clips.some(c => c.mediaId === m.id)));
+      setPending(p.media.filter(m => p.timeline.clips.some(c => c.mediaId === m.id) || (p.timeline.layers ?? []).some(l => l.mediaId === m.id)));
       setSelected(null); setT(0);
       if (p.warnings.length) setMessage(p.warnings.join('; ') + '.');
     } catch (e) {
@@ -181,14 +185,16 @@ export const VideoStudioView: React.FC = () => {
     if (!cv) return;
     const ctx = cv.getContext('2d')!;
     (async () => {
-      const hit = locate(tl, t);
-      let frame: Drawable | null = null;
-      if (hit) {
-        const m = mediaRef.current.get(hit.clip.mediaId);
-        try { frame = ((await m?.video?.getCanvas(hit.sourceTime))?.canvas as Drawable) ?? null; } catch { frame = null; }
-      }
+      const grab = async (mediaId: string, at: number): Promise<Drawable | null> => {
+        const m = mediaRef.current.get(mediaId);
+        try { return ((await m?.video?.getCanvas(at))?.canvas as Drawable) ?? null; } catch { return null; }
+      };
+      const mainFrames: Array<Drawable | null> = [];
+      for (const L of activeLayers(tl, t)) mainFrames.push(await grab(L.clip.mediaId, L.sourceTime));
+      const lf = new Map<string, Drawable | null>();
+      for (const A of activeLayerClips(tl, t)) lf.set(A.layer.id, await grab(A.layer.mediaId, A.sourceTime));
       if (seq !== drawSeq.current) return; // resultado antigo: descarta
-      composeFrame(ctx, cv.width, cv.height, frame, tl, t);
+      composeFrame(ctx, cv.width, cv.height, mainFrames, tl, t, lf);
     })();
   }, [tl, t, previewH, library]);
 
@@ -265,13 +271,18 @@ export const VideoStudioView: React.FC = () => {
       actions: placed.map(p => ({ id: p.clip.id, start: p.start, end: p.end, effectId: 'clip', flexible: true, movable: false }))
     },
     {
+      id: 'layers',
+      actions: (tl.layers ?? []).map(l => ({ id: l.id, start: l.start, end: l.start + layerDuration(l), effectId: 'layer', flexible: true, movable: true }))
+    },
+    {
       id: 'chat',
       actions: tl.overlays.map(o => ({ id: o.id, start: o.start, end: o.start + o.duration, effectId: 'chat', flexible: true, movable: true }))
     }
-  ], [placed, tl.overlays]);
+  ], [placed, tl.overlays, tl.layers]);
 
   const onMoveEnd = ({ action, row, start }: { action: { id: string }; row: { id: string }; start: number }) => {
     if (row.id === 'chat') apply(x => updateOverlay(x, action.id, { start: snapTime(x, start, action.id) }));
+    else if (row.id === 'layers') apply(x => updateLayer(x, action.id, { start: snapTime(x, start) }));
     else {
       // nova ordem = ordenar pelos inícios, com o clipe arrastado na posição solta
       const others = placed.filter(p => p.clip.id !== action.id).map(p => ({ id: p.clip.id, s: p.start }));
@@ -283,7 +294,15 @@ export const VideoStudioView: React.FC = () => {
   };
   const onResizeEnd = ({ action, row, start, end, dir }: { action: { id: string }; row: { id: string }; start: number; end: number; dir: string }) => {
     if (row.id === 'chat') apply(x => updateOverlay(x, action.id, { start, duration: end - start }));
-    else {
+    else if (row.id === 'layers') {
+      const l = (tl.layers ?? []).find(q => q.id === action.id);
+      const m = l && mediaRef.current.get(l.mediaId);
+      if (l && m) {
+        apply(x => dir === 'left'
+          ? updateLayer(trimLayer(x, action.id, { inPoint: l.inPoint + (start - l.start) }, m.ref.duration), action.id, { start })
+          : trimLayer(x, action.id, { outPoint: l.inPoint + (end - start) }, m.ref.duration));
+      }
+    } else {
       const p = placed.find(q => q.clip.id === action.id);
       const m = p && mediaRef.current.get(p.clip.mediaId);
       if (p && m) {
@@ -327,7 +346,7 @@ export const VideoStudioView: React.FC = () => {
         <h2 className="text-sm font-bold">Video Studio <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded border border-haze-accent/30 text-haze-accent font-mono">POC</span></h2>
         <span className="text-xs text-haze-muted">Edição local: os arquivos não saem do seu computador.</span>
         <div className="ml-auto flex gap-2">
-          <button className={btn} data-testid="project-save" disabled={!tl.clips.length} onClick={() => void saveProject()}><Save className="w-4 h-4" /> Salvar projeto</button>
+          <button className={btn} data-testid="project-save" disabled={!tl.clips.length && !(tl.layers ?? []).length} onClick={() => void saveProject()}><Save className="w-4 h-4" /> Salvar projeto</button>
           <label className={`${btn} cursor-pointer`}><FolderOpen className="w-4 h-4" /> Abrir projeto
             <input data-testid="project-open-input" type="file" accept=".haze" className="hidden" onChange={e => { void openProject(e.target.files?.[0]); e.target.value = ''; }} />
           </label>
@@ -350,6 +369,8 @@ export const VideoStudioView: React.FC = () => {
                 <div className="font-semibold truncate" title={m.ref.name}>{m.ref.name}</div>
                 <div className="text-haze-muted">{fmt(m.ref.duration)} · {m.ref.width}×{m.ref.height} · {m.ref.hasAudio ? 'com áudio' : 'sem áudio'}</div>
                 <button className={`${btn} mt-1.5`} data-testid={`add-clip-${i}`} onClick={() => apply(x => addClip(x, m.ref))}>Adicionar à timeline</button>
+                <button className={`${btn} mt-1.5 ml-1.5`} data-testid={`add-layer-${i}`} title="Entra por cima do vídeo principal, a partir do cursor"
+                  onClick={() => { const id = makeId('layer'); apply(x => addLayer(x, m.ref, t, id)); setSelectedLayer(id); setSelected(null); }}><Layers className="w-3.5 h-3.5" /> Sobrepor</button>
               </li>
             ))}
             {!library.length && !pending.length && <li className="text-xs text-haze-muted">Importe um ou mais vídeos para começar.</li>}
@@ -419,7 +440,7 @@ export const VideoStudioView: React.FC = () => {
 
           <div className="rounded-xl border border-haze-border bg-haze-panel p-2 overflow-hidden" data-testid="timeline">
             <div className="flex items-center gap-3 text-[11px] text-haze-muted px-1 pb-1"><span>Trilha 1: vídeo</span><span>Trilha 2: chat</span></div>
-            {tl.clips.length === 0 && tl.overlays.length === 0
+            {tl.clips.length === 0 && tl.overlays.length === 0 && !(tl.layers ?? []).length
               ? <div className="h-24 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
               : <TimelineUI ref={tlStateRef} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
                   autoScroll gridSnap dragLine={false}
@@ -428,8 +449,19 @@ export const VideoStudioView: React.FC = () => {
                     const c = tl.clips.find(x => x.id === action.id);
                     const label = isClip ? (mediaRef.current.get(c?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === c?.mediaId)?.name ?? 'clipe') + ' (offline)')) : (tl.overlays.find(x => x.id === action.id)?.text ?? 'chat');
                     const sel = action.id === selected;
+                    if (action.effectId === 'layer') {
+                      const lay = (tl.layers ?? []).find(x => x.id === action.id);
+                      return (
+                        <div data-testid="layer-block" data-layer-id={action.id}
+                          onPointerDown={() => { setSelectedLayer(action.id); setSelected(null); }}
+                          className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-fuchsia-500/25 border border-fuchsia-400/60 ${action.id === selectedLayer ? 'ring-2 ring-white' : ''}`}>
+                          <span className="truncate">{mediaRef.current.get(lay?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === lay?.mediaId)?.name ?? 'sobreposição') + ' (offline)')}</span>
+                          {(lay?.keyframes?.length ?? 0) > 0 && <span className="shrink-0 text-[10px]">◆{lay!.keyframes!.length}</span>}
+                        </div>
+                      );
+                    }
                     if (isClip) return <ClipBlock id={action.id} wave={c && peaks[c.mediaId] && mediaRef.current.get(c.mediaId) ? { peaks: peaks[c.mediaId], mediaDur: mediaRef.current.get(c.mediaId)!.ref.duration, inP: c.inPoint, outP: c.outPoint } : undefined} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={c && speedOf(c) !== 1 ? `${label} ×${speedOf(c)}` : label} selected={sel} muted={(c?.volume ?? 1) === 0}
-                      onSelect={() => setSelected(action.id)} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
+                      onSelect={() => { setSelected(action.id); setSelectedLayer(null); }} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
                     return (
                       <div data-testid="chat-block" data-clip-id={action.id}
                         className="h-full w-full px-2 flex items-center text-[11px] truncate rounded bg-sky-500/25 border border-sky-400/60">
@@ -447,6 +479,48 @@ export const VideoStudioView: React.FC = () => {
 
         {/* Inspetor + exportar */}
         <section className="rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3">
+          {selLayer && selLayerMedia && (() => {
+            const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
+            const cur = evalTransform(selLayer, rel);
+            const kfs = selLayer.keyframes ?? [];
+            const edit = (patch: Partial<typeof cur>) => { if (!kfs.length) apply(x => updateLayer(x, selLayer.id, { base: patch })); };
+            const fld = (name: 'x' | 'y' | 'scale' | 'opacity', label: string, step: string) => (
+              <label className="flex items-center gap-1">{label}
+                <input data-testid={`layer-${name}`} type="number" step={step} className={input}
+                  key={`${selLayer.id}-${name}-${Math.round(rel * 1000)}-${kfs.length}-${selLayer.base[name]}`} defaultValue={Number(cur[name].toFixed(3))}
+                  onBlur={e => edit({ [name]: +e.target.value })} />
+              </label>
+            );
+            const read = (n: string) => Number((document.querySelector(`[data-testid="layer-${n}"]`) as HTMLInputElement | null)?.value);
+            return (
+              <div className="space-y-2 text-xs border border-fuchsia-400/40 rounded-lg p-2" data-testid="layer-inspector">
+                <div className="font-semibold">Sobreposição</div>
+                <div className="truncate text-haze-muted">{selLayerMedia.ref.name} · começa em {fmt(selLayer.start)} · dura {fmt(layerDuration(selLayer))}</div>
+                <div className="grid grid-cols-2 gap-1">
+                  {fld('x', 'x', '0.05')}{fld('y', 'y', '0.05')}{fld('scale', 'escala', '0.05')}{fld('opacity', 'opac.', '0.1')}
+                </div>
+                <div className="text-haze-faint">x e y = centro do quadro (0 a 1). {kfs.length ? 'Com keyframes os valores vêm deles; edite e use o botão para gravar no cursor.' : 'Sem keyframes: valores fixos.'}</div>
+                <div className="flex items-center gap-2">volume
+                  <input data-testid="layer-volume" type="range" min="0" max="2" step="0.1" value={selLayer.volume} onChange={e => apply(x => updateLayer(x, selLayer.id, { volume: +e.target.value }))} />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button className={btn} data-testid="kf-add" onClick={() => apply(x => addKeyframe(x, selLayer.id, rel, { x: read('x'), y: read('y'), scale: read('scale'), opacity: read('opacity') }))}>◆ Keyframe no cursor</button>
+                  <button className={btn} data-testid="layer-remove" onClick={() => { apply(x => removeLayer(x, selLayer.id)); setSelectedLayer(null); }}><Trash2 className="w-4 h-4" /> Remover</button>
+                </div>
+                {kfs.length > 0 && (
+                  <ul className="space-y-1" data-testid="kf-list">
+                    {kfs.map((k, i) => (
+                      <li key={k.time} className="flex items-center gap-2" data-testid={`kf-${i}`}>
+                        <span className="font-mono">{fmt(k.time)}</span>
+                        <span className="truncate flex-1">x{k.x} y{k.y} ×{k.scale} α{k.opacity}</span>
+                        <button aria-label="Remover keyframe" data-testid={`kf-remove-${i}`} className="text-haze-muted hover:text-white" onClick={() => apply(x => removeKeyframe(x, selLayer.id, k.time))}><Trash2 className="w-3.5 h-3.5" /></button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
           <div className="text-xs font-semibold">Clipe selecionado</div>
           {selClip && selMedia ? (
             <div className="space-y-2 text-xs" data-testid="inspector">
@@ -538,7 +612,7 @@ export const VideoStudioView: React.FC = () => {
               </select>
             </div>
             {!exp
-              ? <button className={primary} data-testid="export" disabled={!tl.clips.length} onClick={() => void startExport()}>Exportar vídeo</button>
+              ? <button className={primary} data-testid="export" disabled={!tl.clips.length && !(tl.layers ?? []).length} onClick={() => void startExport()}>Exportar vídeo</button>
               : <button className={btn} data-testid="export-cancel" onClick={() => abortRef.current?.abort()}>Cancelar</button>}
             {exp && <div className="text-xs text-haze-muted" data-testid="export-status" role="status">{exp.phase}… {exp.pct}%</div>}
             {result && (

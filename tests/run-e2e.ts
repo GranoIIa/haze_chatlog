@@ -77,6 +77,7 @@ async function loadTestSuites() {
     await import('./tier6-video/test_video_limits');
     await import('./tier6-video/test_video_f2');
     await import('./tier6-video/test_video_f3');
+    await import('./tier6-video/test_video_layers');
   }
 }
 

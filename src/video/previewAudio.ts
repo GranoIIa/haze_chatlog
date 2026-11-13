@@ -3,7 +3,7 @@
  * (`AudioContext.currentTime`), então imagem e som não se afastam por construção.
  * Agenda os buffers decodificados um pouco à frente, clipe por clipe, com o volume de cada um.
  */
-import { layout, speedOf, totalDuration, Timeline } from './timeline';
+import { audioItems, speedOf, totalDuration, Timeline } from './timeline';
 import type { OpenedMedia } from './mediaIO';
 
 export class PreviewAudio {
@@ -34,7 +34,7 @@ export class PreviewAudio {
 
   private async pump(tl: Timeline, media: Map<string, OpenedMedia>, fromT: number): Promise<void> {
     const ctx = this.ctx!;
-    for (const p of layout(tl)) {
+    for (const p of audioItems(tl)) {
       if (p.end <= fromT) continue;
       const sink = media.get(p.clip.mediaId)?.audio;
       if (!sink || p.clip.volume <= 0) continue;

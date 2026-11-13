@@ -19,7 +19,7 @@ export interface VideoProjectData { timeline: Timeline; media: SavedMedia[]; war
 export async function buildVideoProjectBlob(timeline: Timeline, media: SavedMedia[]): Promise<Blob> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
-  const used = new Set(timeline.clips.map(c => c.mediaId));
+  const used = new Set([...timeline.clips.map(c => c.mediaId), ...(timeline.layers ?? []).map(l => l.mediaId)]);
   const manifest = {
     format: PROJECT_FORMAT,
     schemaVersion: PROJECT_SCHEMA_VERSION,
@@ -75,7 +75,10 @@ export async function parseVideoProject(file: Blob): Promise<VideoProjectData> {
   const known = new Set(media.map(m => m.id));
   const clips = raw.clips.filter(c => known.has(c.mediaId));
   if (clips.length < raw.clips.length) warnings.push(`${raw.clips.length - clips.length} clipe(s) apontavam para mídia desconhecida e foram descartados`);
-  return { timeline: { ...raw, clips }, media, warnings };
+  const layers = (raw.layers ?? []).filter(l => known.has(l.mediaId));
+  if (layers.length < (raw.layers ?? []).length) warnings.push(`${(raw.layers ?? []).length - layers.length} sobreposição(ões) apontavam para mídia desconhecida e foram descartadas`);
+  const { layers: _unfiltered, ...rest } = raw; void _unfiltered;
+  return { timeline: { ...rest, clips, ...(layers.length ? { layers } : {}) }, media, warnings };
 }
 
 /** Um arquivo reconecta uma mídia salva se nome e tamanho forem iguais e a duração bater (±50 ms). */

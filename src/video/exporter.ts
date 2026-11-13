@@ -9,7 +9,7 @@ import {
 } from 'mediabunny';
 import type { OutputFormat, VideoCodec, AudioCodec } from 'mediabunny';
 import { composeFrame, Drawable } from './compositor';
-import { activeLayers, fadeFactor, layout, speedOf, totalDuration, validate, Timeline, MediaRef, PlacedClip } from './timeline';
+import { activeLayerClips, activeLayers, audioItems, fadeFactor, layout, speedOf, totalDuration, validate, Timeline, MediaRef } from './timeline';
 import type { OpenedMedia } from './mediaIO';
 import { checkExportLimits } from './limits';
 
@@ -103,7 +103,7 @@ async function* audioWindows(
     return out;
   };
 
-  const placed = layout(tl);
+  const placed = audioItems(tl);
   for (let pi = 0; pi < placed.length; pi++) {
     const p = placed[pi];
     const nextStart = pi + 1 < placed.length ? Math.floor(placed[pi + 1].start * SR) : Infinity;
@@ -158,15 +158,14 @@ export async function exportTimeline(
   if (!(W > 0 && H > 0 && fps > 0) || W % 2 || H % 2) throw new ExportError('Resolução ou FPS inválidos (largura e altura precisam ser pares).');
   const refs = new Map<string, MediaRef>([...opened].map(([k, v]) => [k, v.ref]));
   const problems = validate(tl, refs);
-  if (!tl.clips.length) throw new ExportError('A timeline está vazia: adicione ao menos um clipe.');
+  if (!tl.clips.length && !(tl.layers ?? []).length) throw new ExportError('A timeline está vazia: adicione ao menos um clipe.');
   if (problems.length) throw new ExportError(`Projeto inválido: ${problems[0]}`);
 
   const total = totalDuration(tl);
   const tooBig = checkExportLimits(total);
   if (tooBig) throw new ExportError(tooBig);
   const frames = Math.max(1, Math.ceil(total * fps - 1e-6));
-  const placed = layout(tl);
-  const needAudio = placed.some(p => opened.get(p.clip.mediaId)?.audio);
+  const needAudio = audioItems(tl).some(p => opened.get(p.clip.mediaId)?.audio);
   const { c, v, a } = await pickFormat(W, H, needAudio);
 
   const timing = { decodeMs: 0, composeMs: 0, encodeMs: 0, audioMs: 0 };
@@ -206,21 +205,24 @@ export async function exportTimeline(
     // Quais quadros de saída cada clipe cobre (inclui a sobreposição das transições). Cada clipe tem
     // seu próprio decodificador e seu iterador: avançam juntos, um passo por quadro de saída.
     const byClip = new Map<string, number[]>();
-    for (let k = 0; k < frames; k++) for (const L of activeLayers(tl, k / fps)) {
-      let ks = byClip.get(L.clip.id); if (!ks) { ks = []; byClip.set(L.clip.id, ks); }
-      ks.push(k);
+    const push = (id: string, k: number) => { let ks = byClip.get(id); if (!ks) { ks = []; byClip.set(id, ks); } ks.push(k); };
+    for (let k = 0; k < frames; k++) {
+      for (const L of activeLayers(tl, k / fps)) push(L.clip.id, k);
+      for (const A of activeLayerClips(tl, k / fps)) push(A.layer.id, k);
     }
     interface Feed { it: AsyncIterator<{ canvas: unknown } | null>; held: Drawable | null; left: number }
     const feeds = new Map<string, Feed>();
-    const placedById = new Map<string, PlacedClip>(placed.map(p => [p.clip.id, p]));
+    // de onde cada fonte de vídeo lê: clipes da trilha principal e camadas de sobreposição
+    const srcById = new Map<string, { mediaId: string; inPoint: number; start: number; speed: number }>();
+    for (const p of layout(tl)) srcById.set(p.clip.id, { mediaId: p.clip.mediaId, inPoint: p.clip.inPoint, start: p.start, speed: speedOf(p.clip) });
+    for (const l of tl.layers ?? []) srcById.set(l.id, { mediaId: l.mediaId, inPoint: l.inPoint, start: l.start, speed: 1 });
     const feedFor = (id: string): Feed => {
       let f = feeds.get(id);
       if (!f) {
-        const p = placedById.get(id)!;
+        const p = srcById.get(id)!;
         const ks = byClip.get(id)!;
-        const sp = speedOf(p.clip);
-        const times = (function* () { for (const k of ks) yield p.clip.inPoint + (k / fps - p.start) * sp; })();
-        const sink = opened.get(p.clip.mediaId)!.makeVideoSink(W);
+        const times = (function* () { for (const k of ks) yield p.inPoint + (k / fps - p.start) * p.speed; })();
+        const sink = opened.get(p.mediaId)!.makeVideoSink(W);
         f = { it: sink.canvasesAtTimestamps(times)[Symbol.asyncIterator]() as AsyncIterator<{ canvas: unknown } | null>, held: null, left: ks.length };
         feeds.set(id, f);
       }
@@ -242,8 +244,18 @@ export async function exportTimeline(
         drawn.push(f.held);
         if (--f.left <= 0) { try { await f.it.return?.(undefined); } catch { /* ignore */ } feeds.delete(L.clip.id); }
       }
+      const lf = new Map<string, Drawable | null>();
+      for (const A of activeLayerClips(tl, t)) {
+        const f = feedFor(A.layer.id);
+        const tD2 = performance.now();
+        const nx = await f.it.next();
+        timing.decodeMs += performance.now() - tD2;
+        if (!nx.done && nx.value) f.held = nx.value.canvas as Drawable;
+        lf.set(A.layer.id, f.held);
+        if (--f.left <= 0) { try { await f.it.return?.(undefined); } catch { /* ignore */ } feeds.delete(A.layer.id); }
+      }
       const tC = performance.now();
-      composeFrame(ctx, W, H, drawn, tl, t);
+      composeFrame(ctx, W, H, drawn, tl, t, lf);
       timing.composeMs += performance.now() - tC;
       const tE = performance.now();
       await vsrc.add(t, 1 / fps);

@@ -67,10 +67,31 @@ export interface ChatOverlay {
   fontSize: number;
 }
 
+/** Posição do CENTRO (fração do quadro; 0,5/0,5 = meio), escala (1 = cabe no quadro) e opacidade de uma camada. */
+export interface Transform { x: number; y: number; scale: number; opacity: number }
+/** Keyframe: valores completos num instante `time` (s desde o início da camada). */
+export interface Keyframe extends Transform { time: number }
+
+/** Clipe da trilha de SOBREPOSIÇÃO (picture-in-picture): posição livre no tempo, por cima da trilha principal. */
+export interface LayerClip {
+  id: string;
+  mediaId: string;
+  /** Início na timeline (s). */
+  start: number;
+  inPoint: number;
+  outPoint: number;
+  volume: number;
+  /** Transformação fixa; ignorada quando há keyframes (valem os keyframes, interpolados). */
+  base: Transform;
+  keyframes?: Keyframe[];
+}
+
 export interface Timeline {
   version: 1;
   clips: Clip[];
   overlays: ChatOverlay[];
+  /** Trilha de sobreposição (opcional: timelines antigas não têm). Ordem = de baixo para cima. */
+  layers?: LayerClip[];
 }
 
 export interface PlacedClip {
@@ -114,7 +135,9 @@ export function layout(tl: Timeline): PlacedClip[] {
 
 export const totalDuration = (tl: Timeline): number => {
   const l = layout(tl);
-  return l.length ? l[l.length - 1].end : 0;
+  let end = l.length ? l[l.length - 1].end : 0;
+  for (const c of tl.layers ?? []) end = Math.max(end, round3(c.start + layerDuration(c)));
+  return end;
 };
 
 /** Fator 0..1 das rampas de entrada/saída gradual (clipe) no instante `rel` (s desde o início do clipe). */
@@ -282,6 +305,7 @@ export function setClipTransition(tl: Timeline, clipId: string, duration: number
 export function snapTime(tl: Timeline, t: number, ignoreOverlayId?: string, threshold = 0.12): number {
   const cands = [0];
   for (const p of layout(tl)) cands.push(p.start, p.end);
+  for (const c of tl.layers ?? []) cands.push(c.start, c.start + layerDuration(c));
   for (const o of tl.overlays) if (o.id !== ignoreOverlayId) cands.push(o.start, o.start + o.duration);
   let best = t, bd = threshold;
   for (const c of cands) { const d = Math.abs(c - t); if (d <= bd) { bd = d; best = c; } }
@@ -296,6 +320,122 @@ export function addSubtitles(tl: Timeline, cues: Array<{ start: number; end: num
     text: c.text, x: 0, y: 630, fontSize: 28
   }));
   return { ...tl, overlays: [...tl.overlays, ...made] };
+}
+
+export const MAX_LAYERS = 50;
+export const MAX_KEYFRAMES = 200;
+export const DEFAULT_LAYER_TRANSFORM: Transform = { x: 0.75, y: 0.25, scale: 0.3, opacity: 1 };
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+/** Valores fora do intervalo são limitados; o que não é número vira o padrão. */
+export function clampTransform(t: any, d: Transform = DEFAULT_LAYER_TRANSFORM): Transform {
+  const n = (v: unknown, fb: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fb);
+  return {
+    x: round3(clamp(n(t?.x, d.x), -0.5, 1.5)), y: round3(clamp(n(t?.y, d.y), -0.5, 1.5)),
+    scale: round3(clamp(n(t?.scale, d.scale), 0.05, 4)), opacity: round3(clamp(n(t?.opacity, d.opacity), 0, 1))
+  };
+}
+
+export const layerDuration = (c: LayerClip): number => round3(c.outPoint - c.inPoint);
+
+/** Valores da camada no instante `rel` (s desde o início dela): interpolação linear entre keyframes. */
+export function evalTransform(l: LayerClip, rel: number): Transform {
+  const k = l.keyframes;
+  if (!k || !k.length) return l.base;
+  if (rel <= k[0].time) return pick(k[0]);
+  if (rel >= k[k.length - 1].time) return pick(k[k.length - 1]);
+  let i = 0; while (i < k.length - 1 && k[i + 1].time <= rel) i++;
+  const a = k[i], b = k[i + 1];
+  const f = (rel - a.time) / (b.time - a.time);
+  const mix = (p: number, q: number) => p + (q - p) * f;
+  return { x: mix(a.x, b.x), y: mix(a.y, b.y), scale: mix(a.scale, b.scale), opacity: mix(a.opacity, b.opacity) };
+}
+const pick = (k: Keyframe): Transform => ({ x: k.x, y: k.y, scale: k.scale, opacity: k.opacity });
+
+export interface ActiveLayerClip { layer: LayerClip; sourceTime: number; tr: Transform }
+
+/** Camadas de sobreposição visíveis em `t`, de baixo para cima. */
+export function activeLayerClips(tl: Timeline, t: number): ActiveLayerClip[] {
+  const out: ActiveLayerClip[] = [];
+  for (const l of tl.layers ?? []) {
+    const rel = t - l.start;
+    if (rel >= -TIME_EPS && rel < layerDuration(l) - TIME_EPS) {
+      out.push({ layer: l, sourceTime: round3(l.inPoint + Math.max(0, rel)), tr: evalTransform(l, Math.max(0, rel)) });
+    }
+  }
+  return out;
+}
+
+export function addLayer(tl: Timeline, media: MediaRef, start: number, id = makeId('layer')): Timeline {
+  if ((tl.layers ?? []).length >= MAX_LAYERS) return tl;
+  const l: LayerClip = {
+    id, mediaId: media.id, start: round3(Math.max(0, start)), inPoint: 0, outPoint: round3(media.duration),
+    volume: 1, base: { ...DEFAULT_LAYER_TRANSFORM }
+  };
+  return { ...tl, layers: [...(tl.layers ?? []), l] };
+}
+
+const mapLayer = (tl: Timeline, id: string, f: (l: LayerClip) => LayerClip): Timeline =>
+  ({ ...tl, layers: (tl.layers ?? []).map(l => (l.id === id ? f(l) : l)) });
+
+export const removeLayer = (tl: Timeline, id: string): Timeline =>
+  ({ ...tl, layers: (tl.layers ?? []).filter(l => l.id !== id) });
+
+export function updateLayer(tl: Timeline, id: string, patch: { start?: number; volume?: number; base?: Partial<Transform> }): Timeline {
+  return mapLayer(tl, id, l => ({
+    ...l,
+    ...(patch.start !== undefined && Number.isFinite(patch.start) ? { start: round3(Math.max(0, patch.start)) } : {}),
+    ...(patch.volume !== undefined && Number.isFinite(patch.volume) ? { volume: clamp(patch.volume, 0, 2) } : {}),
+    ...(patch.base ? { base: clampTransform({ ...l.base, ...patch.base }, l.base) } : {})
+  }));
+}
+
+export function trimLayer(tl: Timeline, id: string, change: { inPoint?: number; outPoint?: number }, mediaDuration: number): Timeline {
+  return mapLayer(tl, id, l => {
+    let a = change.inPoint ?? l.inPoint, b = change.outPoint ?? l.outPoint;
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return l;
+    a = clamp(a, 0, mediaDuration); b = clamp(b, 0, mediaDuration);
+    if (change.inPoint !== undefined && b - a < MIN_CLIP) a = b - MIN_CLIP;
+    if (change.outPoint !== undefined && b - a < MIN_CLIP) b = a + MIN_CLIP;
+    if (a < 0 || b > mediaDuration + TIME_EPS) return l;
+    const n = { ...l, inPoint: round3(a), outPoint: round3(b) };
+    // keyframes além do novo fim são limitados à duração
+    if (n.keyframes) { const d = layerDuration(n); n.keyframes = n.keyframes.map(k => ({ ...k, time: Math.min(k.time, d) })); }
+    return n;
+  });
+}
+
+/** Cria (ou substitui, se já houver um no mesmo instante) um keyframe. Sem `values`, captura o valor atual. */
+export function addKeyframe(tl: Timeline, id: string, time: number, values?: Partial<Transform>): Timeline {
+  return mapLayer(tl, id, l => {
+    if (!Number.isFinite(time)) return l;
+    const t = round3(clamp(time, 0, layerDuration(l)));
+    const cur = evalTransform(l, t);
+    const kf: Keyframe = { time: t, ...clampTransform({ ...cur, ...values }, cur) };
+    const rest = (l.keyframes ?? []).filter(k => Math.abs(k.time - t) >= TIME_EPS);
+    if (rest.length >= MAX_KEYFRAMES) return l;
+    return { ...l, keyframes: [...rest, kf].sort((a, b) => a.time - b.time) };
+  });
+}
+
+export function removeKeyframe(tl: Timeline, id: string, time: number): Timeline {
+  return mapLayer(tl, id, l => {
+    const rest = (l.keyframes ?? []).filter(k => Math.abs(k.time - time) >= TIME_EPS);
+    const { keyframes: _k, ...noKf } = l; void _k;
+    return rest.length ? { ...l, keyframes: rest } : noKf;
+  });
+}
+
+/** Tudo que emite som, em ordem de início: clipes da trilha principal + camadas de sobreposição. */
+export function audioItems(tl: Timeline): PlacedClip[] {
+  const items: PlacedClip[] = [...layout(tl)];
+  for (const l of tl.layers ?? []) {
+    items.push({
+      clip: { id: l.id, mediaId: l.mediaId, inPoint: l.inPoint, outPoint: l.outPoint, volume: l.volume },
+      start: l.start, end: round3(l.start + layerDuration(l)), overlap: 0, audioFadeIn: 0, audioFadeOut: 0
+    });
+  }
+  return items.sort((a, b) => a.start - b.start);
 }
 
 const NL = String.fromCharCode(10);
@@ -372,6 +512,14 @@ export function validate(tl: Timeline, media: Map<string, MediaRef>): string[] {
     if (!(c.inPoint >= 0) || !(c.outPoint <= m.duration + TIME_EPS)) errs.push(`clipe ${c.id}: pontos fora da mídia`);
     if (!(clipDuration(c) >= MIN_CLIP - TIME_EPS)) errs.push(`clipe ${c.id}: duração menor que ${MIN_CLIP}s`);
   }
+  for (const c of tl.layers ?? []) {
+    if (seen.has(c.id)) errs.push(`id duplicado: ${c.id}`);
+    seen.add(c.id);
+    const m = media.get(c.mediaId);
+    if (!m) { errs.push(`sobreposição ${c.id}: mídia ausente (${c.mediaId})`); continue; }
+    if (!(c.inPoint >= 0) || !(c.outPoint <= m.duration + TIME_EPS)) errs.push(`sobreposição ${c.id}: pontos fora da mídia`);
+    if (!(layerDuration(c) >= MIN_CLIP - TIME_EPS) || c.start < 0) errs.push(`sobreposição ${c.id}: tempo inválido`);
+  }
   const total = totalDuration(tl);
   for (const o of tl.overlays) {
     if (seen.has(o.id)) errs.push(`id duplicado: ${o.id}`);
@@ -419,6 +567,28 @@ export function sanitizeTimeline(raw: unknown): Timeline {
       duration: Math.max(MIN_CLIP, round3(num(o.duration, 3))), x: num(o.x, 24), y: num(o.y, 24),
       fontSize: Math.max(10, Math.min(72, num(o.fontSize, 22)))
     });
+  }
+  for (const c of Array.isArray(r.layers) ? r.layers.slice(0, MAX_LAYERS) : []) {
+    if (typeof c?.id !== 'string' || typeof c?.mediaId !== 'string') continue;
+    const a = num(c.inPoint, 0), b = num(c.outPoint, 0);
+    if (a < 0 || b - a < MIN_CLIP - TIME_EPS) continue;
+    const layer: LayerClip = {
+      id: c.id.slice(0, 64), mediaId: c.mediaId.slice(0, 64), start: Math.max(0, round3(num(c.start, 0))),
+      inPoint: round3(a), outPoint: round3(b), volume: Math.max(0, Math.min(2, num(c.volume, 1))),
+      base: clampTransform(c.base)
+    };
+    if (Array.isArray(c.keyframes)) {
+      const dur = b - a;
+      const kfs = c.keyframes.slice(0, MAX_KEYFRAMES)
+        .filter((k: any) => k && typeof k.time === 'number' && Number.isFinite(k.time))
+        .map((k: any) => ({ time: round3(Math.max(0, Math.min(dur, k.time))), ...clampTransform(k) }))
+        .sort((x: Keyframe, y: Keyframe) => x.time - y.time);
+      // mesmo instante duas vezes: fica o último
+      const uniq: Keyframe[] = [];
+      for (const k of kfs) { if (uniq.length && Math.abs(uniq[uniq.length - 1].time - k.time) < TIME_EPS) uniq[uniq.length - 1] = k; else uniq.push(k); }
+      if (uniq.length) layer.keyframes = uniq;
+    }
+    (tl.layers ??= []).push(layer);
   }
   return tl;
 }
