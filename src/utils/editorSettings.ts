@@ -76,7 +76,7 @@ export const fitGeometry = (
 // Desenha a imagem na área de saída respeitando modo de adaptação, pan (% da área) e zoom.
 export const drawFittedImage = (
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   w: number,
   h: number,
   mode: FitMode,
@@ -84,8 +84,8 @@ export const drawFittedImage = (
   panYPct: number,
   zoomPct: number
 ) => {
-  const iw = img.naturalWidth || img.width;
-  const ih = img.naturalHeight || img.height;
+  const iw = (img as HTMLImageElement).naturalWidth || (img as any).width || 0;
+  const ih = (img as HTMLImageElement).naturalHeight || (img as any).height || 0;
   if (!iw || !ih) return;
   const { dx, dy, dw, dh } = fitGeometry(iw, ih, w, h, mode, panXPct, panYPct, zoomPct);
   const gaps = dw < w - 0.5 || dh < h - 0.5;

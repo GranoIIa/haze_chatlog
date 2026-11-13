@@ -4,7 +4,7 @@ import {
   CheckCircle2, Play, Pause, RefreshCw, Eye, X, Square, Maximize2, Clock
 } from 'lucide-react';
 import { renderChatText } from '../../utils/chatRenderer';
-import { getSharedChat, subscribeSharedChat, requestChatText, requestChatStyle } from '../../utils/chatStore';
+import { getSharedChat, subscribeSharedChat, requestChatText, requestChatStyle, requestSetBackground } from '../../utils/chatStore';
 import { DialogPanel } from '../ChatLog/panels/DialogPanel';
 import { EditorSection } from '../ChatLog/EditorSection';
 import { clampGifSize, GIF_RESOLUTION_PRESETS, GIF_MIN_RES, GIF_MAX_RES } from '../../utils/gifFrame';
@@ -18,11 +18,16 @@ import { exportGif, SeekFailure } from './gifExport';
 
 export type CropMode = 'original' | 'square';
 
-export const GifLabView: React.FC = () => {
+export interface GifLabViewProps {
+  onNavigateToChatLog?: () => void;
+}
+
+export const GifLabView: React.FC<GifLabViewProps> = ({ onNavigateToChatLog }) => {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
 
   // Parâmetros de Trim (Corte)
   const [startTime, setStartTime] = useState<number>(0);
@@ -305,6 +310,7 @@ export const GifLabView: React.FC = () => {
     if (resultGifUrlRef.current) {
       safeRevokeUrl(resultGifUrlRef.current);
       setResultGifUrl(null);
+      setResultBlob(null);
     }
     setResult(null);
 
@@ -372,6 +378,7 @@ export const GifLabView: React.FC = () => {
         log.push({ label, bytes: outcome.bytes });
         const url = URL.createObjectURL(outcome.blob);
         setResultGifUrl(url);
+        setResultBlob(outcome.blob);
         setResult({
           bytes: outcome.bytes, width: outcome.width, height: outcome.height, frames: outcome.frames,
           seconds: outcome.durationMs / 1000, used: describeSettings(cur, videoNative),
@@ -404,6 +411,24 @@ export const GifLabView: React.FC = () => {
     } else {
       videoRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
     }
+  };
+
+  // Enviar GIF cortado para a tela de colagem do Editor RP e trocar de aba
+  const handleSendToEditorRp = () => {
+    if (!resultBlob) return;
+    requestSetBackground({
+      blob: resultBlob,
+      name: `haze-clip-${Date.now()}.gif`,
+      isGif: true,
+      gifMeta: {
+        duration: result?.seconds || Math.max(0.2, endTime - startTime),
+        frames: result?.frames || Math.max(1, Math.round((endTime - startTime) * cfg.fps)),
+        fps: cfg.fps,
+        width: result?.width || 480,
+        height: result?.height || 260
+      }
+    });
+    onNavigateToChatLog?.();
   };
 
   // Formatação de tempo em MM:SS.s (Feature 22)
@@ -1161,13 +1186,25 @@ export const GifLabView: React.FC = () => {
                 </span>
               </div>
 
-              <a
-                href={resultGifUrl}
-                download={`haze-clip-${Date.now()}.gif`}
-                className="px-4 py-1.5 rounded-lg bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-md shadow-haze-accent/20 transition-all"
-              >
-                <Download className="w-4 h-4" /> Baixar GIF
-              </a>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="send-to-editor-rp-btn"
+                  onClick={handleSendToEditorRp}
+                  title="Envia o GIF para o Editor RP e abre a tela para adicionar falas, filtros, câmeras e camadas"
+                  className="px-4 py-1.5 rounded-lg border border-haze-accent text-haze-accent hover:bg-haze-accent/15 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-haze-accent/10 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" /> Editar no Editor RP
+                </button>
+
+                <a
+                  href={resultGifUrl}
+                  download={`haze-clip-${Date.now()}.gif`}
+                  className="px-4 py-1.5 rounded-lg bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent font-bold text-xs flex items-center gap-1.5 shadow-md shadow-haze-accent/20 transition-all"
+                >
+                  <Download className="w-4 h-4" /> Baixar GIF
+                </a>
+              </div>
             </div>
 
             {result && (

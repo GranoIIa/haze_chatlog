@@ -20,6 +20,10 @@ interface SimplePanelProps {
   onExport: () => void;
   onExportChat: () => void;
   onCopy: () => void;
+  isGif?: boolean;
+  onExportGif?: () => void;
+  isExportingGif?: boolean;
+  gifExportProgress?: number;
   /** Cartão de personagens (mesmo do Modo Avançado). */
   charactersCard: React.ReactNode;
   characters: Character[];
@@ -44,6 +48,7 @@ const btn = 'px-2.5 py-1.5 rounded-lg text-xs border border-haze-border text-haz
 /** Modo Simples: foto → chat → visual → exportar. O resto do editor fica no Modo Avançado. */
 export const SimplePanel: React.FC<SimplePanelProps> = ({
   hasPhoto, photoSrc, frame, onPickPhoto, text, onText, visualId, onVisual, onExport, onExportChat, onCopy,
+  isGif, onExportGif, isExportingGif, gifExportProgress,
   charactersCard, characters, activeCharId, onActiveCharChange, detection
 }) => {
   const { thumbs, status: thumbStatus } = useVisualThumbs(photoSrc, frame);
@@ -167,6 +172,16 @@ export const SimplePanel: React.FC<SimplePanelProps> = ({
           Será exportado: PNG {frame.w > 0 ? `${frame.w}×${frame.h}` : 'da cena'}, com o visual “{current?.label ?? 'Original'}” e o chat.
         </p>
         <div className="grid grid-cols-1 gap-1.5">
+          {isGif && onExportGif && (
+            <button
+              type="button"
+              onClick={onExportGif}
+              disabled={isExportingGif}
+              className="py-2.5 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20 transition-all disabled:opacity-50"
+            >
+              {isExportingGif ? `Gerando GIF animado (${gifExportProgress}%)...` : '🎬 Baixar GIF Animado Editado'}
+            </button>
+          )}
           <button type="button" onClick={onExport}
             className="py-2 rounded-lg text-xs font-bold bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-haze-accent">
             Baixar imagem (PNG)

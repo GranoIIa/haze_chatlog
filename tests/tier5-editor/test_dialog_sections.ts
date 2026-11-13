@@ -5,7 +5,7 @@
 import { describe, test, assert, assertEqual, assertDeepEqual } from '../harness/testRunner';
 import { insertAtSelection, censorSelection, speechPrefix } from '../../src/utils/dialogEdit';
 import { SECTION_IDS } from '../../src/components/ChatLog/EditorSection';
-import { requestChatText, subscribeChatTextRequests } from '../../src/utils/chatStore';
+import { requestChatText, subscribeChatTextRequests, requestSetBackground, subscribeBackgroundRequests, type BackgroundRequest } from '../../src/utils/chatStore';
 
 describe('Tier 5: Diálogos, seções e canal de texto', () => {
 
@@ -49,7 +49,7 @@ describe('Tier 5: Diálogos, seções e canal de texto', () => {
   test('T5_SEC_01_SectionOrder: as seções do Editor RP seguem a ordem do fluxo de trabalho', () => {
     assertDeepEqual([...SECTION_IDS], [
       'fundo', 'resolucao', 'personagens', 'dialogos', 'camera', 'retoque',
-      'rp', 'adesivos', 'tipografia', 'iluminacao', 'camadas', 'inspetor'
+      'rp', 'adesivos', 'tipografia', 'iluminacao', 'camadas', 'inspetor', 'salvar'
     ]);
     assertEqual(new Set(SECTION_IDS).size, SECTION_IDS.length);
   });
@@ -63,5 +63,70 @@ describe('Tier 5: Diálogos, seções e canal de texto', () => {
     requestChatText('três');
     assertDeepEqual(got, ['um', 'dois']);
     assert(true);
+  });
+
+  test('T5_STORE_03_BackgroundRequests: envio de Blob/GIF para o Editor RP funciona e pode ser cancelado', () => {
+    const received: BackgroundRequest[] = [];
+    const unsub = subscribeBackgroundRequests(req => received.push(req));
+
+    const fakeBlob = new Blob(['fake-gif-data'], { type: 'image/gif' });
+    requestSetBackground({
+      blob: fakeBlob,
+      isGif: true,
+      metadata: {
+        duration: 3.5,
+        frames: 42,
+        fps: 12,
+        width: 480,
+        height: 260
+      }
+    });
+
+    assertEqual(received.length, 1);
+    assertEqual(received[0].isGif, true);
+    assertEqual(received[0].metadata?.frames, 42);
+    assertEqual(received[0].metadata?.fps, 12);
+
+    unsub();
+
+    requestSetBackground({
+      blob: fakeBlob,
+      isGif: false
+    });
+
+    // Como cancelou, não deve ter recebido a segunda chamada
+    assertEqual(received.length, 1);
+  });
+
+  test('T5_GIF_08_DecodeGifGracefulFallback: no Node ou sem ImageDecoder retorna null com segurança', async () => {
+    const { decodeGif, DEFAULT_DECODE_OPTIONS } = await import('../../src/utils/gifDecoder');
+    const fakeBlob = new Blob(['GIF89a'], { type: 'image/gif' });
+    const result = await decodeGif(fakeBlob);
+    assertEqual(result, null);
+    assertEqual(DEFAULT_DECODE_OPTIONS.maxFrames, 120);
+    assertEqual(DEFAULT_DECODE_OPTIONS.maxWidth, 1280);
+  });
+
+  test('T5_GIF_09_EncoderDelayInMilliseconds: SimpleGifEncoder converte ms para centisegundos corretamente', async () => {
+    const { SimpleGifEncoder } = await import('../../src/utils/gifEncoder');
+    const enc = new SimpleGifEncoder(2, 2, 100, 16);
+    enc.start();
+    const blackPixels = new Uint8ClampedArray(2 * 2 * 4).fill(255);
+    // Passando 100 ms para addFrame
+    enc.addFrame(blackPixels, 100);
+    const buf = enc['outBuffer'].toSubarray();
+
+    // Procura o Graphic Control Extension [0x21, 0xf9, 0x04, 0x00]
+    let gceIdx = -1;
+    for (let i = 0; i < buf.length - 4; i++) {
+      if (buf[i] === 0x21 && buf[i + 1] === 0xf9 && buf[i + 2] === 0x04 && buf[i + 3] === 0x00) {
+        gceIdx = i;
+        break;
+      }
+    }
+    assert(gceIdx >= 0, 'GCE block not found');
+    const delayCentis = buf[gceIdx + 4] | (buf[gceIdx + 5] << 8);
+    // 100 ms / 10 = 10 centisegundos. Não pode ser 1 centisegundo (dupla divisão)
+    assertEqual(delayCentis, 10);
   });
 });

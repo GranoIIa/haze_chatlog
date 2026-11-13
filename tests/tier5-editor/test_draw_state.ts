@@ -65,4 +65,92 @@ describe('Tier 5: Estado do desenho', () => {
     // com baseline alphabetic, y é a linha de base: precisa ficar dentro da faixa do selo (acima de startY)
     assert(tag.args[2] <= startY && tag.args[2] >= startY - badgeH, `y=${tag.args[2]} fora do selo [${startY - badgeH}, ${startY}]`);
   });
+
+  test('T5_DRAW_04_SpeakerColorFollowsStyleNotCharacter: a cor do nome segue o estilo da fala/ação, sem forçar cor do personagem', () => {
+    const chars = [{ id: '1', name: 'Oliver Walker', color: '#10b981' }];
+
+    // Fala normal: deve usar #ffffff mesmo tendo personagem verde cadastrado
+    const ctxNormal = mk();
+    renderChatText(ctxNormal, 1280, 720, 1, {
+      ...style,
+      characters: chars,
+      rawText: 'Oliver Walker diz (normal): Olá mundo'
+    });
+    const normalTexts = ctxNormal.operationHistory.filter(c => c.method === 'fillText');
+    assert(normalTexts.length > 0);
+    // Nenhum pedaço do texto deve ter sido pintado com a cor verde do personagem
+    const greenTokens = normalTexts.filter(t => t.state.fillStyle === '#10b981');
+    assertEqual(greenTokens.length, 0, 'Nome do personagem não deve herdar cor personalizada do personagem');
+    const whiteTokens = normalTexts.filter(t => t.state.fillStyle === '#ffffff');
+    assert(whiteTokens.length > 0, 'Texto da fala normal deve ser renderizado em branco (#ffffff)');
+
+    // Ação RP (* Oliver Walker ...): deve usar a cor da ação (#d8b4fe)
+    const ctxAction = mk();
+    renderChatText(ctxAction, 1280, 720, 1, {
+      ...style,
+      characters: chars,
+      rawText: '* Oliver Walker puxa a faca.'
+    });
+    const actionTexts = ctxAction.operationHistory.filter(c => c.method === 'fillText');
+    const actionTokens = actionTexts.filter(t => t.state.fillStyle === '#d8b4fe');
+    assert(actionTokens.length > 0, 'Ação RP deve ser renderizada em roxo (#d8b4fe)');
+    assertEqual(actionTexts.filter(t => t.state.fillStyle === '#10b981').length, 0);
+
+    // Tom de voz celular: deve ser branco (#ffffff)
+    const ctxPhone = mk();
+    renderChatText(ctxPhone, 1280, 720, 1, {
+      ...style,
+      characters: chars,
+      rawText: 'Oliver Walker diz (celular): Alô, tudo certo?'
+    });
+    const phoneTexts = ctxPhone.operationHistory.filter(c => c.method === 'fillText');
+    const phoneWhite = phoneTexts.filter(t => t.state.fillStyle === '#ffffff');
+    assert(phoneWhite.length > 0, 'Tom celular deve ser renderizado em branco (#ffffff)');
+    assertEqual(phoneTexts.filter(t => t.state.fillStyle === '#f5c500').length, 0);
+
+    // Ação # Cel: permanece em amarelo (#f5c500)
+    const ctxActionPhone = mk();
+    renderChatText(ctxActionPhone, 1280, 720, 1, {
+      ...style,
+      rawText: '# Oliver Walker atende o celular'
+    });
+    const actionPhoneTexts = ctxActionPhone.operationHistory.filter(c => c.method === 'fillText');
+    const actionPhoneYellow = actionPhoneTexts.filter(t => t.state.fillStyle === '#f5c500');
+    assert(actionPhoneYellow.length > 0, 'Ação # Cel permanece amarela (#f5c500)');
+
+    // Sussurro: deve usar tom cinza visível (#94a3b8)
+    const ctxWhisper = mk();
+    renderChatText(ctxWhisper, 1280, 720, 1, {
+      ...style,
+      rawText: 'Oliver Walker diz (sussurrando): silêncio agora'
+    });
+    const whisperTexts = ctxWhisper.operationHistory.filter(c => c.method === 'fillText');
+    const whisperSlate = whisperTexts.filter(t => t.state.fillStyle === '#94a3b8');
+    assert(whisperSlate.length > 0, 'Sussurro deve ser renderizado em cinza legível (#94a3b8)');
+  });
+
+  test('T5_DRAW_05_ShoutingTextUppercasedAfterColon: em gritando, somente o texto após ":" fica todo em MAIÚSCULO', () => {
+    // 1. Oliver Walker diz (gritando): socorro me ajuda!
+    const ctx1 = mk();
+    renderChatText(ctx1, 1280, 720, 1, {
+      ...style,
+      rawText: 'Oliver Walker diz (gritando): socorro me ajuda!'
+    });
+    const texts1 = ctx1.operationHistory.filter(c => c.method === 'fillText').map(c => String(c.args[0]));
+    const rendered1 = texts1.join('');
+    assert(rendered1.includes('Oliver Walker diz (gritando): '), 'Prefixo antes dos dois pontos deve manter caixa original');
+    assert(rendered1.includes('SOCORRO ME AJUDA!'), 'Texto após dois pontos deve ser transformado em maiúsculo');
+    assert(!rendered1.includes('socorro me ajuda!'), 'Texto minúsculo não deve estar presente no diálogo');
+
+    // 2. Policial grita: parem agora
+    const ctx2 = mk();
+    renderChatText(ctx2, 1280, 720, 1, {
+      ...style,
+      rawText: 'Policial #12 grita: parem agora imediatamente'
+    });
+    const texts2 = ctx2.operationHistory.filter(c => c.method === 'fillText').map(c => String(c.args[0]));
+    const rendered2 = texts2.join('');
+    assert(rendered2.includes('Policial #12 grita: '), 'Prefixo grita deve manter formato');
+    assert(rendered2.includes('PAREM AGORA IMEDIATAMENTE'), 'Diálogo pós : deve ser maiúsculo');
+  });
 });

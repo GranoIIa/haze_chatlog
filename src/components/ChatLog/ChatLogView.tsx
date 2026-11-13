@@ -5,7 +5,7 @@ import { renderChatText } from '../../utils/chatRenderer';
 import { SimplePanel } from './panels/SimplePanel';
 import { applyVisual, findVisual, inferVisual } from '../../utils/visualPresets';
 import { useCharacterDetection } from './useCharacterDetection';
-import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests } from '../../utils/chatStore';
+import { publishChat, subscribeChatTextRequests, subscribeChatStyleRequests, subscribeBackgroundRequests, type BackgroundRequest } from '../../utils/chatStore';
 import type { CanvasLayer } from '../../types';
 import { RP_PRESETS } from '../../utils/rpPresets';
 import { RP_STICKERS } from '../../utils/rpStickers';
@@ -26,7 +26,7 @@ import {
 import { 
   Upload, Download, Plus, Trash2, Sparkles, Sliders, Type, 
   Layers, RefreshCw, Move, Clapperboard, Sun, Contrast,
-  Flame, Zap, Shield, EyeOff, Palette, Crop, MousePointer2, Lightbulb
+  Flame, Zap, Shield, EyeOff, Palette, Crop, MousePointer2, Lightbulb, Copy, Play, Pause, Film
 } from 'lucide-react';
 
 import { STORAGE_KEY, loadSaved, RESOLUTION_PRESETS, MIN_RES, MAX_RES, drawFittedImage, fitGeometry, isFitMode, sanitizeCanvasLayers, num, bool, str, type FitMode, type MouseTool, type ImageLayer } from '../../utils/editorSettings';
@@ -38,6 +38,7 @@ import {
 import {
   buildProjectBlob, parseProjectFile, ProjectError, ProjectScene, ProjectAsset, PROJECT_EXTENSION
 } from '../../utils/projectFile';
+import { decodeGif, type DecodedFrame } from '../../utils/gifDecoder';
 
 export const ChatLogView: React.FC = () => {
   // Container Ref para escopo de eventos globais (ex: paste em abas inativas)
@@ -73,6 +74,73 @@ export const ChatLogView: React.FC = () => {
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({ width: 1280, height: 720 });
   const [darkening, setDarkening] = useState<number>(num(saved.darkening, 0.15));
   const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
+
+  // Suporte a GIF animado no fundo da cena
+  const [isGif, setIsGif] = useState<boolean>(false);
+  const [isGifPlaying, setIsGifPlaying] = useState<boolean>(true);
+  const [gifMeta, setGifMeta] = useState<BackgroundRequest['gifMeta'] | null>(null);
+  const [isExportingGif, setIsExportingGif] = useState<boolean>(false);
+  const [gifExportProgress, setGifExportProgress] = useState<number>(0);
+
+  // Quadros decodificados do GIF para animação em tempo real e exportação
+  const [gifFrames, setGifFrames] = useState<DecodedFrame[]>([]);
+  const gifFramesRef = useRef<DecodedFrame[]>([]);
+  gifFramesRef.current = gifFrames;
+  const currentFrameIdxRef = useRef<number>(0);
+  const gifLoadGenRef = useRef<number>(0);
+  const gifAbortControllerRef = useRef<AbortController | null>(null);
+
+  const processGifBlob = async (blob: Blob) => {
+    // Cancela eventual decodificação anterior ainda em andamento
+    if (gifAbortControllerRef.current) {
+      gifAbortControllerRef.current.abort();
+    }
+    const abortCtrl = new AbortController();
+    gifAbortControllerRef.current = abortCtrl;
+    const currentGen = ++gifLoadGenRef.current;
+
+    try {
+      const decoded = await decodeGif(blob, { signal: abortCtrl.signal });
+
+      // Se um novo upload foi iniciado enquanto este decodificava, descarta e limpa
+      if (currentGen !== gifLoadGenRef.current || abortCtrl.signal.aborted) {
+        if (decoded?.frames) {
+          decoded.frames.forEach(f => {
+            if ('close' in f.image && typeof (f.image as any).close === 'function') {
+              (f.image as any).close();
+            }
+          });
+        }
+        return;
+      }
+
+      if (decoded && decoded.frames.length > 0) {
+        // Libera bitmaps anteriores da memória da GPU
+        gifFramesRef.current.forEach(f => {
+          if ('close' in f.image && typeof (f.image as any).close === 'function') {
+            (f.image as any).close();
+          }
+        });
+        gifFramesRef.current = decoded.frames;
+        setGifFrames(decoded.frames);
+        currentFrameIdxRef.current = 0;
+        setIsGif(true);
+        setImageDimensions({ width: decoded.width, height: decoded.height });
+        setGifMeta(prev => ({
+          duration: decoded.totalDurationMs / 1000,
+          frames: decoded.frames.length,
+          fps: Math.round(1000 / (decoded.totalDurationMs / decoded.frames.length)) || 12,
+          width: decoded.width,
+          height: decoded.height,
+          ...(prev || {})
+        }));
+      }
+    } catch (e) {
+      if (!abortCtrl.signal.aborted) {
+        console.warn('[processGifBlob] Erro ao decodificar:', e);
+      }
+    }
+  };
 
   // Ajustes de Imagem / Retoque Fotográfico (Estilo Photoshop na GPU/Canvas)
   const [adjustments, setAdjustments] = useState<PhotoAdjustments>({
@@ -348,30 +416,61 @@ export const ChatLogView: React.FC = () => {
 
   const handleImageUpload = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    const isGifFile = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+    setIsGif(isGifFile);
+    if (!isGifFile) {
+      setGifMeta(null);
+      gifFramesRef.current.forEach(f => {
+        if ('close' in f.image && typeof (f.image as any).close === 'function') (f.image as any).close();
+      });
+      gifFramesRef.current = [];
+      setGifFrames([]);
+    }
     const id = `BG${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     bgBlobs.current.set(id, file);
     bgNames.current.set(id, file.name || 'fundo');
     setBackgroundFromBlob(file, id);
+    if (isGifFile) {
+      processGifBlob(file);
+    }
   };
 
   const clearBackground = () => {
+    if (gifAbortControllerRef.current) {
+      gifAbortControllerRef.current.abort();
+    }
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
       currentBlobUrlRef.current = null;
     }
+    gifFramesRef.current.forEach(f => {
+      if ('close' in f.image && typeof (f.image as any).close === 'function') (f.image as any).close();
+    });
+    gifFramesRef.current = [];
+    setGifFrames([]);
+    currentFrameIdxRef.current = 0;
     loadedImageRef.current = null;
     setImageSrc(null);
     setBgId(null);
+    setIsGif(false);
+    setGifMeta(null);
     setImageDimensions({ width: 1280, height: 720 });
   };
 
   // Limpeza de recursos ao desmontar componente
   useEffect(() => {
     return () => {
+      if (gifAbortControllerRef.current) {
+        gifAbortControllerRef.current.abort();
+      }
       if (currentBlobUrlRef.current) {
         URL.revokeObjectURL(currentBlobUrlRef.current);
         currentBlobUrlRef.current = null;
       }
+      gifFramesRef.current.forEach(f => {
+        if ('close' in f.image && typeof (f.image as any).close === 'function') (f.image as any).close();
+      });
+      gifFramesRef.current = [];
       loadedImageRef.current = null;
     };
   }, []);
@@ -579,12 +678,15 @@ export const ChatLogView: React.FC = () => {
     width: number,
     height: number,
     scale: number = 1,
-    bg?: HTMLImageElement | null
+    bg?: CanvasImageSource | null
   ) => {
     ctx.clearRect(0, 0, width, height);
 
-    // 1. Desenhar Fundo (bg explícito é usado pelo modo Lote)
-    const bgImage = bg === undefined ? loadedImageRef.current : bg;
+    // 1. Desenhar Fundo (bg explícito é usado pelo modo Lote ou pelo quadro atual do GIF)
+    const currentGifFrame = (isGif && gifFramesRef.current.length > 0)
+      ? gifFramesRef.current[currentFrameIdxRef.current]?.image
+      : null;
+    const bgImage = bg === undefined ? (currentGifFrame || loadedImageRef.current) : bg;
     if (bgImage) {
       drawFittedImage(ctx, bgImage, width, height, fitMode, panX, panY, zoom);
     } else {
@@ -648,7 +750,10 @@ export const ChatLogView: React.FC = () => {
 
     canvas.width = canvasDims.width;
     canvas.height = canvasDims.height;
-    drawScene(ctx, canvasDims.width, canvasDims.height, 1);
+    const currentBg = (isGif && gifFramesRef.current.length > 0)
+      ? gifFramesRef.current[currentFrameIdxRef.current]?.image
+      : loadedImageRef.current;
+    drawScene(ctx, canvasDims.width, canvasDims.height, 1, currentBg);
 
     // Retículos da luz enquanto o modo "posicionar luz" está ativo
     if (lightEdit && lighting.enabled) {
@@ -682,7 +787,8 @@ export const ChatLogView: React.FC = () => {
     imageSrc, imageDimensions, outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, darkening, adjustments, rawText, fontSize, fontFamily,
     lineHeightFactor, strokeEnabled, strokeWidth, strokeColor,
     bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
-    censorStyle, showTimestamps, chatPos, characters
+    censorStyle, showTimestamps, chatPos, characters, canvasDims.width, canvasDims.height,
+    isGif, gifFrames
   ]);
 
   // Outros módulos (GIF Lab) podem editar o texto do chat: este componente é o dono do estado
@@ -697,6 +803,81 @@ export const ChatLogView: React.FC = () => {
     if (p.bgEnabled !== undefined) setBgEnabled(p.bgEnabled);
     if (p.bgOpacity !== undefined) setBgOpacity(Math.min(1, Math.max(0, p.bgOpacity)));
   }), []);
+
+  // Recebe imagem de fundo enviada de outros módulos (ex.: GIF cortado no GIF Lab)
+  useEffect(() => {
+    return subscribeBackgroundRequests(({ blob, name, isGif: reqIsGif, gifMeta: reqMeta }) => {
+      const isGifType = reqIsGif ?? (blob.type === 'image/gif' || name.toLowerCase().endsWith('.gif'));
+      setIsGif(isGifType);
+      setIsGifPlaying(true);
+      if (reqMeta) {
+        setGifMeta(reqMeta);
+      }
+      const file = new File([blob], name, { type: blob.type || 'image/gif' });
+      handleImageUpload(file);
+      if (isGifType) {
+        processGifBlob(blob);
+      }
+    });
+  }, []);
+
+  // Loop de animação contínua no canvas quando um GIF animado está no fundo
+  useEffect(() => {
+    if (!isGif || !isGifPlaying) return;
+    let animId: number;
+    let lastFrameTime = performance.now();
+
+    const loop = (now: number) => {
+      const frames = gifFramesRef.current;
+      if (frames.length > 0) {
+        const curIdx = currentFrameIdxRef.current;
+        const curFrame = frames[curIdx] || frames[0];
+        const duration = curFrame?.durationMs || (1000 / (gifMeta?.fps || 12));
+
+        if (now - lastFrameTime >= duration) {
+          lastFrameTime = now;
+          const nextIdx = (curIdx + 1) % frames.length;
+          currentFrameIdxRef.current = nextIdx;
+
+          const canvas = previewCanvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (ctx) {
+              drawScene(ctx, canvasDims.width, canvasDims.height, 1, frames[nextIdx].image);
+              if (lightEdit && lighting.enabled) {
+                const k = Math.max(1, canvas.width / 1000);
+                drawLightGizmo(ctx, (lighting.x / 100) * canvas.width, (lighting.y / 100) * canvas.height, lighting.color, 'Luz principal', k);
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback enquanto os frames decodificam ou em navegadores sem ImageDecoder
+        const canvas = previewCanvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (ctx) {
+            drawScene(ctx, canvasDims.width, canvasDims.height, 1);
+            if (lightEdit && lighting.enabled) {
+              const k = Math.max(1, canvas.width / 1000);
+              drawLightGizmo(ctx, (lighting.x / 100) * canvas.width, (lighting.y / 100) * canvas.height, lighting.color, 'Luz principal', k);
+            }
+          }
+        }
+      }
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, [
+    isGif, isGifPlaying, gifMeta, gifFrames,
+    layers, selectedLayerId, lightEdit, activeCharId, selectedCanvasLayerId, fontsVersion,
+    imageSrc, imageDimensions, outputRes, fitMode, panX, panY, zoom, lighting, camera, canvasLayers, darkening, adjustments, rawText, fontSize, fontFamily,
+    lineHeightFactor, strokeEnabled, strokeWidth, strokeColor,
+    bgEnabled, bgColor, bgOpacity, maxWidthPercent, shadowEnabled,
+    censorStyle, showTimestamps, chatPos, characters, canvasDims.width, canvasDims.height
+  ]);
 
   // Publica o chat atual (texto + estilo) para outros módulos, como o GIF Lab
   useEffect(() => {
@@ -1162,6 +1343,125 @@ export const ChatLogView: React.FC = () => {
     }
   };
 
+  // Exportação de GIF animado completo editado no Editor RP
+  const exportGifFromChatLog = async () => {
+    if (isExportingGif) return;
+    setIsExportingGif(true);
+    setGifExportProgress(0);
+
+    let worker: Worker | null = null;
+    let urlToRevoke: string | null = null;
+
+    try {
+      const frames = gifFramesRef.current;
+      const fps = gifMeta?.fps || 12;
+      const defaultIntervalMs = 1000 / fps;
+      const totalFrames = frames.length > 0
+        ? frames.length
+        : Math.max(1, Math.round(Math.min(10, Math.max(0.5, gifMeta?.duration || 3)) * fps));
+
+      const exportW = Math.min(800, canvasDims.width);
+      const exportH = Math.round((exportW / canvasDims.width) * canvasDims.height);
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = exportW;
+      exportCanvas.height = exportH;
+      const expCtx = exportCanvas.getContext('2d', { willReadFrequently: true });
+      if (!expCtx) throw new Error('Canvas indisponível para renderização');
+
+      // Instancia o worker e registra os listeners ANTES de qualquer envio de quadros
+      worker = new Worker(new URL('../GifLab/gifWorker.ts', import.meta.url), { type: 'module' });
+
+      let workerError: Error | null = null;
+      let onDoneResolve: ((blob: Blob) => void) | null = null;
+      let onDoneReject: ((err: Error) => void) | null = null;
+
+      const finishPromise = new Promise<Blob>((resolve, reject) => {
+        onDoneResolve = resolve;
+        onDoneReject = reject;
+      });
+
+      worker.onmessage = (e: MessageEvent) => {
+        const d = e.data;
+        if (d.type === 'DONE' || d.type === 'BLOB') {
+          onDoneResolve?.(d.blob);
+        } else if (d.type === 'ERROR') {
+          const err = new Error(d.error || 'Erro na codificação do GIF');
+          workerError = err;
+          onDoneReject?.(err);
+        }
+      };
+
+      worker.onerror = (evt) => {
+        const err = new Error(evt.message || 'Falha no Web Worker do GIF');
+        workerError = err;
+        onDoneReject?.(err);
+      };
+
+      // Inicializa o encoder passando o delay em milissegundos (o SimpleGifEncoder faz a conversão interna correta)
+      worker.postMessage({
+        type: 'START',
+        width: exportW,
+        height: exportH,
+        delay: Math.round(defaultIntervalMs),
+        colors: 128,
+        totalFrames
+      });
+
+      // Envia os frames com verificação precoce de erros
+      for (let f = 0; f < totalFrames; f++) {
+        if (workerError) throw workerError;
+
+        const frameSource = frames.length > 0 ? frames[f].image : undefined;
+        // Delay em milissegundos (sem dupla divisão por 10; mínimo 20 ms)
+        const frameDelayMs = frames.length > 0
+          ? Math.max(20, Math.round(frames[f].durationMs))
+          : Math.max(20, Math.round(defaultIntervalMs));
+
+        drawScene(expCtx, exportW, exportH, exportW / canvasDims.width, frameSource);
+        const imgData = expCtx.getImageData(0, 0, exportW, exportH);
+
+        worker.postMessage({
+          type: 'ADD_FRAME',
+          buffer: imgData.data.buffer,
+          delay: frameDelayMs
+        }, [imgData.data.buffer]);
+
+        setGifExportProgress(Math.round(((f + 1) / totalFrames) * 95));
+        await new Promise(r => setTimeout(r, 8));
+      }
+
+      if (workerError) throw workerError;
+
+      // Solicita término e aguarda resolução segura do Blob
+      worker.postMessage({ type: 'FINISH' });
+      const gifBlob = await finishPromise;
+
+      setGifExportProgress(100);
+
+      const url = URL.createObjectURL(gifBlob);
+      urlToRevoke = url;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `haze-rp-edit-${Date.now()}.gif`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showNotice('GIF animado editado exportado com sucesso!');
+    } catch (err) {
+      showNotice(err instanceof Error ? err.message : 'Não foi possível exportar o GIF.', 'error');
+    } finally {
+      if (worker) {
+        try { worker.terminate(); } catch (_) { /* já finalizado */ }
+      }
+      if (urlToRevoke) {
+        const toRevoke = urlToRevoke;
+        setTimeout(() => URL.revokeObjectURL(toRevoke), 10000);
+      }
+      setIsExportingGif(false);
+      setGifExportProgress(0);
+    }
+  };
+
   // Aviso curto (toast) para feedback de ações
   const [notice, setNotice] = useState<{ text: string; kind: 'ok' | 'error' } | null>(null);
   const noticeTimer = useRef<number | undefined>(undefined);
@@ -1191,6 +1491,11 @@ export const ChatLogView: React.FC = () => {
           bgBlobs.current.set(bg.id, bg.blob);
           bgNames.current.set(bg.id, 'fundo');
           storedBgId.current = bg.id;
+          const isGifBlob = bg.blob.type === 'image/gif';
+          if (isGifBlob) {
+            setIsGif(true);
+            processGifBlob(bg.blob);
+          }
           setBackgroundFromBlob(bg.blob, bg.id, resetHistory);
         }
       } catch (_) {
@@ -1659,6 +1964,10 @@ export const ChatLogView: React.FC = () => {
             onExport={exportImage}
             onExportChat={exportChatOnly}
             onCopy={copyImage}
+            isGif={isGif}
+            onExportGif={exportGifFromChatLog}
+            isExportingGif={isExportingGif}
+            gifExportProgress={gifExportProgress}
             charactersCard={charactersCard}
             characters={characters}
             activeCharId={activeCharId}
@@ -2518,6 +2827,54 @@ export const ChatLogView: React.FC = () => {
         <EditorSection {...sectionProps('inspetor')} title="Inspetor de propriedades" badge={`${canvasLayers.length} elemento${canvasLayers.length === 1 ? '' : 's'}`}>
           <CanvasLayersSidebar part="inspector" {...sidebarProps} />
         </EditorSection>
+
+        <EditorSection {...sectionProps('salvar')} title="Salvar e exportar">
+          <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-2.5">
+            {isGif && (
+              <button
+                type="button"
+                onClick={exportGifFromChatLog}
+                disabled={isExportingGif}
+                className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 transition-all disabled:opacity-50"
+              >
+                <Film className="w-4 h-4" /> {isExportingGif ? `Gerando GIF animado (${gifExportProgress}%)...` : 'Baixar GIF Animado Editado'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={exportImage}
+              className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent flex items-center justify-center gap-2 shadow-lg shadow-haze-accent/20 transition-all"
+            >
+              <Download className="w-4 h-4" /> Baixar imagem (PNG)
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={copyImage}
+                title="Copia a imagem para a área de transferência (Ctrl+C)"
+                className="py-2 px-2.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 bg-haze-field hover:bg-haze-raised transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copiar imagem
+              </button>
+              <button
+                type="button"
+                onClick={exportChatOnly}
+                title="Baixa só o texto do chat, com fundo transparente (para editar no Photopea)"
+                className="py-2 px-2.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 bg-haze-field hover:bg-haze-raised transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Layers className="w-3.5 h-3.5" /> Só o chat (PNG)
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={exportProject}
+              title="Salva a cena inteira (foto, camadas, chat, ajustes) num arquivo .haze editável"
+              className="w-full py-1.5 rounded-lg text-xs font-semibold border border-haze-accent/40 text-haze-accent hover:bg-haze-accent/10 transition-colors flex items-center justify-center gap-1.5"
+            >
+              💾 Salvar projeto (.haze)
+            </button>
+          </div>
+        </EditorSection>
         </div>
 
       </div>
@@ -2567,6 +2924,28 @@ export const ChatLogView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {isGif && (
+              <button
+                type="button"
+                onClick={() => setIsGifPlaying(p => !p)}
+                title={isGifPlaying ? "Pausar animação do GIF" : "Reproduzir animação do GIF"}
+                className="px-2.5 py-1.5 rounded-lg bg-haze-accent/15 border border-haze-accent/40 text-haze-accent text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {isGifPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                <span>{isGifPlaying ? "Pausar GIF" : "Play GIF"}</span>
+              </button>
+            )}
+            {isGif && (
+              <button
+                type="button"
+                onClick={exportGifFromChatLog}
+                disabled={isExportingGif}
+                title="Exporta a cena editada completa como GIF animado"
+                className="px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Film className="w-4 h-4" /> {isExportingGif ? `Exportando ${gifExportProgress}%` : 'Baixar GIF Editado'}
+              </button>
+            )}
             <button
               onClick={() => setFocusMode(v => !v)}
               aria-pressed={focusMode}

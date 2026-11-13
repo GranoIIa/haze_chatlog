@@ -29,7 +29,7 @@ const TONES: Array<[string, string, string, string]> = [
   ['Grito', 'gritando', 'Gritando', '#ffffff'],
   ['Baixo', 'baixo', 'Falando baixo', '#cbd5e1'],
   ['Rádio', 'rádio', 'Fala no rádio', '#38bdf8'],
-  ['Celular', 'celular', 'Ligação ou mensagem', '#f5c500']
+  ['Celular', 'celular', 'Ligação ou mensagem', '#ffffff']
 ];
 
 /** Editor do chat: texto, tom de voz, marcadores de ação e censura. Usado no Editor RP e no GIF Lab. */
@@ -138,9 +138,9 @@ export const DialogPanel: React.FC<DialogPanelProps> = ({
       <div>
         <span className="text-xs text-haze-muted block mb-1.5">Ações e marcadores</span>
         <div className="grid grid-cols-4 gap-1.5">
-          {marker('* /me', () => `* ${activeChar?.name ?? 'Personagem'} `, 'Ação do personagem ativo', '#cc99ff')}
-          {marker('> /ame', () => '> ', 'Ação sobre o personagem', '#cc99ff')}
-          {marker('* /do', () => '* ', 'Ação do ambiente', '#cc99ff')}
+          {marker('* /me', () => `* ${activeChar?.name ?? 'Personagem'} `, 'Ação do personagem ativo', '#d8b4fe')}
+          {marker('> /ame', () => '> ', 'Ação sobre o personagem', '#d8b4fe')}
+          {marker('* /do', () => '* ', 'Ação do ambiente', '#d8b4fe')}
           {marker('$ Item', () => '$ ', 'Item ou dinheiro', '#f5c500')}
           {marker('# Cel', () => '# ', 'Mensagem ou ligação', '#f5c500')}
           {marker('! Sis', () => '! ', 'Notificação do sistema', '#f87171')}

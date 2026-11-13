@@ -44,15 +44,15 @@ console.log('================================================================\n'
 console.log('► SECTION 1: RP COMMANDS PARSER EMPIRICAL VERIFICATION');
 
 const allCommands = [
-  { cmd: '/me puxa o cigarro', expectedType: 'me', expectedColor: '#cc99ff' },
+  { cmd: '/me puxa o cigarro', expectedType: 'me', expectedColor: '#d8b4fe' },
   { cmd: '/do O ambiente está escuro e silencioso', expectedType: 'yellow', expectedColor: '#f5c500' },
-  { cmd: '/ame olha para os lados desconfiado', expectedType: 'ame', expectedColor: '#cc99ff' },
+  { cmd: '/ame olha para os lados desconfiado', expectedType: 'ame', expectedColor: '#d8b4fe' },
   { cmd: '/ooc alguém viu o admin?', expectedType: 'ooc', expectedColor: '#94a3b8' },
   { cmd: '/b segura o tiroteio que crashou', expectedType: 'ooc', expectedColor: '#94a3b8' },
   { cmd: '/s Polícia de Los Santos, mãos na cabeça!', expectedType: 'white', expectedColor: '#ffffff' },
-  { cmd: '/w 12 Tá limpo o beco', expectedType: 'darkgrey', expectedColor: '#64748b' },
-  { cmd: '/low não faz barulho agora', expectedType: 'darkgrey', expectedColor: '#64748b' },
-  { cmd: '/c 34 fala baixo pelo rádio', expectedType: 'darkgrey', expectedColor: '#64748b' },
+  { cmd: '/w 12 Tá limpo o beco', expectedType: 'darkgrey', expectedColor: '#94a3b8' },
+  { cmd: '/low não faz barulho agora', expectedType: 'darkgrey', expectedColor: '#94a3b8' },
+  { cmd: '/c 34 fala baixo pelo rádio', expectedType: 'darkgrey', expectedColor: '#94a3b8' },
   { cmd: '/r 10-4 na escuta central', expectedType: 'blue', expectedColor: '#38bdf8' },
   { cmd: '/radio QRR na Paleto Bay código 3', expectedType: 'blue', expectedColor: '#38bdf8' },
   { cmd: '/dep Central para SASP apoio solicitado', expectedType: 'blue', expectedColor: '#38bdf8' },
