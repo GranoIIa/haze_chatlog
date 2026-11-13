@@ -107,4 +107,18 @@ test.describe('Video Studio F0: medições', () => {
     });
     console.log(`F0: responsividade durante export 1080p | maior tarefa longa ${r.maxLong} ms (${r.nLong} tarefas >50 ms) | intervalo entre quadros da UI p95 ${r.p95} ms, máx ${r.maxGap} ms (${r.frames} quadros)`);
   });
+
+  test('F2: custo do preset de câmera (CCTV = P&B + realce + vinheta + granulado) em 1080p30, 20 s', async ({ page }) => {
+    test.setTimeout(300_000);
+    const f = src('cam.mp4', '1920x1080', 20);
+    await page.goto('/'); await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-file-input').setInputFiles([f]);
+    await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
+    await page.getByTestId('add-clip-0').click();
+    const t0 = Date.now(); const base = await exportOnce(page, '1920×1080', 30, 200_000); const sBase = (Date.now() - t0) / 1000;
+    await page.getByTestId('clip-block').first().click();
+    await page.getByTestId('cam-preset').selectOption('cctv');
+    const t1 = Date.now(); const cam = await exportOnce(page, '1920×1080', 30, 200_000); const sCam = (Date.now() - t1) / 1000;
+    console.log(`F0: preset CCTV 1080p30 20 s | sem preset ${sBase.toFixed(1)} s (${base.timing}) | com preset ${sCam.toFixed(1)} s (${cam.timing})`);
+  });
 });

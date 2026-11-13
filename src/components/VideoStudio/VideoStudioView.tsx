@@ -3,11 +3,12 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
-  setClipVolume, splitAt, totalDuration, trimClip, undo, updateOverlay, makeId, round3, MIN_CLIP, Timeline
+  setClipVolume, setClipCamera, setLineStep, splitAt, totalDuration, trimClip, undo, updateOverlay, makeId, round3, MIN_CLIP, Timeline
 } from '../../video/timeline';
+import { buildVideoProjectBlob, parseVideoProject, matchesSaved, SavedMedia } from '../../video/videoProject';
 import { openMedia, MediaError, OpenedMedia } from '../../video/mediaIO';
 import { composeFrame, Drawable } from '../../video/compositor';
 import { PreviewAudio } from '../../video/previewAudio';
@@ -68,6 +69,11 @@ export const VideoStudioView: React.FC = () => {
   const [chatText, setChatText] = useState('Ramon Mendoza diz: Precisamos conversar.');
   const [chatStart, setChatStart] = useState(0);
   const [chatDur, setChatDur] = useState(3);
+  const [chatKind, setChatKind] = useState<'chat' | 'text'>('chat');
+  const [chatColor, setChatColor] = useState('#ffffff');
+  const [chatStep, setChatStep] = useState(0);
+  // mídias do projeto aberto que ainda não foram reconectadas (clipes offline)
+  const [pending, setPending] = useState<SavedMedia[]>([]);
 
   const placed = useMemo(() => layout(tl), [tl]);
   const total = totalDuration(tl);
@@ -89,12 +95,52 @@ export const VideoStudioView: React.FC = () => {
     setMessage(null);
     for (const f of Array.from(files)) {
       try {
-        const m = await openMedia(f, makeId('media'));
+        const cand = pending.find(p => matchesSaved(p, f));
+        let m = await openMedia(f, cand ? cand.id : makeId('media'));
+        if (cand && !matchesSaved(cand, f, m.ref.duration)) {
+          // mesmo nome e tamanho, mas duração diferente: é outro arquivo; entra como mídia nova
+          m.dispose();
+          m = await openMedia(f, makeId('media'));
+          setMessage(`"${f.name}" tem o mesmo nome mas outra duração que a do projeto; foi importado como mídia nova.`);
+        } else if (cand) {
+          setPending(ps => ps.filter(x => x.id !== cand.id));
+        }
         mediaRef.current.set(m.ref.id, m);
         setLibrary(l => [...l, m]);
       } catch (e) {
         setMessage(e instanceof MediaError ? e.message : `Não foi possível importar "${f.name}".`);
       }
+    }
+  };
+
+  // ------------------------------------------------------------ projeto .haze (vídeo)
+  const savedMetas = (): SavedMedia[] => [
+    ...library.map(m => ({ ...m.ref, size: m.file.size })),
+    ...pending
+  ];
+  const saveProject = async () => {
+    setMessage(null);
+    const blob = await buildVideoProjectBlob(tl, savedMetas());
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'projeto-video.haze'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+  const openProject = async (file: File | undefined) => {
+    if (!file) return;
+    setMessage(null);
+    try {
+      const p = await parseVideoProject(file);
+      setPlaying(false);
+      mediaRef.current.forEach(m => m.dispose());
+      mediaRef.current.clear();
+      setLibrary([]); setThumbs({});
+      setHist(createHistory(p.timeline));
+      setPending(p.media.filter(m => p.timeline.clips.some(c => c.mediaId === m.id)));
+      setSelected(null); setT(0);
+      if (p.warnings.length) setMessage(p.warnings.join('; ') + '.');
+    } catch (e) {
+      setMessage((e as Error).message || 'Não foi possível abrir o projeto.');
     }
   };
 
@@ -208,6 +254,7 @@ export const VideoStudioView: React.FC = () => {
   // ------------------------------------------------------------ exportação
   const startExport = async () => {
     setMessage(null);
+    if (pending.length) { setMessage(`Reconecte as mídias do projeto antes de exportar: ${pending.map(p => p.name).join(', ')}.`); return; }
     if (result) { URL.revokeObjectURL(result.url); setResult(null); }
     const ac = new AbortController();
     abortRef.current = ac;
@@ -235,6 +282,12 @@ export const VideoStudioView: React.FC = () => {
         <Clapperboard className="w-5 h-5 text-haze-accent" />
         <h2 className="text-sm font-bold">Video Studio <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded border border-haze-accent/30 text-haze-accent font-mono">POC</span></h2>
         <span className="text-xs text-haze-muted">Edição local: os arquivos não saem do seu computador.</span>
+        <div className="ml-auto flex gap-2">
+          <button className={btn} data-testid="project-save" disabled={!tl.clips.length} onClick={() => void saveProject()}><Save className="w-4 h-4" /> Salvar projeto</button>
+          <label className={`${btn} cursor-pointer`}><FolderOpen className="w-4 h-4" /> Abrir projeto
+            <input data-testid="project-open-input" type="file" accept=".haze" className="hidden" onChange={e => { void openProject(e.target.files?.[0]); e.target.value = ''; }} />
+          </label>
+        </div>
       </div>
 
       {message && <div role="alert" data-testid="video-message" className="px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-xs text-red-300">{message}</div>}
@@ -255,19 +308,39 @@ export const VideoStudioView: React.FC = () => {
                 <button className={`${btn} mt-1.5`} data-testid={`add-clip-${i}`} onClick={() => apply(x => addClip(x, m.ref))}>Adicionar à timeline</button>
               </li>
             ))}
-            {!library.length && <li className="text-xs text-haze-muted">Importe um ou mais vídeos para começar.</li>}
+            {!library.length && !pending.length && <li className="text-xs text-haze-muted">Importe um ou mais vídeos para começar.</li>}
           </ul>
+          {pending.length > 0 && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-xs space-y-1" data-testid="pending-media">
+              <div className="font-semibold">Mídias a reconectar</div>
+              {pending.map(p => <div key={p.id} className="truncate" title={p.name}>{p.name}</div>)}
+              <div className="text-haze-muted">Importe os mesmos arquivos (mesmo nome e tamanho) para continuar.</div>
+            </div>
+          )}
 
           <div className="border-t border-haze-border pt-3 space-y-2">
-            <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Chat sobre o vídeo</div>
+            <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
+            <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
+              <option value="chat">Chat do servidor (cores do Editor RP)</option>
+              <option value="text">Título / legenda livre</option>
+            </select>
             <textarea data-testid="chat-text" value={chatText} onChange={e => setChatText(e.target.value)} rows={3}
               className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text" />
             <div className="flex items-center gap-2 text-xs text-haze-muted">
               início <input data-testid="chat-start" type="number" step="0.1" min="0" value={chatStart} onChange={e => setChatStart(+e.target.value)} className={input} />
               duração <input data-testid="chat-duration" type="number" step="0.1" min={MIN_CLIP} value={chatDur} onChange={e => setChatDur(+e.target.value)} className={input} />
             </div>
+            <div className="flex items-center gap-2 text-xs text-haze-muted">
+              {chatKind === 'chat'
+                ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
+                : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
+            </div>
             <button className={btn} data-testid="chat-add" disabled={!chatText.trim()}
-              onClick={() => apply(x => addOverlay(x, { text: chatText, start: chatStart, duration: chatDur }))}>Adicionar chat</button>
+              onClick={() => apply(x => {
+                const id = makeId('chat');
+                const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
+                return chatKind === 'chat' && chatStep > 0 ? setLineStep(n, id, chatStep) : n;
+              })}>Adicionar texto</button>
           </div>
         </section>
 
@@ -306,7 +379,7 @@ export const VideoStudioView: React.FC = () => {
                   getActionRender={(action) => {
                     const isClip = action.effectId === 'clip';
                     const c = tl.clips.find(x => x.id === action.id);
-                    const label = isClip ? (mediaRef.current.get(c?.mediaId ?? '')?.ref.name ?? 'clipe') : (tl.overlays.find(x => x.id === action.id)?.text ?? 'chat');
+                    const label = isClip ? (mediaRef.current.get(c?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === c?.mediaId)?.name ?? 'clipe') + ' (offline)')) : (tl.overlays.find(x => x.id === action.id)?.text ?? 'chat');
                     const sel = action.id === selected;
                     if (isClip) return <ClipBlock id={action.id} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={label} selected={sel} muted={(c?.volume ?? 1) === 0}
                       onSelect={() => setSelected(action.id)} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
@@ -340,6 +413,31 @@ export const VideoStudioView: React.FC = () => {
                   onBlur={e => apply(x => trimClip(x, selClip.id, { outPoint: +e.target.value }, selMedia.ref.duration))} />
               </div>
               <div className="text-haze-muted">duração {fmt(clipDuration(selClip))}</div>
+              <div className="flex items-center gap-2">câmera
+                <select data-testid="cam-preset" value={selClip.camera?.preset ?? 'none'} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
+                  onChange={e => {
+                    const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
+                    const now = { date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, time: `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` };
+                    apply(x => setClipCamera(x, selClip.id, e.target.value as 'none' | 'bodycam' | 'cctv' | 'noir', now));
+                  }}>
+                  <option value="none">Nenhuma</option><option value="bodycam">Bodycam</option><option value="cctv">CCTV</option><option value="noir">Noir</option>
+                </select>
+              </div>
+              {selClip.camera && selClip.camera.preset !== 'noir' && (
+                <div className="space-y-1" data-testid="cam-fields">
+                  <div className="flex items-center gap-2">início do relógio
+                    <input data-testid="cam-date" className={input} defaultValue={selClip.camera.date} key={`d-${selClip.id}-${selClip.camera.date}`}
+                      onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { date: e.target.value }))} />
+                    <input data-testid="cam-time" className={input} defaultValue={selClip.camera.time} key={`t-${selClip.id}-${selClip.camera.time}`}
+                      onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { time: e.target.value }))} />
+                  </div>
+                  {selClip.camera.preset === 'bodycam'
+                    ? <input data-testid="cam-officer" placeholder="Oficial (ex.: M. MENDOZA)" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.officer ?? ''} key={`o-${selClip.id}`}
+                        onBlur={e => apply(x => setClipCamera(x, selClip.id, 'bodycam', { date: selClip.camera!.date, time: selClip.camera!.time }, { officer: e.target.value }))} />
+                    : <input data-testid="cam-name" placeholder="Nome da câmera" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.camName ?? ''} key={`n-${selClip.id}`}
+                        onBlur={e => apply(x => setClipCamera(x, selClip.id, 'cctv', { date: selClip.camera!.date, time: selClip.camera!.time }, { camName: e.target.value }))} />}
+                </div>
+              )}
               <div className="flex items-center gap-2">volume
                 <input data-testid="clip-volume" type="range" min="0" max="2" step="0.1" value={selClip.volume} onChange={e => apply(x => setClipVolume(x, selClip.id, +e.target.value))} />
                 <span>{Math.round(selClip.volume * 100)}%</span>

@@ -19,7 +19,10 @@ import {
 } from './editorSettings';
 
 export const PROJECT_FORMAT = 'haze-project';
-export const PROJECT_SCHEMA_VERSION = 1;
+/** Maior versão que este app abre. v1 = projeto de cena (Editor RP); v2 acrescenta `kind: 'video'` (Video Studio). */
+export const PROJECT_SCHEMA_VERSION = 2;
+/** Versão gravada nos projetos de CENA: continua 1 para que versões antigas do app sigam abrindo-os. */
+export const SCENE_SCHEMA_VERSION = 1;
 export const PROJECT_EXTENSION = '.haze';
 
 export const LIMITS = {
@@ -228,7 +231,7 @@ export async function buildProjectBlob(data: Omit<ProjectData, 'warnings'>): Pro
 
   const manifest = {
     format: PROJECT_FORMAT,
-    schemaVersion: PROJECT_SCHEMA_VERSION,
+    schemaVersion: SCENE_SCHEMA_VERSION,
     app: 'Haze RP Studio',
     createdAt: new Date().toISOString(),
     scene: data.scene,
@@ -281,6 +284,10 @@ export async function parseProjectFile(file: Blob): Promise<ProjectData> {
   }
   if (manifest.schemaVersion > PROJECT_SCHEMA_VERSION) {
     throw new ProjectError(`Este projeto foi salvo numa versão mais nova do Haze (formato ${manifest.schemaVersion}). Atualize o app para abri-lo.`);
+  }
+
+  if (manifest.kind === 'video') {
+    throw new ProjectError('Este é um projeto do Video Studio. Abra-o na aba Video Studio.');
   }
 
   // Assets: só caminhos assets/<id>.<ext>, com tipo real de imagem e tamanho limitado

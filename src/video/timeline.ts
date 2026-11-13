@@ -20,9 +20,20 @@ export interface MediaRef {
   hasAudio: boolean;
 }
 
+/** Preset de câmera RP aplicado a um clipe (reaproveita `utils/cameraFx`). Ausente = sem preset. */
+export interface ClipCamera {
+  preset: 'bodycam' | 'cctv' | 'noir';
+  /** Relógio exibido: data e hora no INÍCIO da mídia (o relógio avança com o vídeo). */
+  date: string; // AAAA-MM-DD
+  time: string; // HH:MM:SS
+  officer?: string; dept?: string;       // bodycam
+  camName?: string; location?: string;   // cctv
+}
+
 export interface Clip {
   id: string;
   mediaId: string;
+  camera?: ClipCamera;
   /** Ponto inicial e final DENTRO da mídia original (s). Duração = outPoint - inPoint. */
   inPoint: number;
   outPoint: number;
@@ -31,6 +42,12 @@ export interface Clip {
 
 export interface ChatOverlay {
   id: string;
+  /** 'chat' = linhas de servidor com as cores do Editor RP; 'text' = título/legenda livre. */
+  kind?: 'chat' | 'text';
+  /** Cor do texto livre (#rrggbb). */
+  color?: string;
+  /** Instante de entrada de cada linha, relativo ao início do overlay (s). Ausente = tudo de uma vez. */
+  lineOffsets?: number[];
   /** Tempo absoluto na timeline (s). */
   start: number;
   duration: number;
@@ -148,7 +165,8 @@ export function setClipVolume(tl: Timeline, clipId: string, volume: number): Tim
 export function addOverlay(tl: Timeline, o: Partial<ChatOverlay> & { text: string }, id = makeId('chat')): Timeline {
   const overlay: ChatOverlay = {
     id, start: round3(Math.max(0, o.start ?? 0)), duration: round3(Math.max(MIN_CLIP, o.duration ?? 3)),
-    text: o.text, x: o.x ?? 24, y: o.y ?? 24, fontSize: o.fontSize ?? 22
+    text: o.text, x: o.x ?? 24, y: o.y ?? 24, fontSize: o.fontSize ?? 22,
+    ...(o.kind === 'text' ? { kind: 'text' as const, color: o.color ?? '#ffffff' } : {})
   };
   return { ...tl, overlays: [...tl.overlays, overlay] };
 }
@@ -171,6 +189,67 @@ export const removeOverlay = (tl: Timeline, id: string): Timeline =>
 
 export const overlaysAt = (tl: Timeline, t: number): ChatOverlay[] =>
   tl.overlays.filter(o => t >= o.start - TIME_EPS && t < o.start + o.duration - TIME_EPS);
+
+
+const NL = String.fromCharCode(10);
+const CAM_PRESETS = ['bodycam', 'cctv', 'noir'];
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}:\d{2}$/;
+
+/** Liga/troca/remove o preset de câmera de um clipe. `preset: 'none'` remove. */
+export function setClipCamera(
+  tl: Timeline, clipId: string, preset: 'none' | ClipCamera['preset'], now: { date: string; time: string },
+  extra: Partial<Omit<ClipCamera, 'preset'>> = {}
+): Timeline {
+  return {
+    ...tl,
+    clips: tl.clips.map(c => {
+      if (c.id !== clipId) return c;
+      if (preset === 'none') { const { camera: _drop, ...rest } = c; void _drop; return rest; }
+      const prev = c.camera;
+      const camera: ClipCamera = {
+        ...(prev ?? { date: now.date, time: now.time }), ...extra, preset,
+        date: DATE_RE.test(extra.date ?? prev?.date ?? '') ? (extra.date ?? prev!.date) : now.date,
+        time: TIME_RE.test(extra.time ?? prev?.time ?? '') ? (extra.time ?? prev!.time) : now.time
+      };
+      return { ...c, camera };
+    })
+  };
+}
+
+/** Faz as linhas do chat entrarem uma a uma, `step` segundos entre elas. `step <= 0` remove a sequência. */
+export function setLineStep(tl: Timeline, overlayId: string, step: number): Timeline {
+  return {
+    ...tl,
+    overlays: tl.overlays.map(o => {
+      if (o.id !== overlayId) return o;
+      if (!(step > 0)) { const { lineOffsets: _d, ...rest } = o; void _d; return rest; }
+      const n = o.text.split(NL).filter(l => l.trim()).length;
+      return { ...o, lineOffsets: Array.from({ length: n }, (_, i) => round3(i * step)) };
+    })
+  };
+}
+
+/** Texto visível do overlay no tempo `t` (linhas já "chegadas"). Vazio = nada a desenhar. */
+export function overlayText(o: ChatOverlay, t: number): string {
+  const lines = o.text.split(NL).filter(l => l.trim());
+  if (!o.lineOffsets || o.lineOffsets.length !== lines.length) return o.text;
+  const rel = t - o.start;
+  return lines.filter((_, i) => rel >= o.lineOffsets![i] - TIME_EPS).join(NL);
+}
+
+/** Relógio da câmera no instante `sourceTime` da mídia (data/hora iniciais + tempo decorrido). */
+export function cameraClock(cam: ClipCamera, sourceTime: number): { date: string; time: string } {
+  const [y, mo, d] = cam.date.split('-').map(Number);
+  const [h, mi, sec] = cam.time.split(':').map(Number);
+  const base = Date.UTC(y, mo - 1, d, h, mi, sec);
+  const dt = new Date(base + Math.floor(sourceTime) * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`,
+    time: `${p(dt.getUTCHours())}:${p(dt.getUTCMinutes())}:${p(dt.getUTCSeconds())}`
+  };
+}
 
 // ---------------------------------------------------------------- validação / serialização
 
@@ -206,11 +285,22 @@ export function sanitizeTimeline(raw: unknown): Timeline {
     if (typeof c?.id !== 'string' || typeof c?.mediaId !== 'string') continue;
     const a = num(c.inPoint, 0), b = num(c.outPoint, 0);
     if (a < 0 || b - a < MIN_CLIP - TIME_EPS) continue;
-    tl.clips.push({ id: c.id.slice(0, 64), mediaId: c.mediaId.slice(0, 64), inPoint: round3(a), outPoint: round3(b), volume: Math.max(0, Math.min(2, num(c.volume, 1))) });
+    const clip: Clip = { id: c.id.slice(0, 64), mediaId: c.mediaId.slice(0, 64), inPoint: round3(a), outPoint: round3(b), volume: Math.max(0, Math.min(2, num(c.volume, 1))) };
+    const cam = c.camera;
+    if (cam && CAM_PRESETS.includes(cam.preset) && DATE_RE.test(cam.date) && TIME_RE.test(cam.time)) {
+      const str = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : undefined);
+      clip.camera = { preset: cam.preset, date: cam.date, time: cam.time, officer: str(cam.officer), dept: str(cam.dept), camName: str(cam.camName), location: str(cam.location) };
+    }
+    tl.clips.push(clip);
   }
   for (const o of Array.isArray(r.overlays) ? r.overlays.slice(0, 500) : []) {
     if (typeof o?.id !== 'string' || typeof o?.text !== 'string') continue;
+    const lines = o.text.split(NL).filter((l: string) => l.trim()).length;
+    const offs = Array.isArray(o.lineOffsets) && o.lineOffsets.length === lines && o.lineOffsets.every((v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0)
+      ? o.lineOffsets.map((v: number) => round3(v)) : undefined;
     tl.overlays.push({
+      ...(o.kind === 'text' ? { kind: 'text' as const, color: typeof o.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : '#ffffff' } : {}),
+      ...(offs ? { lineOffsets: offs } : {}),
       id: o.id.slice(0, 64), text: o.text.slice(0, 2000), start: Math.max(0, round3(num(o.start, 0))),
       duration: Math.max(MIN_CLIP, round3(num(o.duration, 3))), x: num(o.x, 24), y: num(o.y, 24),
       fontSize: Math.max(10, Math.min(72, num(o.fontSize, 22)))
