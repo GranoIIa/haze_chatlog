@@ -313,6 +313,7 @@ export const VideoStudioView: React.FC = () => {
             {result && (
               <div className="text-xs space-y-1" data-testid="export-result">
                 <div data-testid="export-info">{result.r.ext.toUpperCase()} · {result.r.videoCodec}{result.r.audioCodec ? ` + ${result.r.audioCodec}` : ''} · {result.r.width}×{result.r.height} · {result.r.fps} fps · {result.r.frames} quadros · {(result.r.blob.size / 1024).toFixed(0)} KB · {(result.r.elapsedMs / 1000).toFixed(1)} s</div>
+                <div className="text-haze-faint" data-testid="export-timing">decodificar {(result.r.timing.decodeMs / 1000).toFixed(1)} s · desenhar {(result.r.timing.composeMs / 1000).toFixed(1)} s · codificar {(result.r.timing.encodeMs / 1000).toFixed(1)} s · áudio {(result.r.timing.audioMs / 1000).toFixed(1)} s</div>
                 <a data-testid="export-download" className={`${primary} no-underline`} href={result.url} download={`haze-video.${result.r.ext}`}><Download className="w-4 h-4" /> Baixar</a>
               </div>
             )}

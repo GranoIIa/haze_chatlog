@@ -14,6 +14,8 @@ export interface OpenedMedia {
   file: File;
   input: Input<BlobSource>;
   video: CanvasSink | null;
+  /** Cria um decodificador de quadros na largura pedida (a exportação usa a largura da saída, não a do preview). */
+  makeVideoSink(width: number): CanvasSink;
   audio: AudioBufferSink | null;
   dispose(): void;
 }
@@ -36,6 +38,7 @@ export async function openMedia(file: File, id: string): Promise<OpenedMedia> {
       input,
       // Quadros já saem reduzidos para o tamanho de trabalho (máx. 1280 de largura) para poupar memória.
       video: new CanvasSink(vt, { width: Math.min(vt.displayWidth, 1280), poolSize: 2 }),
+      makeVideoSink: (width: number) => new CanvasSink(vt, { width: Math.min(vt.displayWidth, Math.max(2, Math.round(width))), poolSize: 2 }),
       audio: hasAudio && at ? new AudioBufferSink(at) : null,
       dispose() { try { input.dispose(); } catch { /* já liberado */ } }
     };

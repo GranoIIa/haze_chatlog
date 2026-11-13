@@ -39,6 +39,8 @@ export interface ExportResult {
   frames: number;
   seconds: number;
   elapsedMs: number;
+  /** Onde o tempo foi gasto (ms): esperando o decodificador, desenhando, e no encoder (inclui contrapressão). */
+  timing: { decodeMs: number; composeMs: number; encodeMs: number; audioMs: number };
 }
 
 const SR = 48000;
@@ -66,30 +68,46 @@ async function pickFormat(w: number, h: number, needAudio: boolean) {
   );
 }
 
-/** Mistura o áudio de todos os clipes numa única faixa estéreo de 48 kHz. */
+/** PCM estéreo de 48 kHz da timeline inteira (um Float32Array por canal). */
+interface MixedAudio { ch: [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>]; length: number }
+
+/**
+ * Mistura o áudio de todos os clipes copiando amostras direto para a faixa final (sem um nó de
+ * Web Audio por pacote: na primeira versão isso levou 96 s para 60 s de áudio). Se a fonte não
+ * estiver em 48 kHz, reamostra por interpolação linear (qualidade suficiente para fala; ver TDD).
+ */
 async function renderAudio(
   tl: Timeline, media: Map<string, OpenedMedia>, total: number, signal?: AbortSignal
-): Promise<AudioBuffer | null> {
+): Promise<MixedAudio | null> {
   const placed = layout(tl).filter(p => media.get(p.clip.mediaId)?.audio);
   if (!placed.length) return null;
-  const ctx = new OfflineAudioContext(CHANNELS, Math.max(1, Math.ceil(total * SR)), SR);
+  const length = Math.max(1, Math.ceil(total * SR));
+  const out: [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>] = [new Float32Array(length), new Float32Array(length)];
   for (const p of placed) {
     const sink = media.get(p.clip.mediaId)!.audio!;
-    const { inPoint, outPoint } = p.clip;
+    const { inPoint, outPoint, volume } = p.clip;
     for await (const { buffer, timestamp } of sink.buffers(inPoint, outPoint)) {
       if (signal?.aborted) throw new ExportCancelled();
       const from = Math.max(timestamp, inPoint);
       const to = Math.min(timestamp + buffer.duration, outPoint);
       if (to - from <= 0) continue;
-      const node = ctx.createBufferSource();
-      node.buffer = buffer;
-      const gain = ctx.createGain();
-      gain.gain.value = p.clip.volume;
-      node.connect(gain).connect(ctx.destination);
-      node.start(p.start + (from - inPoint), from - timestamp, to - from);
+      const rate = buffer.sampleRate;
+      const srcStart = Math.round((from - timestamp) * rate);
+      const dstStart = Math.round((p.start + (from - inPoint)) * SR);
+      const dstLen = Math.min(Math.round((to - from) * SR), length - dstStart);
+      for (let c = 0; c < 2; c++) {
+        const src = buffer.getChannelData(Math.min(c, buffer.numberOfChannels - 1));
+        const dst = out[c];
+        for (let i = 0; i < dstLen; i++) {
+          const pos = srcStart + (i * rate) / SR;
+          const i0 = Math.floor(pos);
+          const v = rate === SR ? src[i0] : src[i0] + ((src[Math.min(i0 + 1, src.length - 1)] - src[i0]) * (pos - i0));
+          dst[dstStart + i] += (v ?? 0) * volume;
+        }
+      }
     }
   }
-  return ctx.startRendering();
+  return { ch: out, length };
 }
 
 export async function exportTimeline(
@@ -109,8 +127,11 @@ export async function exportTimeline(
   const needAudio = placed.some(p => opened.get(p.clip.mediaId)?.audio);
   const { c, v, a } = await pickFormat(W, H, needAudio);
 
+  const timing = { decodeMs: 0, composeMs: 0, encodeMs: 0, audioMs: 0 };
   onProgress?.(0, 'audio');
+  const tAudio = performance.now();
   const audio = needAudio ? await renderAudio(tl, opened, total, signal) : null;
+  timing.audioMs = Math.round(performance.now() - tAudio);
   if (signal?.aborted) throw new ExportCancelled();
 
   const target = new BufferTarget();
@@ -122,6 +143,9 @@ export async function exportTimeline(
   const asrc = audio && a ? new AudioBufferSource({ codec: a, bitrate: 128_000 }) : null;
   if (asrc) output.addAudioTrack(asrc);
 
+  // um decodificador por mídia, já na largura da saída (evita ampliar um quadro reduzido do preview)
+  const sinks = new Map<string, ReturnType<OpenedMedia['makeVideoSink']>>();
+  const sinkFor = (m: OpenedMedia) => { let k = sinks.get(m.ref.id); if (!k) { k = m.makeVideoSink(W); sinks.set(m.ref.id, k); } return k; };
   let audioPos = 0;
   const audioTotal = audio ? audio.length : 0;
   const pushAudio = async (upTo: number) => {
@@ -130,7 +154,7 @@ export async function exportTimeline(
     if (len <= 0) return;
     const chunk = new AudioBuffer({ length: len, numberOfChannels: CHANNELS, sampleRate: SR });
     for (let ch = 0; ch < CHANNELS; ch++) {
-      chunk.copyToChannel(audio.getChannelData(ch).subarray(audioPos, audioPos + len), ch);
+      chunk.copyToChannel(audio.ch[ch].subarray(audioPos, audioPos + len), ch);
     }
     audioPos += len;
     await asrc.add(chunk);
@@ -149,11 +173,21 @@ export async function exportTimeline(
       })();
       let k = first;
       let held: Drawable | null = null;
-      for await (const wrapped of m.video!.canvasesAtTimestamps(times)) {
+      const it = sinkFor(m).canvasesAtTimestamps(times)[Symbol.asyncIterator]();
+      for (;;) {
+        const tD = performance.now();
+        const nx = await it.next();
+        timing.decodeMs += performance.now() - tD;
+        if (nx.done) break;
+        const wrapped = nx.value;
         if (signal?.aborted) throw new ExportCancelled();
         if (wrapped) held = wrapped.canvas as Drawable;
+        const tC = performance.now();
         composeFrame(ctx, W, H, held, tl, k / fps);
+        timing.composeMs += performance.now() - tC;
+        const tE = performance.now();
         await vsrc.add(k / fps, 1 / fps);
+        timing.encodeMs += performance.now() - tE;
         i++;
         if (asrc && (k + 1) % Math.ceil(fps / 2) === 0) await pushAudio(Math.round(((k + 1) / fps) * SR));
         if (k % 5 === 0) onProgress?.(i / frames, 'video');
@@ -175,6 +209,7 @@ export async function exportTimeline(
   if (!buf) throw new ExportError('A codificação terminou sem gerar arquivo.');
   return {
     blob: new Blob([buf], { type: c.mime }), mime: c.mime, ext: c.ext, videoCodec: v, audioCodec: a,
-    width: W, height: H, fps, frames, seconds: total, elapsedMs: Math.round(performance.now() - t0)
+    width: W, height: H, fps, frames, seconds: total, elapsedMs: Math.round(performance.now() - t0),
+    timing: { decodeMs: Math.round(timing.decodeMs), composeMs: Math.round(timing.composeMs), encodeMs: Math.round(timing.encodeMs), audioMs: timing.audioMs }
   };
 }
