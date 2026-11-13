@@ -62,13 +62,15 @@ export class FramePlayer {
         if (this.isDisposed || currentEpoch !== this.epoch) return null;
 
         const it = sink.canvases(Math.max(0, s)) as AsyncGenerator<W, void, unknown>;
-        const cur = (await it.next()).value ?? null;
+        const curRes = await it.next();
+        const cur = curRes?.value ?? null;
         if (this.isDisposed || currentEpoch !== this.epoch) {
           try { await it.return(undefined); } catch { /* ignore */ }
           return null;
         }
 
-        const nxt = cur ? ((await it.next()).value ?? null) : null;
+        const nxtRes = cur ? await it.next() : null;
+        const nxt = nxtRes?.value ?? null;
         if (this.isDisposed || currentEpoch !== this.epoch) {
           try { await it.return(undefined); } catch { /* ignore */ }
           return null;
@@ -80,6 +82,10 @@ export class FramePlayer {
 
       let catchUpCount = 0;
       while (g && g.nxt && g.nxt.timestamp <= s) {
+        if (g.cur && g.nxt.timestamp <= g.cur.timestamp) {
+          // O gerador não está avançando no tempo (timestamps duplicados ou congelados)
+          break;
+        }
         catchUpCount++;
         if (catchUpCount > FramePlayer.MAX_CATCHUP_FRAMES) {
           // Salto excessivo detectado no meio da reprodução: aborta iteração e reabre direto
@@ -87,13 +93,15 @@ export class FramePlayer {
           if (this.isDisposed || currentEpoch !== this.epoch) return null;
 
           const it = sink.canvases(Math.max(0, s)) as AsyncGenerator<W, void, unknown>;
-          const cur = (await it.next()).value ?? null;
+          const curRes = await it.next();
+          const cur = curRes?.value ?? null;
           if (this.isDisposed || currentEpoch !== this.epoch) {
             try { await it.return(undefined); } catch { /* ignore */ }
             return null;
           }
 
-          const nxt = cur ? ((await it.next()).value ?? null) : null;
+          const nxtRes = cur ? await it.next() : null;
+          const nxt = nxtRes?.value ?? null;
           if (this.isDisposed || currentEpoch !== this.epoch) {
             try { await it.return(undefined); } catch { /* ignore */ }
             return null;
@@ -105,7 +113,8 @@ export class FramePlayer {
         }
 
         g.cur = g.nxt;
-        g.nxt = (await g.it.next()).value ?? null;
+        const nxtRes = await g.it.next();
+        g.nxt = nxtRes?.value ?? null;
         if (this.isDisposed || currentEpoch !== this.epoch) return null;
       }
     } catch {

@@ -286,6 +286,7 @@ async function runEmpiricalSuite() {
   await testCase('Disposal_Stress', 'ADVERSARIAL: Dispose during catch-up re-seek (MAX_CATCHUP_FRAMES branch)', async () => {
     const player = new FramePlayer();
     let canvasesCallCount = 0;
+    let call1Frames = 0;
     let reseekGenReturned = false;
 
     const adversarialSink: any = {
@@ -295,7 +296,7 @@ async function runEmpiricalSuite() {
         return {
           async next() {
             if (callNum === 1) {
-              return { value: { canvas: {}, timestamp: 0 }, done: false };
+              return { value: { canvas: {}, timestamp: call1Frames++ * 0.033 }, done: false };
             } else {
               // Re-seek generator: dispose player while this next() is in-flight!
               player.dispose();
@@ -339,6 +340,7 @@ async function runEmpiricalSuite() {
     }
 
     assertEqual(internalSt.size, 0, 'VULNERABILITY: Generator resurrected in this.st after dispose() in MAX_CATCHUP_FRAMES branch!');
+    assertEqual(reseekGenReturned, true, 'Reseek generator return() must be called on dispose in MAX_CATCHUP_FRAMES branch');
   });
 
   await testCase('Disposal_Stress', 'Post-disposal calls to frameAt return null immediately', async () => {
