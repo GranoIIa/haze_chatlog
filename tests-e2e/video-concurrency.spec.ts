@@ -44,7 +44,7 @@ test.describe('Video Studio: Marco 2 — Concorrência, Mutex e Relógio Mestre'
     // Executa série de 10 seeks ultrarrápidos simulando scrubbing agressivo
     for (let i = 1; i <= 8; i++) {
       await page.evaluate((targetTime) => {
-        const input = document.querySelector('[data-testid="timeline-scrubber"]') as HTMLInputElement;
+        const input = document.querySelector('[data-testid="playhead-input"]') as HTMLInputElement;
         if (input) {
           input.value = String(targetTime);
           input.dispatchEvent(new Event('input', { bubbles: true }));
