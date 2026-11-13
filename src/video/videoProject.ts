@@ -81,8 +81,23 @@ export async function parseVideoProject(file: Blob): Promise<VideoProjectData> {
   return { timeline: { ...rest, clips, ...(layers.length ? { layers } : {}) }, media, warnings };
 }
 
-/** Um arquivo reconecta uma mídia salva se nome e tamanho forem iguais e a duração bater (±50 ms). */
-export function matchesSaved(saved: SavedMedia, file: { name: string; size: number }, duration?: number): boolean {
-  if (saved.name !== file.name || saved.size !== file.size) return false;
-  return duration === undefined || Math.abs(saved.duration - duration) <= 0.05;
+/** 
+ * Um arquivo reconecta uma mídia salva se:
+ * 1. Nome e tamanho forem iguais e a duração bater com tolerância ampliada (±150 ms).
+ * 2. OU se allowRenamed=true (relink explícito), permitindo arquivos renomeados com tamanho e duração idênticos.
+ */
+export function matchesSaved(
+  saved: SavedMedia,
+  file: { name: string; size: number },
+  duration?: number,
+  allowRenamed = false
+): boolean {
+  const sizeMatches = saved.size === file.size;
+  const nameMatches = saved.name.trim().toLowerCase() === file.name.trim().toLowerCase();
+  const durationMatches = duration === undefined || Math.abs(saved.duration - duration) <= 0.15;
+
+  if (nameMatches && sizeMatches && durationMatches) return true;
+  if (allowRenamed && sizeMatches && durationMatches) return true;
+
+  return false;
 }

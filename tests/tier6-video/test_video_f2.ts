@@ -120,4 +120,15 @@ describe('Tier 6 (F2): câmera, chat e projeto de vídeo', () => {
     assert(!matchesSaved(M, { name: 'a.mp4', size: 5000 }, 12), 'mesma identidade, duração diferente = arquivo diferente');
     void ({} as MediaRef);
   });
+
+  test('T6_F2_10_MatchRenamedAndExpandedTolerance: tolerância ampliada de 150ms e relink de renomeados', () => {
+    // Tolerância de até 150ms
+    assert(matchesSaved(M, { name: 'a.mp4', size: 5000 }, 10.14), 'dentro de 150ms deve casar');
+    assert(matchesSaved(M, { name: 'a.mp4', size: 5000 }, 9.86), 'dentro de 150ms para trás deve casar');
+    assert(!matchesSaved(M, { name: 'a.mp4', size: 5000 }, 10.20), 'além de 150ms não deve casar');
+
+    // allowRenamed = true (relink explícito)
+    assert(matchesSaved(M, { name: 'renomeado.mp4', size: 5000 }, 10.05, true), 'com allowRenamed deve aceitar nome diferente');
+    assert(!matchesSaved(M, { name: 'renomeado.mp4', size: 5001 }, 10.05, true), 'tamanho diferente nunca reconecta');
+  });
 });

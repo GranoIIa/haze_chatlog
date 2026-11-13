@@ -67,7 +67,11 @@ const ClipBlock: React.FC<{ id: string; wave?: { peaks: Float32Array; mediaDur: 
     );
   };
 
-export const VideoStudioView: React.FC = () => {
+export interface VideoStudioViewProps {
+  active?: boolean;
+}
+
+export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true }) => {
   const [hist, setHist] = useState(() => createHistory());
   const tl = hist.present;
   const apply = useCallback((f: (t: Timeline) => Timeline) => setHist(h => commit(h, f(h.present))), []);
@@ -213,6 +217,7 @@ export const VideoStudioView: React.FC = () => {
   const drawSeq = useRef(0);
   const playingRef = useRef(false); playingRef.current = playing;
   useEffect(() => {
+    if (!active) return;
     if (playingRef.current) return; // durante a reprodução quem desenha é o laço sequencial abaixo
     const seq = ++drawSeq.current;
     const cv = canvasRef.current;
@@ -230,9 +235,11 @@ export const VideoStudioView: React.FC = () => {
       if (seq !== drawSeq.current) return; // resultado antigo: descarta
       composeFrame(ctx, cv.width, cv.height, mainFrames, tl, t, lf);
     })();
-  }, [tl, t, previewH, library]);
+  }, [tl, t, previewH, library, active]);
 
-  useEffect(() => { tlStateRef.current?.setTime(t); }, [t]);
+  useEffect(() => {
+    if (active) tlStateRef.current?.setTime(t);
+  }, [t, active]);
 
   // ------------------------------------------------------------ forma de onda (uma vez por mídia, em segundo plano)
   useEffect(() => {
@@ -309,6 +316,16 @@ export const VideoStudioView: React.FC = () => {
   }, [playing]);
   // qualquer edição durante a reprodução pausa (o áudio agendado seria da versão antiga)
   useEffect(() => { setPlaying(false); }, [tl]);
+  // quando a aba deixa de ser ativa, pausa imediatamente a reprodução
+  useEffect(() => {
+    if (!active) {
+      if (playing) setPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.stop();
+        audioRef.current = null;
+      }
+    }
+  }, [active, playing]);
 
   // ------------------------------------------------------------ timeline (react-timeline-editor)
   const editorData: TimelineRow[] = useMemo(() => [

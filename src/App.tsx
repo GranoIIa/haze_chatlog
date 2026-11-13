@@ -23,11 +23,11 @@ export function App() {
         <div className={activeTab === 'giflab' ? 'block' : 'hidden'}>
           <GifLabView onNavigateToChatLog={() => setActiveTab('chatlog')} />
         </div>
-        {activeTab === 'video' && (
+        <div className={`${activeTab === 'video' ? 'block' : 'hidden'} h-full flex flex-col`}>
           <Suspense fallback={<div className="p-6 text-xs text-haze-muted">Carregando Video Studio…</div>}>
-            <VideoStudioView />
+            <VideoStudioView active={activeTab === 'video'} />
           </Suspense>
-        )}
+        </div>
       </main>
 
       {/* Footer */}
