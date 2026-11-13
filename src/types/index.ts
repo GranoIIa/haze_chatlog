@@ -1,5 +1,5 @@
 // 'chatlog' é o Editor RP unificado (Chat Log + elementos de Canvas)
-export type ActiveTab = 'chatlog' | 'giflab';
+export type ActiveTab = 'chatlog' | 'giflab' | 'video';
 
 export interface Character {
   id: string;

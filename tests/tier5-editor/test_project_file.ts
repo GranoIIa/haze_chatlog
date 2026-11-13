@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { describe, test, assert, assertEqual, assertThrows } from '../harness/testRunner';
 import {
   normalizeScene, buildProjectBlob, parseProjectFile, sniffImageMime, ProjectError,
-  PROJECT_FORMAT, PROJECT_SCHEMA_VERSION, ProjectData, ProjectAsset
+  PROJECT_FORMAT, PROJECT_SCHEMA_VERSION, SCENE_SCHEMA_VERSION, ProjectData, ProjectAsset
 } from '../../src/utils/projectFile';
 
 // PNG mínimo válido (1x1)
@@ -128,7 +128,7 @@ describe('Tier 5: Projeto .haze', () => {
     const zip = await JSZip.loadAsync(await blob.arrayBuffer());
     const m = JSON.parse(await zip.file('manifest.json')!.async('string'));
     assertEqual(m.format, PROJECT_FORMAT);
-    assertEqual(m.schemaVersion, PROJECT_SCHEMA_VERSION);
+    assertEqual(m.schemaVersion, SCENE_SCHEMA_VERSION);
     assert(Object.keys(zip.files).every(n => n === 'manifest.json' || n.startsWith('assets/')), 'só manifest e assets/');
   });
 
