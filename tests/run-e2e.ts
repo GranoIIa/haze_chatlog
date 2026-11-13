@@ -71,6 +71,10 @@ async function loadTestSuites() {
     await import('./tier5-editor/test_visual_presets');
     await import('./tier5-editor/test_chat_detect');
   }
+
+  if (shouldLoadTier(6)) {
+    await import('./tier6-video/test_video_timeline');
+  }
 }
 
 // 4. Execute Suite and Enforce Process Exit Codes

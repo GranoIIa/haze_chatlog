@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ActiveTab } from './types';
 import { Navbar } from './components/Navbar';
 import { ChatLogView } from './components/ChatLog/ChatLogView';
 import { GifLabView } from './components/GifLab/GifLabView';
+// Video Studio é carregado sob demanda: as outras abas não pagam o custo do mediabunny/timeline.
+const VideoStudioView = lazy(() => import('./components/VideoStudio/VideoStudioView').then(m => ({ default: m.VideoStudioView })));
 import logoUrl from './assets/haze-logo.png';
 
 export function App() {
@@ -21,6 +23,11 @@ export function App() {
         <div className={activeTab === 'giflab' ? 'block' : 'hidden'}>
           <GifLabView onNavigateToChatLog={() => setActiveTab('chatlog')} />
         </div>
+        {activeTab === 'video' && (
+          <Suspense fallback={<div className="p-6 text-xs text-haze-muted">Carregando Video Studio…</div>}>
+            <VideoStudioView />
+          </Suspense>
+        )}
       </main>
 
       {/* Footer */}

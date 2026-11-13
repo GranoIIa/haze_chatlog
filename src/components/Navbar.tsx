@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActiveTab } from '../types';
 import logoUrl from '../assets/haze-logo.png';
-import { MessageSquareText, Palette, Film, Sparkles, ExternalLink } from 'lucide-react';
+import { MessageSquareText, Palette, Film, Clapperboard, Sparkles, ExternalLink } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -63,6 +63,21 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             <span className="whitespace-nowrap">Video to GIF Lab</span>
             <span className="text-[11px] hidden xl:inline-block px-1.5 py-0.5 bg-haze-accent/10 text-haze-accent rounded font-mono border border-haze-accent/30">
               EZGIF
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('video')}
+            data-testid="tab-video"
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'video'
+                ? 'bg-haze-accent-fill text-haze-on-accent font-bold shadow-lg shadow-haze-accent/20'
+                : 'text-haze-muted hover:text-white hover:bg-haze-raised/40'
+            }`}
+          >
+            <Clapperboard className="w-4 h-4" />
+            <span className="whitespace-nowrap">Video Studio</span>
+            <span className="text-[11px] hidden xl:inline-block px-1.5 py-0.5 bg-haze-accent/10 text-haze-accent rounded font-mono border border-haze-accent/30">
+              POC
             </span>
           </button>
         </nav>
