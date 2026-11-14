@@ -229,6 +229,16 @@ export class PreviewAudio {
     this.stop();
   }
 
+  /** Fecha e limpa o AudioContext compartilhado (ex.: quando a aba é desativada). */
+  static closeSharedContext(): void {
+    if (PreviewAudio.sharedCtx && PreviewAudio.sharedCtx.state !== 'closed') {
+      try {
+        PreviewAudio.sharedCtx.close();
+      } catch { /* ignora */ }
+      PreviewAudio.sharedCtx = null;
+    }
+  }
+
   /** Para o relógio no fim da montagem. */
   ended(tl: Timeline): boolean {
     return this.time() >= totalDuration(tl);

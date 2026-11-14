@@ -5,12 +5,12 @@ const STORAGE_KEY = 'haze-sections-v1';
 /** Ordem das seções do painel do Editor RP (a mesma da tela). */
 export const SECTION_IDS = [
   'fundo', 'resolucao', 'personagens', 'dialogos', 'camera', 'retoque',
-  'rp', 'adesivos', 'tipografia', 'iluminacao', 'camadas', 'inspetor', 'salvar'
+  'rp', 'adesivos', 'tipografia', 'iluminacao', 'camadas', 'inspetor'
 ] as const;
 /** Ids do painel do Editor RP, mais seções usadas em outras telas (ids únicos no documento). */
 export type SectionId = typeof SECTION_IDS[number] | 'gif-dialogos';
 
-const DEFAULT_OPEN: Partial<Record<SectionId, boolean>> = { fundo: true, personagens: true, dialogos: true, salvar: true };
+const DEFAULT_OPEN: Partial<Record<SectionId, boolean>> = { fundo: true, personagens: true, dialogos: true };
 
 /** Lê quais seções estavam abertas (cai no padrão se o armazenamento falhar). */
 export const loadOpenSections = (): Record<string, boolean> => {

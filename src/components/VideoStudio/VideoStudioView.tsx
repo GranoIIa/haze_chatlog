@@ -391,11 +391,12 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   }, [playing]);
   // qualquer edição durante a reprodução pausa (o áudio agendado seria da versão antiga)
   useEffect(() => { setPlaying(false); }, [tl]);
-  // quando a aba deixa de ser ativa, pausa imediatamente a reprodução
+  // quando a aba deixa de ser ativa, pausa imediatamente a reprodução e libera o contexto de áudio
   useEffect(() => {
     if (!active) {
       if (playing) setPlaying(false);
       audioRef.current?.stop();
+      PreviewAudio.closeSharedContext();
     }
   }, [active, playing]);
 
@@ -587,6 +588,19 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             <span className="text-xs font-mono text-haze-muted" data-testid="playhead">{fmt(t)} / {fmt(total)}</span>
             <label className="text-xs text-haze-muted flex items-center gap-1">ir para (s)
               <input data-testid="playhead-input" type="number" step="0.01" min="0" className={input} value={Number(t.toFixed(2))}
+                ref={el => {
+                  if (el && !(el as any).__hasInputSeekListener) {
+                    (el as any).__hasInputSeekListener = true;
+                    el.addEventListener('input', (e) => {
+                      const val = +(e.target as HTMLInputElement).value;
+                      if (Number.isFinite(val)) {
+                        seekingRef.current = true;
+                        setPlaying(false);
+                        setT(Math.max(0, val));
+                      }
+                    });
+                  }
+                }}
                 onChange={e => {
                   seekingRef.current = true;
                   setPlaying(false);

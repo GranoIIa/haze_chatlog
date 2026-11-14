@@ -3131,54 +3131,6 @@ export const ChatLogView: React.FC = () => {
         <EditorSection {...sectionProps('inspetor')} title="Inspetor de propriedades" badge={`${canvasLayers.length} elemento${canvasLayers.length === 1 ? '' : 's'}`}>
           <CanvasLayersSidebar part="inspector" {...sidebarProps} />
         </EditorSection>
-
-        <EditorSection {...sectionProps('salvar')} title="Salvar e exportar">
-          <div className="p-4 rounded-2xl bg-haze-panel border border-haze-border shadow-md space-y-2.5">
-            {isGif && (
-              <button
-                type="button"
-                onClick={exportGifFromChatLog}
-                disabled={isExportingGif}
-                className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 transition-all disabled:opacity-50"
-              >
-                <Film className="w-4 h-4" /> {isExportingGif ? `Gerando GIF animado (${gifExportProgress}%)...` : 'Baixar GIF Animado Editado'}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={exportImage}
-              className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-haze-accent-fill hover:bg-haze-accent-fill-hover text-haze-on-accent flex items-center justify-center gap-2 shadow-lg shadow-haze-accent/20 transition-all"
-            >
-              <Download className="w-4 h-4" /> Baixar imagem (PNG)
-            </button>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={copyImage}
-                title="Copia a imagem para a área de transferência (Ctrl+C)"
-                className="py-2 px-2.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 bg-haze-field hover:bg-haze-raised transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Copy className="w-3.5 h-3.5" /> Copiar imagem
-              </button>
-              <button
-                type="button"
-                onClick={exportChatOnly}
-                title="Baixa só o texto do chat, com fundo transparente (para editar no Photopea)"
-                className="py-2 px-2.5 rounded-lg text-xs border border-haze-border text-haze-soft hover:border-haze-accent/40 bg-haze-field hover:bg-haze-raised transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Layers className="w-3.5 h-3.5" /> Só o chat (PNG)
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={exportProject}
-              title="Salva a cena inteira (foto, camadas, chat, ajustes) num arquivo .haze editável"
-              className="w-full py-1.5 rounded-lg text-xs font-semibold border border-haze-accent/40 text-haze-accent hover:bg-haze-accent/10 transition-colors flex items-center justify-center gap-1.5"
-            >
-              💾 Salvar projeto (.haze)
-            </button>
-          </div>
-        </EditorSection>
         </div>
 
       </div>

@@ -31,9 +31,9 @@ async function exportOnce(page: import('@playwright/test').Page, size: string, f
   await page.getByTestId('export-size').selectOption({ label: size });
   await page.getByTestId('export-fps').selectOption(String(fps));
   await page.getByTestId('export').click();
-  await expect(page.getByTestId('export-info')).toBeVisible({ timeout: timeoutMs });
+  await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: timeoutMs });
   return {
-    info: await page.getByTestId('export-info').innerText(),
+    info: await page.getByTestId('export-result').getByTestId('export-info').innerText(),
     timing: await page.getByTestId('export-timing').innerText(),
   };
 }

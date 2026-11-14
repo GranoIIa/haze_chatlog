@@ -106,8 +106,8 @@ test.describe('Video Studio (POC)', () => {
     await expect(page.getByTestId('chat-block')).toHaveCount(1);
 
     await page.getByTestId('export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 120_000 });
-    const info = await page.getByTestId('export-info').innerText();
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 120_000 });
+    const info = await page.getByTestId('export-result').getByTestId('export-info').innerText();
     console.log('EXPORT INFO:', info);
     const dlPromise = page.waitForEvent('download', { timeout: 30_000 });
     await page.getByTestId('export-download').click();
@@ -180,7 +180,7 @@ test.describe('Video Studio (POC)', () => {
     await page.getByTestId('export-size').selectOption({ label: '854×480' });
     await page.getByTestId('export-fps').selectOption('24');
     await page.getByTestId('export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 180_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 180_000 });
   });
 
   test('arquivo inválido gera mensagem compreensível e não derruba a biblioteca', async ({ page }) => {

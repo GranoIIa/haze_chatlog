@@ -65,7 +65,7 @@ test.describe('Video Studio (POC): arrasto e desempenho', () => {
     await page.getByTestId('add-clip-0').click();
     await page.getByTestId('export-size').selectOption({ label: '854×480' });
     await page.getByTestId('export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
     const dl = page.waitForEvent('download', { timeout: 30_000 });
     await page.getByTestId('export-download').click();
     const out = join(dir, 'saida-44k.mp4');
@@ -88,9 +88,9 @@ test.describe('Video Studio (POC): arrasto e desempenho', () => {
     await page.getByTestId('export-size').selectOption({ label: '1920×1080' });
     await page.getByTestId('export').click();
     const t0 = Date.now();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 280_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 280_000 });
     const wall = (Date.now() - t0) / 1000;
-    const info = await page.getByTestId('export-info').innerText();
+    const info = await page.getByTestId('export-result').getByTestId('export-info').innerText();
     const timing = await page.getByTestId('export-timing').innerText();
     const heap = await page.evaluate(() => (performance as any).memory ? Math.round((performance as any).memory.usedJSHeapSize / 1048576) : -1);
     console.log(`PERF 60 s de 1080p -> ${info} | parede ${wall.toFixed(1)} s | razão ${(60 / wall).toFixed(2)}x tempo real | ${timing} | heap JS ${heap} MB`);

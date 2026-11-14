@@ -35,7 +35,7 @@ async function exportTo(page: Page, name: string) {
   await page.getByTestId('export-size').selectOption({ label: '854×480' });
   await page.getByTestId('export-fps').selectOption('24');
   await page.getByTestId('export').click();
-  await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
+  await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
   const dl = page.waitForEvent('download', { timeout: 30_000 });
   await page.getByTestId('export-download').click();
   const out = join(dir, name);
