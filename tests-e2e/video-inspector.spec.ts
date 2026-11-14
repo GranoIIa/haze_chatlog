@@ -219,4 +219,38 @@ test.describe('Video Studio PR C - Inspetor Contextual com Abas Condicionais', (
       }
     }
   });
+
+  test('em 1280x720 os botões move-left e move-right do inspetor de clipe ficam dentro da viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
+    await expect(page.getByTestId('video-library').locator('li')).toHaveCount(2);
+
+    await page.getByTestId('add-clip-0').click();
+    await page.getByTestId('add-clip-1').click();
+
+    // Seleciona o primeiro clipe
+    await page.getByTestId('clip-block').first().click();
+    await expect(page.getByTestId('inspector')).toBeVisible();
+
+    // Valida que move-left e move-right estão visíveis e dentro da viewport vertical (<= 720px)
+    const moveLeft = page.getByTestId('move-left');
+    const moveRight = page.getByTestId('move-right');
+
+    await expect(moveLeft).toBeVisible();
+    await expect(moveRight).toBeVisible();
+
+    const boxLeft = await moveLeft.boundingBox();
+    const boxRight = await moveRight.boundingBox();
+
+    expect(boxLeft).not.toBeNull();
+    expect(boxRight).not.toBeNull();
+
+    expect(boxLeft!.y + boxLeft!.height).toBeLessThanOrEqual(720);
+    expect(boxLeft!.y).toBeGreaterThanOrEqual(0);
+
+    expect(boxRight!.y + boxRight!.height).toBeLessThanOrEqual(720);
+    expect(boxRight!.y).toBeGreaterThanOrEqual(0);
+  });
 });
