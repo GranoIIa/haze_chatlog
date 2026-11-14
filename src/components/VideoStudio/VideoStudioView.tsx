@@ -557,9 +557,9 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       )}
 
       {/* Área Principal (3 Colunas) */}
-      <div style={{ height: 'calc(100vh - 85px - 52px - 232px)', minHeight: '460px' }} className="flex-1 grid grid-cols-1 lg:grid-cols-[284px_1fr_304px] items-stretch gap-3 px-3 py-2 min-w-0">
+      <div style={{ height: 'calc(100vh - 85px - 52px - 232px)', maxHeight: 'calc(100vh - 85px - 52px - 232px)' }} className="flex-1 grid grid-cols-1 lg:grid-cols-[284px_1fr_304px] items-stretch gap-3 px-3 py-2 min-w-0">
         {/* Coluna Esquerda: Biblioteca de Mídias e Textos (284 px) */}
-        <section className="w-full h-full flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
+        <section className="w-full h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
           <label className={`${primary} cursor-pointer w-full justify-center`}>
             <Upload className="w-4 h-4" /> Importar vídeos
             <input data-testid="video-file-input" type="file" accept="video/*" multiple className="hidden"
@@ -615,7 +615,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         </section>
 
         {/* Coluna Central: Player Canvas + Barra de Reprodução */}
-        <section className="w-full min-w-0 h-full flex flex-col items-center justify-between p-2 rounded-xl border border-haze-border bg-haze-panel/30 overflow-y-auto">
+        <section className="w-full min-w-0 h-full min-h-0 flex flex-col items-center justify-between p-2 rounded-xl border border-haze-border bg-haze-panel/30 overflow-y-auto">
           <div className="rounded-xl border border-haze-border bg-black p-2 flex justify-center items-center w-full max-w-[800px] flex-1 min-h-0 shadow-lg">
             <canvas ref={canvasRef} data-testid="video-preview" width={PREVIEW_W} height={previewH} style={{ width: PREVIEW_W, maxWidth: '100%', maxHeight: '100%', height: 'auto', objectFit: 'contain' }} />
           </div>
@@ -641,13 +641,13 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
         {/* Coluna Direita: Inspetor Contextual (304 px, Avançado) ou Fluxo Guiado (Simples) */}
         {uiMode === 'simple' ? (
-          <section className="w-full h-full flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto">
+          <section className="w-full h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto">
             <GuidedFlow tl={tl} mediaOf={id => mediaRef.current.get(id)} apply={apply} presetId={presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId}
               setPresetId={setPresetId} exporting={exp} result={result} onExport={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
               onCancel={() => abortRef.current?.abort()} />
           </section>
         ) : (
-          <section className="w-full h-full flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
+          <section className="w-full h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
             {selLayer && selLayerMedia && (() => {
               const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
               const cur = evalTransform(selLayer, rel);
