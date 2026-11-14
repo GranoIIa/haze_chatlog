@@ -490,7 +490,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const input = 'w-20 px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text';
 
   return (
-    <div className="min-h-screen bg-haze-bg text-haze-text flex flex-col" data-testid="video-studio">
+    <div className="flex-1 min-h-0 flex flex-col bg-haze-bg text-haze-text" data-testid="video-studio">
       {/* Barra superior (52 px) */}
       <header className="h-[52px] border-b border-haze-border bg-haze-panel px-4 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -557,9 +557,9 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       )}
 
       {/* Área Principal (3 Colunas) */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-3 p-3 min-h-0">
+      <div style={{ height: 'calc(100vh - 85px - 52px - 232px)', minHeight: '460px' }} className="flex-1 grid grid-cols-1 lg:grid-cols-[284px_1fr_304px] items-stretch gap-3 px-3 py-2 min-w-0">
         {/* Coluna Esquerda: Biblioteca de Mídias e Textos (284 px) */}
-        <section className="w-full lg:w-[284px] shrink-0 rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-52px-296px-32px)] min-h-[320px]">
+        <section className="w-full h-full flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
           <label className={`${primary} cursor-pointer w-full justify-center`}>
             <Upload className="w-4 h-4" /> Importar vídeos
             <input data-testid="video-file-input" type="file" accept="video/*" multiple className="hidden"
@@ -605,7 +605,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                 ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
                 : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
             </div>
-            <button className={`${btn} w-full justify-center`} data-testid="chat-add" disabled={!chatText.trim()}
+            <button className={`${btn} w-full justify-center mb-1`} data-testid="chat-add" disabled={!chatText.trim()}
               onClick={() => apply(x => {
                 const id = makeId('chat');
                 const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
@@ -615,12 +615,12 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         </section>
 
         {/* Coluna Central: Player Canvas + Barra de Reprodução */}
-        <section className="flex-1 min-w-0 flex flex-col items-center justify-center p-2 rounded-xl border border-haze-border bg-haze-panel/30">
-          <div className="rounded-xl border border-haze-border bg-black p-2 flex justify-center w-full max-w-[800px] shadow-lg">
-            <canvas ref={canvasRef} data-testid="video-preview" width={PREVIEW_W} height={previewH} style={{ width: PREVIEW_W, maxWidth: '100%', height: 'auto' }} />
+        <section className="w-full min-w-0 h-full flex flex-col items-center justify-between p-2 rounded-xl border border-haze-border bg-haze-panel/30 overflow-y-auto">
+          <div className="rounded-xl border border-haze-border bg-black p-2 flex justify-center items-center w-full max-w-[800px] flex-1 min-h-0 shadow-lg">
+            <canvas ref={canvasRef} data-testid="video-preview" width={PREVIEW_W} height={previewH} style={{ width: PREVIEW_W, maxWidth: '100%', maxHeight: '100%', height: 'auto', objectFit: 'contain' }} />
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-3 p-2 bg-haze-panel rounded-xl border border-haze-border shadow-sm">
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2 p-2 bg-haze-panel rounded-xl border border-haze-border shadow-sm shrink-0">
             <button className={btn} data-testid="play" disabled={!total} onClick={() => setPlaying(p => !p)}>
               {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />} {playing ? 'Pausar' : 'Reproduzir'}
             </button>
@@ -641,13 +641,13 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
         {/* Coluna Direita: Inspetor Contextual (304 px, Avançado) ou Fluxo Guiado (Simples) */}
         {uiMode === 'simple' ? (
-          <section className="w-full lg:w-[304px] shrink-0 rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-52px-296px-32px)]">
+          <section className="w-full h-full flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto">
             <GuidedFlow tl={tl} mediaOf={id => mediaRef.current.get(id)} apply={apply} presetId={presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId}
               setPresetId={setPresetId} exporting={exp} result={result} onExport={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
               onCancel={() => abortRef.current?.abort()} />
           </section>
         ) : (
-          <section className="w-full lg:w-[304px] shrink-0 rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-52px-296px-32px)]">
+          <section className="w-full h-full flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
             {selLayer && selLayerMedia && (() => {
               const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
               const cur = evalTransform(selLayer, rel);
@@ -791,14 +791,15 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         )}
       </div>
 
-      {/* Linha Inferior: Timeline em largura total (~296 px, Modo Avançado) */}
+      {/* Linha Inferior: Timeline em largura total (Modo Avançado) */}
       {uiMode === 'advanced' && (
         <div className="w-full px-3 pb-3 shrink-0">
-          <div ref={tlWrapRef} className="rounded-xl border border-haze-border bg-haze-panel p-3 min-h-[200px]" data-testid="timeline">
-            <div className="flex items-center justify-between gap-3 text-[11px] text-haze-muted pb-2 border-b border-haze-border/50">
+          <div ref={tlWrapRef} className="rounded-xl border border-haze-border bg-haze-panel p-3 h-[220px] flex flex-col justify-between" data-testid="timeline">
+            <div className="flex items-center justify-between gap-3 text-[11px] text-haze-muted pb-2 border-b border-haze-border/50 shrink-0">
               <div className="flex items-center gap-3 font-medium">
                 <span>Trilha 1: vídeo</span>
-                <span>Trilha 2: chat</span>
+                <span>Trilha 2: sobreposição</span>
+                <span>Trilha 3: chat</span>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-haze-muted flex items-center gap-1">zoom
@@ -808,9 +809,9 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
               </div>
             </div>
             {tl.clips.length === 0 && tl.overlays.length === 0 && !(tl.layers ?? []).length
-              ? <div className="h-32 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
-              : <div className="pt-2">
-                  <TimelineUI ref={tlStateRef} style={{ width: '100%', height: 32 + 10 + Math.max(1, editorData.length) * 34 + 16 }} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
+              ? <div className="flex-1 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
+              : <div className="pt-1.5 flex-1 min-h-0">
+                  <TimelineUI ref={tlStateRef} style={{ width: '100%', height: 160 }} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
                     autoScroll gridSnap dragLine={false}
                     getActionRender={(action) => {
                       const isClip = action.effectId === 'clip';
