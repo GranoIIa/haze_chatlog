@@ -102,6 +102,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     setActiveTool(target);
     try { localStorage.setItem('haze-video-tool-v1', target); } catch { /* sem armazenamento */ }
   };
+  // No modo Simples, a coluna esquerda sempre exibe a biblioteca de Mídia (evita duplicar com o fluxo guiado)
+  const effectiveTool: VideoTool = uiMode === 'simple' ? 'media' : activeTool;
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -658,8 +660,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
         {/* Coluna Esquerda: Painel da Ferramenta Ativa (284 px) */}
         <section className="w-[284px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto shadow-sm">
-          {/* Ferramenta: Mídia */}
-          <div className={`space-y-3 ${activeTool === 'media' ? 'block' : 'hidden'}`}>
+          {/* Ferramenta: Mídia (Sempre visível no Modo Simples, ou quando ativa no Modo Avançado) */}
+          <div className={`space-y-3 ${effectiveTool === 'media' ? 'block' : 'hidden'}`}>
             <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
                 <Film className="w-3.5 h-3.5 text-haze-accent" /> Mídia
@@ -697,12 +699,25 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                   <div className="text-[10px] text-haze-muted truncate">{m.ref.width}×{m.ref.height} · {m.ref.hasAudio ? 'áudio' : 'sem áudio'}</div>
 
                   <div className="flex items-center gap-1 mt-2">
-                    <button className={`${btn} flex-1 justify-center px-1 py-1 text-xs`} data-testid={`add-clip-${i}`} title="Adicionar à timeline" onClick={() => apply(x => addClip(x, m.ref))}>
-                      <Plus className="w-3 h-3 mr-0.5" /> +
+                    <button
+                      type="button"
+                      className="h-6 w-7 shrink-0 inline-flex items-center justify-center rounded-md text-xs font-semibold border border-haze-border bg-haze-panel text-haze-text hover:bg-haze-raised/60 hover:text-white transition-colors"
+                      data-testid={`add-clip-${i}`}
+                      aria-label="Adicionar à timeline"
+                      title="Adicionar à timeline"
+                      onClick={() => apply(x => addClip(x, m.ref))}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
-                    <button className={`${btn} px-1.5 py-1 text-xs`} data-testid={`add-layer-${i}`} title="Entra por cima do vídeo principal, a partir do cursor"
-                      onClick={() => { const id = makeId('layer'); apply(x => addLayer(x, m.ref, t, id)); setSelectedLayer(id); setSelected(null); }}>
-                      <Layers className="w-3 h-3 mr-0.5" /> Sobrepor
+                    <button
+                      type="button"
+                      className="h-6 flex-1 min-w-0 inline-flex items-center justify-center gap-1 px-1 rounded-md text-[10px] font-semibold border border-haze-border bg-haze-panel text-haze-text hover:bg-haze-raised/60 hover:text-white transition-colors truncate"
+                      data-testid={`add-layer-${i}`}
+                      title="Entra por cima do vídeo principal, a partir do cursor"
+                      onClick={() => { const id = makeId('layer'); apply(x => addLayer(x, m.ref, t, id)); setSelectedLayer(id); setSelected(null); }}
+                    >
+                      <Layers className="w-3 h-3 shrink-0" />
+                      <span className="truncate">Sobrepor</span>
                     </button>
                   </div>
                 </li>
@@ -723,64 +738,69 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             )}
           </div>
 
-          {/* Ferramenta: Texto */}
-          <div className={`space-y-3 ${activeTool === 'text' ? 'block' : 'hidden'}`}>
-            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Type className="w-3.5 h-3.5 text-haze-accent" /> Texto
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
-              <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
-                <option value="chat">Chat do servidor (cores do Editor RP)</option>
-                <option value="text">Título / legenda livre</option>
-              </select>
-              <textarea data-testid="chat-text" value={chatText} onChange={e => setChatText(e.target.value)} rows={3}
-                className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text" />
-              <div className="flex items-center gap-2 text-xs text-haze-muted">
-                início <input data-testid="chat-start" type="number" step="0.1" min="0" value={chatStart} onChange={e => setChatStart(+e.target.value)} className={input} />
-                duração <input data-testid="chat-duration" type="number" step="0.1" min={MIN_CLIP} value={chatDur} onChange={e => setChatDur(+e.target.value)} className={input} />
+          {/* Ferramentas do Modo Avançado (ocultas no Modo Simples para evitar duplicação com o fluxo guiado) */}
+          {uiMode === 'advanced' && (
+            <>
+              {/* Ferramenta: Texto */}
+              <div className={`space-y-3 ${effectiveTool === 'text' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-haze-accent" /> Texto
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
+                  <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
+                    <option value="chat">Chat do servidor (cores do Editor RP)</option>
+                    <option value="text">Título / legenda livre</option>
+                  </select>
+                  <textarea data-testid="chat-text" value={chatText} onChange={e => setChatText(e.target.value)} rows={3}
+                    className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text" />
+                  <div className="flex items-center gap-2 text-xs text-haze-muted">
+                    início <input data-testid="chat-start" type="number" step="0.1" min="0" value={chatStart} onChange={e => setChatStart(+e.target.value)} className={input} />
+                    duração <input data-testid="chat-duration" type="number" step="0.1" min={MIN_CLIP} value={chatDur} onChange={e => setChatDur(+e.target.value)} className={input} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-haze-muted">
+                    {chatKind === 'chat'
+                      ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
+                      : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
+                  </div>
+                  <button className={`${btn} w-full justify-center mb-1`} data-testid="chat-add" disabled={!chatText.trim()}
+                    onClick={() => apply(x => {
+                      const id = makeId('chat');
+                      const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
+                      return chatKind === 'chat' && chatStep > 0 ? setLineStep(n, id, chatStep) : n;
+                    })}>Adicionar texto</button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs text-haze-muted">
-                {chatKind === 'chat'
-                  ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
-                  : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
+
+              {/* Ferramenta: Legendas */}
+              <div className={`space-y-3 ${effectiveTool === 'subtitles' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Captions className="w-3.5 h-3.5 text-haze-accent" /> Legendas
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-haze-muted">Importe arquivos de legenda no formato SRT para embutir na timeline.</p>
+                  <label className={`${btn} cursor-pointer w-full justify-center py-2.5`}>
+                    <Captions className="w-4 h-4 mr-1.5" /> Importar legendas (.srt)
+                    <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
+                  </label>
+                </div>
               </div>
-              <button className={`${btn} w-full justify-center mb-1`} data-testid="chat-add" disabled={!chatText.trim()}
-                onClick={() => apply(x => {
-                  const id = makeId('chat');
-                  const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
-                  return chatKind === 'chat' && chatStep > 0 ? setLineStep(n, id, chatStep) : n;
-                })}>Adicionar texto</button>
-            </div>
-          </div>
 
-          {/* Ferramenta: Legendas */}
-          <div className={`space-y-3 ${activeTool === 'subtitles' ? 'block' : 'hidden'}`}>
-            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Captions className="w-3.5 h-3.5 text-haze-accent" /> Legendas
-              </span>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs text-haze-muted">Importe arquivos de legenda no formato SRT para embutir na timeline.</p>
-              <label className={`${btn} cursor-pointer w-full justify-center py-2.5`}>
-                <Captions className="w-4 h-4 mr-1.5" /> Importar legendas (.srt)
-                <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
-              </label>
-            </div>
-          </div>
-
-          {/* Ferramenta: Modelos */}
-          <div className={`space-y-3 ${activeTool === 'templates' ? 'block' : 'hidden'}`}>
-            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <LayoutTemplate className="w-3.5 h-3.5 text-haze-accent" /> Modelos
-              </span>
-            </div>
-            <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
-          </div>
+              {/* Ferramenta: Modelos */}
+              <div className={`space-y-3 ${effectiveTool === 'templates' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <LayoutTemplate className="w-3.5 h-3.5 text-haze-accent" /> Modelos
+                  </span>
+                </div>
+                <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
+              </div>
+            </>
+          )}
         </section>
 
         {/* Coluna Central: Player Canvas + Barra de Reprodução */}
