@@ -159,4 +159,60 @@ test.describe('Video Studio PR B - Trilho de Ferramentas e Painel Esquerdo', () 
     }));
     expect(metrics720.hasPageScroll).toBe(false);
   });
+
+  test('modo Simples oculta ferramentas do Avançado e não duplica formulário de texto na esquerda', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+
+    // 1. No Avançado, seleciona a ferramenta Texto
+    await abrirFerramenta(page, 'texto');
+    await expect(page.getByTestId('chat-kind')).toBeVisible();
+
+    // 2. Alterna para Modo Simples
+    await page.getByTestId('video-mode-simple').click();
+    await expect(page.getByTestId('guided-flow')).toBeVisible();
+
+    // 3. Na coluna esquerda, as ferramentas do Avançado (Texto, Legendas, Modelos) não devem existir no DOM
+    await expect(page.getByTestId('chat-kind')).not.toBeAttached();
+    await expect(page.getByTestId('chat-text')).not.toBeAttached();
+    await expect(page.getByTestId('srt-input')).not.toBeAttached();
+
+    // 4. A coluna esquerda exibe exclusivamente a biblioteca de Mídia
+    await expect(page.getByTestId('video-library')).toBeVisible();
+
+    // 5. Retorna para o Modo Avançado: a ferramenta Texto é restaurada
+    await page.getByTestId('video-mode-advanced').click();
+    await expect(page.getByTestId('tool-text')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('chat-kind')).toBeVisible();
+  });
+
+  test('cartão de mídia: botões + e Sobrepor cabem dentro da largura do cartão sem sobreposição', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-file-input').setInputFiles([fRed]);
+    await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
+
+    const card = page.getByTestId('video-library').locator('li').first();
+    const btnClip = card.getByTestId('add-clip-0');
+    const btnLayer = card.getByTestId('add-layer-0');
+
+    await expect(btnClip).toBeVisible();
+    await expect(btnLayer).toBeVisible();
+
+    const cardBox = await card.boundingBox();
+    const clipBox = await btnClip.boundingBox();
+    const layerBox = await btnLayer.boundingBox();
+
+    expect(cardBox).not.toBeNull();
+    expect(clipBox).not.toBeNull();
+    expect(layerBox).not.toBeNull();
+
+    if (cardBox && clipBox && layerBox) {
+      // Ambos os botões estão estritamente dentro dos limites horizontais do cartão
+      expect(clipBox.x).toBeGreaterThanOrEqual(cardBox.x);
+      expect(layerBox.x + layerBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width + 1);
+      // Não há sobreposição horizontal entre o botão + e o botão Sobrepor
+      expect(clipBox.x + clipBox.width).toBeLessThanOrEqual(layerBox.x);
+    }
+  });
 });
