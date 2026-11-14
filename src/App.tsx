@@ -16,14 +16,14 @@ export function App() {
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Main Content Area - Persistent Tab State (No unmounting on switch) */}
-      <main className="flex-1">
+      <main className="flex-1 min-h-0 flex flex-col">
         <div className={activeTab === 'chatlog' ? 'block' : 'hidden'}>
           <ChatLogView />
         </div>
         <div className={activeTab === 'giflab' ? 'block' : 'hidden'}>
           <GifLabView onNavigateToChatLog={() => setActiveTab('chatlog')} />
         </div>
-        <div className={`${activeTab === 'video' ? 'block' : 'hidden'} h-full flex flex-col`}>
+        <div className={`${activeTab === 'video' ? 'flex' : 'hidden'} h-full flex-1 flex-col min-h-0`}>
           <Suspense fallback={<div className="p-6 text-xs text-haze-muted">Carregando Video Studio…</div>}>
             <VideoStudioView active={activeTab === 'video'} />
           </Suspense>
@@ -31,12 +31,14 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-haze-border bg-haze-stage py-4 text-center text-xs text-haze-faint">
-        <img src={logoUrl} alt="Haze" className="h-6 w-auto mx-auto mb-2 opacity-70" draggable={false} />
-        <p>
-          Haze Studios &copy; {new Date().getFullYear()} — Criado com carinho para a comunidade FiveM & GTA RP.
-        </p>
-      </footer>
+      {activeTab !== 'video' && (
+        <footer className="border-t border-haze-border bg-haze-stage py-4 text-center text-xs text-haze-faint">
+          <img src={logoUrl} alt="Haze" className="h-6 w-auto mx-auto mb-2 opacity-70" draggable={false} />
+          <p>
+            Haze Studios &copy; {new Date().getFullYear()} — Criado com carinho para a comunidade FiveM & GTA RP.
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

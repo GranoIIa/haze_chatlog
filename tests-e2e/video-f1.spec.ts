@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio F1: preview com áudio, mudo, zoom, miniaturas, áudio em fluxo com trecho sem áudio.
  * Requer ffmpeg/ffprobe no PATH.
@@ -49,6 +50,7 @@ const freq = (a: Int16Array, c: number, win = 0.2) => {
   return z / 2 / win;
 };
 async function exportTo(page: Page, name: string) {
+  await abrirExportacao(page);
   await page.getByTestId('export-size').selectOption({ label: '854×480' });
   await page.getByTestId('export-fps').selectOption('24');
   await page.getByTestId('export').click();

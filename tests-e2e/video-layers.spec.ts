@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio: trilha de sobreposição (picture-in-picture) e keyframes.
  * Valida os arquivos exportados com ffmpeg fora do navegador. Requer ffmpeg/ffprobe no PATH.
@@ -34,6 +35,7 @@ const open = async (page: Page) => {
 };
 const goTo = async (page: Page, t: number) => { await page.getByTestId('playhead-input').fill(String(t)); };
 async function exportTo(page: Page, name: string) {
+  await abrirExportacao(page);
   await page.getByTestId('export-size').selectOption({ label: '854×480' });
   await page.getByTestId('export-fps').selectOption('24');
   await page.getByTestId('export').click();

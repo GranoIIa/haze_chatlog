@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio F2: preset de câmera por clipe, texto livre, chat linha a linha, projeto .haze e reconexão de mídia.
  * Valida os arquivos exportados com ffmpeg fora do navegador. Requer ffmpeg/ffprobe no PATH.
@@ -32,6 +33,7 @@ const open = async (page: Page, files: string[]) => {
   await expect(page.getByTestId('video-library').locator('li')).toHaveCount(files.length);
 };
 async function exportTo(page: Page, name: string) {
+  await abrirExportacao(page);
   await page.getByTestId('export-size').selectOption({ label: '854×480' });
   await page.getByTestId('export-fps').selectOption('24');
   await page.getByTestId('export').click();
@@ -144,6 +146,7 @@ test.describe('Video Studio F2', () => {
     await expect(page.getByTestId('clip-block')).toHaveCount(2);
     await expect(page.getByTestId('clip-block').first()).toContainText('offline');
     await expect(page.getByTestId('playhead')).toContainText('/ 0:06.00');
+    await abrirExportacao(page);
     await page.getByTestId('export').click();
     await expect(page.getByTestId('video-message')).toContainText('Reconecte as mídias');
 

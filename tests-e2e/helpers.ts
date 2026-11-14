@@ -114,3 +114,11 @@ export const openSection = async (page: Page, id: string) => {
 
 /** Aguarda o autosave (debounce) antes de recarregar. */
 export const settle = (page: Page, ms = 1200) => page.waitForTimeout(ms);
+
+/** Abre o modal de exportação do Video Studio se ainda não estiver visível. */
+export async function abrirExportacao(page: Page) {
+  const expBtn = page.getByTestId('export');
+  if (!(await expBtn.isVisible())) {
+    await page.getByTestId('export-open').click();
+  }
+}
