@@ -70,6 +70,123 @@ const ClipBlock: React.FC<{ id: string; wave?: { peaks: Float32Array; mediaDur: 
     );
   };
 
+const btn = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-haze-border bg-haze-panel text-haze-text hover:bg-haze-raised/40 disabled:opacity-40 disabled:cursor-not-allowed';
+
+const TimelineTrackHeaders = React.memo(() => (
+  <div className="absolute left-0 w-[88px] z-20 pointer-events-none flex flex-col" style={{ top: 48 }}>
+    <div data-testid="track-v1" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-indigo-300 uppercase tracking-wider border-b border-haze-border/30 bg-haze-panel/95">
+      V1 Vídeo
+    </div>
+    <div data-testid="track-v2" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-fuchsia-400 uppercase tracking-wider border-b border-haze-border/30 bg-haze-panel/95">
+      V2 Sobrepor
+    </div>
+    <div data-testid="track-t" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-amber-400 uppercase tracking-wider bg-haze-panel/95">
+      T Texto/Chat
+    </div>
+  </div>
+));
+TimelineTrackHeaders.displayName = 'TimelineTrackHeaders';
+
+interface TimelineToolbarProps {
+  canSplit: boolean;
+  canDelete: boolean;
+  snapEnabled: boolean;
+  zoom: number;
+  total: number;
+  onToggleSnap: () => void;
+  onSplit: () => void;
+  onDelete: () => void;
+  onZoomChange: (z: number) => void;
+  onZoomFit: () => void;
+}
+
+const TimelineToolbar = React.memo<TimelineToolbarProps>(({
+  canSplit,
+  canDelete,
+  snapEnabled,
+  zoom,
+  total,
+  onToggleSnap,
+  onSplit,
+  onDelete,
+  onZoomChange,
+  onZoomFit,
+}) => {
+  return (
+    <div className="flex items-center justify-between gap-3 text-[11px] text-haze-muted pb-2 border-b border-haze-border/50 shrink-0 select-none">
+      <div className="flex items-center gap-1.5 font-medium">
+        <button
+          type="button"
+          data-testid="tl-tool-select"
+          aria-label="Ferramenta Selecionar"
+          aria-pressed={true}
+          title="Selecionar"
+          className={`${btn} py-1 px-2 text-xs text-white bg-haze-raised`}
+        >
+          <MousePointer className="w-3.5 h-3.5 mr-1" /> Selecionar
+        </button>
+        <button
+          type="button"
+          data-testid="tl-tool-split"
+          aria-label="Dividir no cursor"
+          title="Dividir no cursor (C)"
+          disabled={!canSplit}
+          onClick={onSplit}
+          className={`${btn} py-1 px-2 text-xs`}
+        >
+          <Scissors className="w-3.5 h-3.5 mr-1" /> Dividir
+        </button>
+        <button
+          type="button"
+          data-testid="tl-tool-delete"
+          aria-label="Excluir selecionado"
+          title="Excluir selecionado (Del)"
+          disabled={!canDelete}
+          onClick={onDelete}
+          className={`${btn} py-1 px-2 text-xs text-red-400 hover:text-red-300`}
+        >
+          <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
+        </button>
+        <div className="h-4 w-px bg-haze-border mx-1" />
+        <button
+          type="button"
+          data-testid="tl-tool-snap"
+          aria-label="Encaixe magnético (Snap)"
+          aria-pressed={snapEnabled}
+          title="Encaixe magnético (Snap)"
+          onClick={onToggleSnap}
+          className={`${btn} py-1 px-2 text-xs ${snapEnabled ? 'text-haze-accent bg-haze-accent/20 border-haze-accent/40' : 'text-haze-muted'}`}
+        >
+          <Magnet className="w-3.5 h-3.5 mr-1" /> Ímã
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-haze-muted flex items-center gap-1">zoom
+          <input
+            data-testid="zoom"
+            type="range"
+            min="10"
+            max="400"
+            step="5"
+            value={zoom}
+            aria-label="zoom Ajustar"
+            onChange={e => onZoomChange(+e.target.value)}
+          />
+          <button
+            className={btn}
+            data-testid="zoom-fit"
+            disabled={!total}
+            onClick={onZoomFit}
+          >
+            Ajustar
+          </button>
+        </label>
+      </div>
+    </div>
+  );
+});
+TimelineToolbar.displayName = 'TimelineToolbar';
+
 export interface VideoStudioViewProps {
   active?: boolean;
 }
@@ -149,6 +266,10 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const audioRef = useRef<PreviewAudio | null>(null);
   if (!audioRef.current) audioRef.current = new PreviewAudio();
   const seekingRef = useRef(false);
+  const playheadSpanRef = useRef<HTMLSpanElement | null>(null);
+  const playheadInputRef = useRef<HTMLInputElement | null>(null);
+  const lastStateTRef = useRef<number>(0);
+  const lastAudioStatusRef = useRef<string>('parado');
 
   const [chatText, setChatText] = useState('Ramon Mendoza diz: Precisamos conversar.');
   const [chatStart, setChatStart] = useState(0);
@@ -190,10 +311,39 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const total = totalDuration(tl);
   /** Ajusta o zoom para a montagem inteira caber na largura da timeline (automático: só reduz, nunca passa de 140). */
   const userZoomed = useRef(false);
-  const fitZoom = (max = 400) => {
+  const fitZoom = useCallback((max = 400) => {
+    if (playingRef.current) return;
     const w = tlWrapRef.current?.clientWidth ?? 0;
     if (w > 0 && total > 0) setZoom(Math.max(10, Math.min(max, Math.floor((w - 88 - 32) / total))));
-  };
+  }, [total]);
+
+  const handleToggleSnap = useCallback(() => setSnapEnabled(s => !s), []);
+  const handleSplit = useCallback(() => {
+    if (locate(tl, tRef.current)) {
+      apply(x => splitAt(x, tRef.current));
+    }
+  }, [tl, apply]);
+  const handleDelete = useCallback(() => {
+    if (selected) {
+      apply(x => removeClip(x, selected));
+      selectClip(null);
+    } else if (selectedLayer) {
+      apply(x => removeLayer(x, selectedLayer));
+      selectLayer(null);
+    } else if (selectedOverlay) {
+      apply(x => removeOverlay(x, selectedOverlay));
+      selectOverlay(null);
+    }
+  }, [selected, selectedLayer, selectedOverlay, apply, selectClip, selectLayer, selectOverlay]);
+  const handleZoomChange = useCallback((z: number) => {
+    userZoomed.current = true;
+    setZoom(z);
+  }, []);
+  const handleZoomFit = useCallback(() => {
+    userZoomed.current = false;
+    fitZoom();
+  }, [fitZoom]);
+
   useEffect(() => {
     if (total > 0 && !userZoomed.current) fitZoom(140);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -207,6 +357,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     const el = tlWrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver((entries) => {
+      if (playingRef.current) return;
       const entry = entries[0];
       const w = entry?.contentRect?.width ?? el.clientWidth ?? 0;
       if (Math.abs(w - lastWidth.current) < 2) return;
@@ -214,7 +365,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
       if (resizeTimer.current) clearTimeout(resizeTimer.current);
       resizeTimer.current = setTimeout(() => {
-        if (total > 0 && !userZoomed.current) {
+        if (total > 0 && !userZoomed.current && !playingRef.current) {
           fitZoom(140);
         }
       }, 100);
@@ -224,15 +375,43 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       if (resizeTimer.current) clearTimeout(resizeTimer.current);
       ro.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [total]);
+  }, [total, fitZoom]);
 
   // Atalhos de teclado globais da timeline/estúdio (Espaço, C, Delete, Ctrl+Z/Y)
+  // Registrados uma única vez via ref estável para eliminar churn de addEventListener/removeEventListener
+  const actionRef = useRef({
+    showExportModal,
+    tl,
+    selected,
+    selectedLayer,
+    selectedOverlay,
+    apply,
+    setPlaying,
+    setHist,
+    selectClip,
+    selectLayer,
+    selectOverlay,
+  });
+  actionRef.current = {
+    showExportModal,
+    tl,
+    selected,
+    selectedLayer,
+    selectedOverlay,
+    apply,
+    setPlaying,
+    setHist,
+    selectClip,
+    selectLayer,
+    selectOverlay,
+  };
+
   useEffect(() => {
     if (!active) return;
     const onKeyDown = (e: KeyboardEvent) => {
+      const a = actionRef.current;
       // Nunca disparar se o diálogo de exportação estiver aberto
-      if (showExportModal) return;
+      if (a.showExportModal) return;
 
       const target = e.target as HTMLElement | null;
       if (target) {
@@ -246,7 +425,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       if (e.code === 'Space' || e.key === ' ') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
-          setPlaying(p => !p);
+          a.setPlaying(p => !p);
           return;
         }
       }
@@ -255,8 +434,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       if (e.key === 'c' || e.key === 'C') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
-          if (locate(tl, t)) {
-            apply(x => splitAt(x, t));
+          if (locate(a.tl, tRef.current)) {
+            a.apply(x => splitAt(x, tRef.current));
           }
           return;
         }
@@ -265,18 +444,18 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       // 3. Delete / Backspace: Excluir item selecionado (sem modificadores)
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-          if (selected) {
+          if (a.selected) {
             e.preventDefault();
-            apply(x => removeClip(x, selected));
-            selectClip(null);
-          } else if (selectedLayer) {
+            a.apply(x => removeClip(x, a.selected!));
+            a.selectClip(null);
+          } else if (a.selectedLayer) {
             e.preventDefault();
-            apply(x => removeLayer(x, selectedLayer));
-            selectLayer(null);
-          } else if (selectedOverlay) {
+            a.apply(x => removeLayer(x, a.selectedLayer!));
+            a.selectLayer(null);
+          } else if (a.selectedOverlay) {
             e.preventDefault();
-            apply(x => removeOverlay(x, selectedOverlay));
-            selectOverlay(null);
+            a.apply(x => removeOverlay(x, a.selectedOverlay!));
+            a.selectOverlay(null);
           }
           return;
         }
@@ -287,15 +466,15 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         if (e.key === 'z' || e.key === 'Z') {
           e.preventDefault();
           if (e.shiftKey) {
-            setHist(h => redo(h));
+            a.setHist(h => redo(h));
           } else {
-            setHist(h => undo(h));
+            a.setHist(h => undo(h));
           }
           return;
         }
         if (e.key === 'y' || e.key === 'Y') {
           e.preventDefault();
-          setHist(h => redo(h));
+          a.setHist(h => redo(h));
           return;
         }
       }
@@ -303,7 +482,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [active, showExportModal, tl, t, selected, selectedLayer, selectedOverlay, apply, selectClip, selectLayer, selectOverlay]);
+  }, [active]);
   const [outW, outH] = [SIZES[sizeIdx][1], SIZES[sizeIdx][2]];
   const previewH = Math.round((PREVIEW_W * outH) / outW / 2) * 2;
   const selClip = tl.clips.find(c => c.id === selected) ?? null;
@@ -448,7 +627,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   }, [tl, t, previewH, library, active]);
 
   useEffect(() => {
-    if (active) tlStateRef.current?.setTime(t);
+    if (active && !playingRef.current) tlStateRef.current?.setTime(t);
   }, [t, active]);
 
   // ------------------------------------------------------------ forma de onda (uma vez por mídia, em segundo plano)
@@ -562,13 +741,40 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     const tick = () => {
       if (!alive) return;
       const now = pa.time();
+      tRef.current = now;
+
+      // 1. Atualiza o cursor da timeline diretamente via ref sem depender do ciclo de renderização do React
+      tlStateRef.current?.setTime(now);
+
+      // 2. Atualiza elementos de playhead no DOM em tempo real
+      if (playheadSpanRef.current) {
+        playheadSpanRef.current.textContent = `${fmt(now)} / ${fmt(total)}`;
+      }
+      if (playheadInputRef.current && document.activeElement !== playheadInputRef.current) {
+        playheadInputRef.current.value = String(Number(now.toFixed(2)));
+      }
+
       if (now >= total) {
-        setT(Math.max(0, total - 0.001));
+        const finalT = Math.max(0, total - 0.001);
+        tRef.current = finalT;
+        setT(finalT);
+        tlStateRef.current?.setTime(finalT);
         setPlaying(false);
         return;
       }
-      setT(now);
-      setAudioStatus(`ativo · ${pa.scheduled} trechos`);
+
+      // 3. Throttling de atualização do estado React durante reprodução (~12 fps) para não degradar a CPU
+      if (now - lastStateTRef.current >= 0.08 || lastStateTRef.current === 0) {
+        lastStateTRef.current = now;
+        setT(now);
+      }
+
+      // 4. Status de áudio só dispara re-render se o texto realmente mudou
+      const statusText = `ativo · ${pa.scheduled} trechos`;
+      if (lastAudioStatusRef.current !== statusText) {
+        lastAudioStatusRef.current = statusText;
+        setAudioStatus(statusText);
+      }
 
       // Pré-aquecimento contínuo no tick: não bloqueado pelo busy do render
       const nextPlaced = placed.find(p => p.start > now && p.start - now <= 3.0);
@@ -593,9 +799,13 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       cancelAnimationFrame(raf);
       fp.dispose();
       const stopT = pa.stop();
+      lastAudioStatusRef.current = 'parado';
       setAudioStatus('parado');
       if (!seekingRef.current) {
-        setT(Math.min(stopT, Math.max(0, total - 0.001)));
+        const finalT = Math.min(stopT, Math.max(0, total - 0.001));
+        tRef.current = finalT;
+        setT(finalT);
+        tlStateRef.current?.setTime(finalT);
       }
       seekingRef.current = false;
     };
@@ -962,9 +1172,9 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             </button>
             <button className={btn} aria-label="Quadro anterior" disabled={!total} onClick={() => { seekingRef.current = true; setPlaying(false); setT(c => Math.max(0, round3(c - 1 / fps))); }}><ChevronLeft className="w-4 h-4" /></button>
             <button className={btn} aria-label="Próximo quadro" disabled={!total} onClick={() => { seekingRef.current = true; setPlaying(false); setT(c => Math.min(Math.max(0, total - 0.001), round3(c + 1 / fps))); }}><ChevronRight className="w-4 h-4" /></button>
-            <span className="text-xs font-mono text-haze-muted px-1.5" data-testid="playhead">{fmt(t)} / {fmt(total)}</span>
+            <span ref={playheadSpanRef} className="text-xs font-mono text-haze-muted px-1.5" data-testid="playhead">{fmt(t)} / {fmt(total)}</span>
             <label className="text-xs text-haze-muted flex items-center gap-1">ir para (s)
-              <input data-testid="playhead-input" type="number" step="0.01" min="0" className={input} value={Number(t.toFixed(2))}
+              <input ref={playheadInputRef} data-testid="playhead-input" type="number" step="0.01" min="0" className={input} value={Number(t.toFixed(2))}
                 onChange={e => {
                   seekingRef.current = true;
                   setPlaying(false);
@@ -1342,87 +1552,24 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
       {uiMode === 'advanced' && (
         <div className="w-full px-3 pb-3 shrink-0">
           <div ref={tlWrapRef} className="rounded-xl border border-haze-border bg-haze-panel p-3 h-[220px] flex flex-col justify-between" data-testid="timeline">
-            {/* Barra de Ferramentas acima da régua */}
-            <div className="flex items-center justify-between gap-3 text-[11px] text-haze-muted pb-2 border-b border-haze-border/50 shrink-0">
-              <div className="flex items-center gap-1.5 font-medium">
-                <button
-                  type="button"
-                  data-testid="tl-tool-select"
-                  aria-label="Ferramenta Selecionar"
-                  aria-pressed={true}
-                  title="Selecionar"
-                  className={`${btn} py-1 px-2 text-xs text-white bg-haze-raised`}
-                >
-                  <MousePointer className="w-3.5 h-3.5 mr-1" /> Selecionar
-                </button>
-                <button
-                  type="button"
-                  data-testid="tl-tool-split"
-                  aria-label="Dividir no cursor"
-                  title="Dividir no cursor (C)"
-                  disabled={!locate(tl, t)}
-                  onClick={() => { if (locate(tl, t)) apply(x => splitAt(x, t)); }}
-                  className={`${btn} py-1 px-2 text-xs`}
-                >
-                  <Scissors className="w-3.5 h-3.5 mr-1" /> Dividir
-                </button>
-                <button
-                  type="button"
-                  data-testid="tl-tool-delete"
-                  aria-label="Excluir selecionado"
-                  title="Excluir selecionado (Del)"
-                  disabled={!selected && !selectedLayer && !selectedOverlay}
-                  onClick={() => {
-                    if (selected) {
-                      apply(x => removeClip(x, selected));
-                      selectClip(null);
-                    } else if (selectedLayer) {
-                      apply(x => removeLayer(x, selectedLayer));
-                      selectLayer(null);
-                    } else if (selectedOverlay) {
-                      apply(x => removeOverlay(x, selectedOverlay));
-                      selectOverlay(null);
-                    }
-                  }}
-                  className={`${btn} py-1 px-2 text-xs text-red-400 hover:text-red-300`}
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
-                </button>
-                <div className="h-4 w-px bg-haze-border mx-1" />
-                <button
-                  type="button"
-                  data-testid="tl-tool-snap"
-                  aria-label="Encaixe magnético (Snap)"
-                  aria-pressed={snapEnabled}
-                  title="Encaixe magnético (Snap)"
-                  onClick={() => setSnapEnabled(s => !s)}
-                  className={`${btn} py-1 px-2 text-xs ${snapEnabled ? 'text-haze-accent bg-haze-accent/20 border-haze-accent/40' : 'text-haze-muted'}`}
-                >
-                  <Magnet className="w-3.5 h-3.5 mr-1" /> Ímã
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-haze-muted flex items-center gap-1">zoom
-                  <input data-testid="zoom" type="range" min="10" max="400" step="5" value={zoom} onChange={e => { userZoomed.current = true; setZoom(+e.target.value); }} />
-                  <button className={btn} data-testid="zoom-fit" disabled={!total} onClick={() => { userZoomed.current = false; fitZoom(); }}>Ajustar</button>
-                </label>
-              </div>
-            </div>
+            {/* Barra de Ferramentas acima da régua (Memoizada) */}
+            <TimelineToolbar
+              canSplit={!playing && Boolean(locate(tl, t))}
+              canDelete={!playing && Boolean(selected || selectedLayer || selectedOverlay)}
+              snapEnabled={snapEnabled}
+              zoom={zoom}
+              total={total}
+              onToggleSnap={handleToggleSnap}
+              onSplit={handleSplit}
+              onDelete={handleDelete}
+              onZoomChange={handleZoomChange}
+              onZoomFit={handleZoomFit}
+            />
             {tl.clips.length === 0 && tl.overlays.length === 0 && !(tl.layers ?? []).length
               ? <div className="flex-1 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
               : <div className="relative pt-1.5 flex-1 min-h-0">
-                  {/* Cabeçalho fixo à esquerda de cada trilha */}
-                  <div className="absolute left-0 w-[88px] z-20 pointer-events-none flex flex-col" style={{ top: 48 }}>
-                    <div data-testid="track-v1" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-indigo-300 uppercase tracking-wider border-b border-haze-border/30 bg-haze-panel/95">
-                      V1 Vídeo
-                    </div>
-                    <div data-testid="track-v2" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-fuchsia-400 uppercase tracking-wider border-b border-haze-border/30 bg-haze-panel/95">
-                      V2 Sobrepor
-                    </div>
-                    <div data-testid="track-t" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-amber-400 uppercase tracking-wider bg-haze-panel/95">
-                      T Texto/Chat
-                    </div>
-                  </div>
+                  {/* Cabeçalho fixo à esquerda de cada trilha (Memoizado) */}
+                  <TimelineTrackHeaders />
                   <TimelineUI ref={tlStateRef} style={{ width: '100%', height: 160 }} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={88} rowHeight={34}
                     autoScroll gridSnap={snapEnabled} dragLine={false}
                     getActionRender={(action) => {
