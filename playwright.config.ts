@@ -6,26 +6,31 @@ import { join, parse } from 'node:path';
 /**
  * Garante que diretórios de saída e temporários usem um disco com espaço seguro (>= 1 GB livre).
  * Evita estouro de disco silencioso e cancelamento de downloads em ambientes com pouca folga no disco C:.
+ * Se nenhuma unidade tiver espaço e PW_OUTPUT_DIR não for fornecido, lança erro com mensagem explicativa.
  */
 function resolveSafeWorkDir(): { outputDir: string; tempDir: string } {
   if (process.env.PW_OUTPUT_DIR && process.env.TEMP) {
     return { outputDir: process.env.PW_OUTPUT_DIR, tempDir: process.env.TEMP };
   }
 
+  const isListMode = process.argv.includes('--list');
+  const skipCheck = process.env.PW_SKIP_DISK_CHECK === '1' || Boolean(process.env.PW_OUTPUT_DIR) || isListMode;
+  const REQUIRED_BYTES = 1024 * 1024 * 1024; // 1 GB mínimo
+
   const sysTmp = tmpdir();
-  let hasEnoughSpace = false;
+  const root = parse(sysTmp).root || 'C:/';
+  const detectedDrives: { drive: string; freeBytes: number }[] = [];
+
+  let defaultFree = 0;
   try {
-    const root = parse(sysTmp).root;
     const stat = statfsSync(root);
-    const freeBytes = stat.bavail * stat.bsize;
-    if (freeBytes >= 1024 * 1024 * 1024) { // >= 1 GB
-      hasEnoughSpace = true;
-    }
+    defaultFree = stat.bavail * stat.bsize;
+    detectedDrives.push({ drive: root, freeBytes: defaultFree });
   } catch {
-    hasEnoughSpace = true; // fallback
+    defaultFree = REQUIRED_BYTES; // fallback caso statfs não consiga ler
   }
 
-  if (hasEnoughSpace) {
+  if (defaultFree >= REQUIRED_BYTES) {
     return {
       outputDir: process.env.PW_OUTPUT_DIR || 'test-results',
       tempDir: sysTmp
@@ -38,7 +43,8 @@ function resolveSafeWorkDir(): { outputDir: string; tempDir: string } {
     try {
       const stat = statfsSync(c);
       const freeBytes = stat.bavail * stat.bsize;
-      if (freeBytes >= 2 * 1024 * 1024 * 1024) { // >= 2 GB
+      detectedDrives.push({ drive: c, freeBytes });
+      if (freeBytes >= REQUIRED_BYTES) {
         const safeBase = join(c, 'haze-test-tmp');
         mkdirSync(safeBase, { recursive: true });
         const outDir = join(safeBase, 'test-results');
@@ -51,6 +57,23 @@ function resolveSafeWorkDir(): { outputDir: string; tempDir: string } {
         };
       }
     } catch {}
+  }
+
+  // Se nenhuma unidade tiver espaço e não estiver em modo de skip/list/custom dir, falha explicitamente
+  if (!skipCheck) {
+    const detectedInfo = detectedDrives.length
+      ? detectedDrives.map(d => `${d.drive} (${(d.freeBytes / 1024 / 1024).toFixed(0)} MB livres)`).join(', ')
+      : 'nenhuma unidade acessível';
+    throw new Error(
+      `[Playwright] Espaço insuficiente em disco: nenhuma unidade possui o espaço mínimo de 1024 MB (1 GB) necessário para os testes.\n` +
+      `Espaço detectado nas unidades: ${detectedInfo}.\n` +
+      `Espaço mínimo requerido: 1024 MB.\n` +
+      `Para resolver, libere espaço em disco ou defina manualmente o diretório de saída via variável de ambiente:\n` +
+      `  PowerShell: $env:PW_OUTPUT_DIR = "D:\\haze-test-tmp\\test-results"\n` +
+      `  CMD:        set PW_OUTPUT_DIR=D:\\haze-test-tmp\\test-results\n` +
+      `  Linux/macOS: export PW_OUTPUT_DIR=/caminho/test-results\n` +
+      `Ou use PW_SKIP_DISK_CHECK=1 para ignorar esta verificação.`
+    );
   }
 
   return {
