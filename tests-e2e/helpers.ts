@@ -122,3 +122,18 @@ export async function abrirExportacao(page: Page) {
     await page.getByTestId('export-open').click();
   }
 }
+
+export type FerramentaVideo = 'midia' | 'texto' | 'legendas' | 'modelos';
+
+/**
+ * Ativa uma ferramenta específica no trilho vertical do Video Studio.
+ * Se já estiver ativa, não faz nada.
+ */
+export async function abrirFerramenta(page: Page, ferramenta: FerramentaVideo) {
+  const toolId = `tool-${ferramenta === 'midia' ? 'media' : ferramenta === 'texto' ? 'text' : ferramenta === 'legendas' ? 'subtitles' : 'templates'}`;
+  const btn = page.getByTestId(toolId);
+  if ((await btn.getAttribute('aria-pressed')) !== 'true') {
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  }
+}

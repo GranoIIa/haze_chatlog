@@ -1,4 +1,4 @@
-import { abrirExportacao } from './helpers';
+import { abrirExportacao, abrirFerramenta } from './helpers';
 /**
  * Video Studio (POC): monta um vídeo real no navegador (importar, cortar, dividir, reorganizar,
  * chat sincronizado), exporta e valida o ARQUIVO com ffprobe/ffmpeg fora do navegador.
@@ -95,6 +95,7 @@ test.describe('Video Studio (POC)', () => {
     await expect(page.getByTestId('playhead')).toContainText('/ 0:05.00');
 
     // chat de 2 s a 4 s
+    await abrirFerramenta(page, 'texto');
     await page.getByTestId('chat-start').fill('2');
     await page.getByTestId('chat-duration').fill('2');
     await page.getByTestId('chat-add').click();

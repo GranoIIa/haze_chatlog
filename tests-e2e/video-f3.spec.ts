@@ -1,4 +1,4 @@
-import { abrirExportacao } from './helpers';
+import { abrirExportacao, abrirFerramenta } from './helpers';
 /**
  * Video Studio F3: transição, velocidade, fades, legendas SRT e forma de onda.
  * Valida os arquivos exportados com ffmpeg fora do navegador. Requer ffmpeg/ffprobe no PATH.
@@ -148,6 +148,7 @@ test.describe('Video Studio F3', () => {
     test.setTimeout(120_000);
     await open(page, [fBlue]);
     await page.getByTestId('add-clip-0').click();           // azul 3 s
+    await abrirFerramenta(page, 'legendas');
     await page.getByTestId('srt-input').setInputFiles(srt);
     await expect(page.getByTestId('video-message')).toContainText('2 legenda');
     await expect(page.getByTestId('video-message')).toContainText('1 bloco');
