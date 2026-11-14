@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { abrirFerramenta } from './helpers';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -37,6 +38,7 @@ test.describe('Milestone 1 Empirical Stress Tests (Challenger)', () => {
     await expect(page.getByTestId('clip-block')).toBeVisible();
 
     // Add chat overlay
+    await abrirFerramenta(page, 'texto');
     await page.getByTestId('chat-text').fill('Stress Test Tab Switch');
     await page.getByTestId('chat-add').click();
 

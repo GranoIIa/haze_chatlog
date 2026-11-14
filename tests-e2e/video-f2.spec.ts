@@ -1,4 +1,4 @@
-import { abrirExportacao } from './helpers';
+import { abrirExportacao, abrirFerramenta } from './helpers';
 /**
  * Video Studio F2: preset de câmera por clipe, texto livre, chat linha a linha, projeto .haze e reconexão de mídia.
  * Valida os arquivos exportados com ffmpeg fora do navegador. Requer ffmpeg/ffprobe no PATH.
@@ -91,6 +91,7 @@ test.describe('Video Studio F2', () => {
     await open(page, [fBlue]);
     await page.getByTestId('add-clip-0').click();                  // azul 0-3
     // texto livre vermelho entre 0,5 s e 1,5 s
+    await abrirFerramenta(page, 'texto');
     await page.getByTestId('chat-kind').selectOption('text');
     await page.getByTestId('chat-text').fill('TÍTULO DA CENA');
     await page.getByTestId('chat-color').fill('#ff0000');
@@ -121,6 +122,7 @@ test.describe('Video Studio F2', () => {
     await page.getByTestId('clip-block').first().click();
     await page.getByTestId('trim-out').fill('3'); await page.getByTestId('trim-out').blur();
     await page.getByTestId('cam-preset').selectOption('cctv');
+    await abrirFerramenta(page, 'texto');
     await page.getByTestId('chat-kind').selectOption('text');
     await page.getByTestId('chat-text').fill('LEGENDA');
     await page.getByTestId('chat-add').click();

@@ -11,7 +11,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('chatlog');
 
   return (
-    <div className="min-h-screen bg-haze-bg text-haze-text flex flex-col">
+    <div className={`min-h-screen ${activeTab === 'video' ? 'h-screen max-h-screen' : ''} bg-haze-bg text-haze-text flex flex-col`}>
       {/* Top Navbar */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 

@@ -3,7 +3,7 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers, X } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers, X, Film, Type, LayoutTemplate, Plus } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
   addLayer, updateLayer, trimLayer, removeLayer, addKeyframe, removeKeyframe, evalTransform, activeLayers, activeLayerClips, layerDuration,
@@ -20,6 +20,9 @@ import { exportTimeline, ExportCancelled, ExportResult } from '../../video/expor
 import { applyTemplate, findTemplate, EXPORT_PRESETS, findExportPreset, bitrateFor, TARGET_AUDIO_BPS } from '../../video/templates';
 import { TemplatesPanel } from './TemplatesPanel';
 import { GuidedFlow } from './GuidedFlow';
+
+export type VideoTool = 'media' | 'text' | 'subtitles' | 'templates';
+const VALID_TOOLS: VideoTool[] = ['media', 'text', 'subtitles', 'templates'];
 
 const PREVIEW_W = 640;
 const SIZES: Array<[string, number, number]> = [['1280×720', 1280, 720], ['1920×1080', 1920, 1080], ['854×480', 854, 480]];
@@ -87,7 +90,18 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   });
   const changeMode = (m: 'simple' | 'advanced') => { setUiMode(m); try { localStorage.setItem('haze-video-mode-v1', m); } catch { /* sem armazenamento */ } };
   const [presetId, setPresetId] = useState<string>('custom');
-  const [showTemplates, setShowTemplates] = useState(false);
+  const [activeTool, setActiveTool] = useState<VideoTool>(() => {
+    try {
+      const val = localStorage.getItem('haze-video-tool-v1');
+      if (val && (VALID_TOOLS as string[]).includes(val)) return val as VideoTool;
+    } catch { /* sem armazenamento */ }
+    return 'media';
+  });
+  const selectTool = (tool: VideoTool) => {
+    const target: VideoTool = VALID_TOOLS.includes(tool) ? tool : 'media';
+    setActiveTool(target);
+    try { localStorage.setItem('haze-video-tool-v1', target); } catch { /* sem armazenamento */ }
+  };
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -96,6 +110,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const [zoom, setZoom] = useState(140);
   const tlWrapRef = useRef<HTMLDivElement | null>(null);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [mediaThumbs, setMediaThumbs] = useState<Record<string, string>>({});
   const [peaks, setPeaks] = useState<Record<string, Float32Array>>({});
   const [exp, setExp] = useState<{ phase: string; pct: number } | null>(null);
   const [result, setResult] = useState<{ r: ExportResult; url: string } | null>(null);
@@ -115,6 +130,32 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   // mídias do projeto aberto que ainda não foram reconectadas (clipes offline)
   const [pending, setPending] = useState<SavedMedia[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
+  const exportOpenBtnRef = useRef<HTMLButtonElement | null>(null);
+  const exportPresetRef = useRef<HTMLSelectElement | null>(null);
+
+  // Acessibilidade do diálogo de exportação: foco inicial e retorno de foco
+  useEffect(() => {
+    if (showExportModal) {
+      const timer = setTimeout(() => {
+        exportPresetRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+    } else {
+      exportOpenBtnRef.current?.focus();
+    }
+  }, [showExportModal]);
+
+  // Tecla Escape fecha o diálogo de exportação
+  useEffect(() => {
+    if (!showExportModal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowExportModal(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showExportModal]);
 
   const placed = useMemo(() => layout(tl), [tl]);
   const total = totalDuration(tl);
@@ -183,7 +224,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     setPlaying(false);
     apply(() => r.timeline);
     setSelected(null); setSelectedLayer(null); setSelectedOverlay(null); setT(0);
-    setShowTemplates(false);
+    selectTool('media');
     setMessage(`Modelo "${def.name}" aplicado. Troque os textos entre colchetes e ajuste as cenas; Desfazer volta à montagem anterior.`);
     return [];
   };
@@ -298,6 +339,27 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     return () => { dead = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tl.clips, library]);
+
+  // ------------------------------------------------------------ miniaturas dos vídeos da biblioteca
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      for (const m of library) {
+        if (mediaThumbs[m.ref.id]) continue;
+        try {
+          const w = await mediaRef.current.get(m.ref.id)?.video?.getCanvas(0);
+          if (!w || dead) continue;
+          const cv = document.createElement('canvas'); cv.width = 120; cv.height = 68;
+          const ctx = cv.getContext('2d')!; const src = w.canvas as Drawable;
+          const sc = Math.max(120 / src.width, 68 / src.height);
+          ctx.drawImage(src, (120 - src.width * sc) / 2, (68 - src.height * sc) / 2, src.width * sc, src.height * sc);
+          const url = cv.toDataURL('image/jpeg', 0.6);
+          if (!dead) setMediaThumbs(prev => ({ ...prev, [m.ref.id]: url }));
+        } catch { /* sem miniatura: usa ícone de fallback */ }
+      }
+    })();
+    return () => { dead = true; };
+  }, [library, mediaThumbs]);
 
   // ------------------------------------------------------------ reprodução (relógio = relógio do áudio)
   const [audioStatus, setAudioStatus] = useState('parado');
@@ -524,7 +586,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
           </div>
 
           {/* Ações de projeto */}
-          <button className={btn} data-testid="templates-toggle" aria-expanded={showTemplates} onClick={() => setShowTemplates(v => !v)}>
+          <button className={`${btn} ${activeTool === 'templates' ? 'bg-haze-accent/20 border-haze-accent/40 text-haze-accent' : ''}`} data-testid="templates-toggle" aria-expanded={activeTool === 'templates'} onClick={() => selectTool('templates')}>
             Modelos
           </button>
           <label className={`${btn} cursor-pointer`}>
@@ -536,86 +598,193 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
           </button>
 
           {/* Botão primário Exportar no canto direito */}
-          <button className={primary} data-testid="export-open" onClick={() => setShowExportModal(true)}>
-            <Download className="w-4 h-4" /> Exportar
+          <button
+            ref={exportOpenBtnRef}
+            className={primary}
+            data-testid="export-open"
+            onClick={() => setShowExportModal(true)}
+          >
+            <Download className="w-4 h-4" />
+            {exp
+              ? `Exportando ${exp.pct}%`
+              : result
+              ? 'Vídeo pronto'
+              : 'Exportar'}
           </button>
         </div>
       </header>
 
       {/* Alerta de erro ou mensagem */}
       {message && (
-        <div role="alert" data-testid="video-message" className="mx-4 mt-2 px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-xs text-red-300">
+        <div role="alert" data-testid="video-message" className="shrink-0 mx-4 mt-2 px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-xs text-red-300">
           {message}
         </div>
       )}
 
-      {/* Painel expansível de Modelos */}
-      {showTemplates && (
-        <div className="mx-4 mt-2 rounded-xl border border-haze-border bg-haze-panel p-3 max-w-xl shadow-lg">
-          <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
-        </div>
-      )}
+      {/* Área Principal: Trilho + Painel + Player + Inspetor (Flex Dinâmico) */}
+      <div className="flex-1 min-h-0 flex flex-row items-stretch gap-3 px-3 py-2 min-w-0">
+        {/* Trilho Vertical de Ferramentas (~68 px) */}
+        {uiMode === 'advanced' && (
+          <aside className="w-[68px] shrink-0 h-full flex flex-col items-center py-2.5 gap-2 bg-haze-panel rounded-xl border border-haze-border shadow-sm">
+            {[
+              { id: 'media', label: 'Mídia', icon: Film },
+              { id: 'text', label: 'Texto', icon: Type },
+              { id: 'subtitles', label: 'Legendas', icon: Captions },
+              { id: 'templates', label: 'Modelos', icon: LayoutTemplate }
+            ].map(item => {
+              const Icon = item.icon;
+              const isActive = activeTool === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-testid={`tool-${item.id}`}
+                  aria-label={item.label}
+                  aria-pressed={isActive}
+                  onClick={() => selectTool(item.id as VideoTool)}
+                  className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all ${
+                    isActive
+                      ? 'bg-haze-accent/15 text-haze-accent border border-haze-accent/40 shadow-sm'
+                      : 'text-haze-muted hover:text-haze-text hover:bg-haze-raised/60 border border-transparent'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[10px] font-medium mt-1 leading-none">{item.label}</span>
+                </button>
+              );
+            })}
+          </aside>
+        )}
 
-      {/* Área Principal (3 Colunas) */}
-      <div style={{ height: 'calc(100vh - 85px - 52px - 232px)', maxHeight: 'calc(100vh - 85px - 52px - 232px)' }} className="flex-1 grid grid-cols-1 lg:grid-cols-[284px_1fr_304px] items-stretch gap-3 px-3 py-2 min-w-0">
-        {/* Coluna Esquerda: Biblioteca de Mídias e Textos (284 px) */}
-        <section className="w-full h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
-          <label className={`${primary} cursor-pointer w-full justify-center`}>
-            <Upload className="w-4 h-4" /> Importar vídeos
-            <input data-testid="video-file-input" type="file" accept="video/*" multiple className="hidden"
-              onChange={e => { void onFiles(e.target.files); e.target.value = ''; }} />
-          </label>
-          <ul className="space-y-2" data-testid="video-library">
-            {library.map((m, i) => (
-              <li key={m.ref.id} className="rounded-lg border border-haze-border p-2 text-xs">
-                <div className="font-semibold truncate" title={m.ref.name}>{m.ref.name}</div>
-                <div className="text-haze-muted">{fmt(m.ref.duration)} · {m.ref.width}×{m.ref.height} · {m.ref.hasAudio ? 'com áudio' : 'sem áudio'}</div>
-                <button className={`${btn} mt-1.5`} data-testid={`add-clip-${i}`} onClick={() => apply(x => addClip(x, m.ref))}>Adicionar à timeline</button>
-                <button className={`${btn} mt-1.5 ml-1.5`} data-testid={`add-layer-${i}`} title="Entra por cima do vídeo principal, a partir do cursor"
-                  onClick={() => { const id = makeId('layer'); apply(x => addLayer(x, m.ref, t, id)); setSelectedLayer(id); setSelected(null); }}><Layers className="w-3.5 h-3.5" /> Sobrepor</button>
-              </li>
-            ))}
-            {!library.length && !pending.length && <li className="text-xs text-haze-muted">Importe um ou mais vídeos para começar.</li>}
-          </ul>
-          {pending.length > 0 && (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-xs space-y-1" data-testid="pending-media">
-              <div className="font-semibold">Mídias a reconectar</div>
-              {pending.map(p => <div key={p.id} className="truncate" title={p.name}>{p.name}</div>)}
-              <div className="text-haze-muted">Importe os mesmos arquivos (mesmo nome e tamanho) para continuar.</div>
+        {/* Coluna Esquerda: Painel da Ferramenta Ativa (284 px) */}
+        <section className="w-[284px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto shadow-sm">
+          {/* Ferramenta: Mídia */}
+          <div className={`space-y-3 ${activeTool === 'media' ? 'block' : 'hidden'}`}>
+            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Film className="w-3.5 h-3.5 text-haze-accent" /> Mídia
+              </span>
+              <span className="text-[11px] text-haze-muted">{library.length} {library.length === 1 ? 'item' : 'itens'}</span>
             </div>
-          )}
 
-          <label className={`${btn} cursor-pointer w-full justify-center`}><Captions className="w-4 h-4" /> Importar legendas (.srt)
-            <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
-          </label>
-          <div className="border-t border-haze-border pt-3 space-y-2">
-            <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
-            <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
-              <option value="chat">Chat do servidor (cores do Editor RP)</option>
-              <option value="text">Título / legenda livre</option>
-            </select>
-            <textarea data-testid="chat-text" value={chatText} onChange={e => setChatText(e.target.value)} rows={3}
-              className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text" />
-            <div className="flex items-center gap-2 text-xs text-haze-muted">
-              início <input data-testid="chat-start" type="number" step="0.1" min="0" value={chatStart} onChange={e => setChatStart(+e.target.value)} className={input} />
-              duração <input data-testid="chat-duration" type="number" step="0.1" min={MIN_CLIP} value={chatDur} onChange={e => setChatDur(+e.target.value)} className={input} />
+            <label className={`${primary} cursor-pointer w-full justify-center text-xs py-2`}>
+              <Upload className="w-4 h-4 mr-1.5" /> Importar vídeos
+              <input
+                data-testid="video-file-input"
+                type="file"
+                accept="video/*"
+                multiple
+                className="hidden"
+                onChange={e => { void onFiles(e.target.files); e.target.value = ''; }}
+              />
+            </label>
+
+            <ul className="grid grid-cols-2 gap-2" data-testid="video-library">
+              {library.map((m, i) => (
+                <li key={m.ref.id} className="rounded-lg border border-haze-border bg-haze-panel/60 p-2 text-xs flex flex-col justify-between">
+                  <div className="relative aspect-video rounded-md overflow-hidden bg-black/60 flex items-center justify-center border border-haze-border/50 mb-1.5">
+                    {mediaThumbs[m.ref.id] ? (
+                      <img src={mediaThumbs[m.ref.id]} alt={m.ref.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Film className="w-5 h-5 text-haze-faint" />
+                    )}
+                    <span className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 font-mono text-[9px] text-white">
+                      {fmt(m.ref.duration)}
+                    </span>
+                  </div>
+
+                  <div className="font-semibold truncate text-[11px] text-haze-text" title={m.ref.name}>{m.ref.name}</div>
+                  <div className="text-[10px] text-haze-muted truncate">{m.ref.width}×{m.ref.height} · {m.ref.hasAudio ? 'áudio' : 'sem áudio'}</div>
+
+                  <div className="flex items-center gap-1 mt-2">
+                    <button className={`${btn} flex-1 justify-center px-1 py-1 text-xs`} data-testid={`add-clip-${i}`} title="Adicionar à timeline" onClick={() => apply(x => addClip(x, m.ref))}>
+                      <Plus className="w-3 h-3 mr-0.5" /> +
+                    </button>
+                    <button className={`${btn} px-1.5 py-1 text-xs`} data-testid={`add-layer-${i}`} title="Entra por cima do vídeo principal, a partir do cursor"
+                      onClick={() => { const id = makeId('layer'); apply(x => addLayer(x, m.ref, t, id)); setSelectedLayer(id); setSelected(null); }}>
+                      <Layers className="w-3 h-3 mr-0.5" /> Sobrepor
+                    </button>
+                  </div>
+                </li>
+              ))}
+              {!library.length && !pending.length && (
+                <li className="col-span-2 text-xs text-haze-muted p-4 text-center rounded-lg border border-dashed border-haze-border">
+                  Importe um ou mais vídeos para começar.
+                </li>
+              )}
+            </ul>
+
+            {pending.length > 0 && (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-xs space-y-1" data-testid="pending-media">
+                <div className="font-semibold">Mídias a reconectar</div>
+                {pending.map(p => <div key={p.id} className="truncate" title={p.name}>{p.name}</div>)}
+                <div className="text-haze-muted">Importe os mesmos arquivos (mesmo nome e tamanho) para continuar.</div>
+              </div>
+            )}
+          </div>
+
+          {/* Ferramenta: Texto */}
+          <div className={`space-y-3 ${activeTool === 'text' ? 'block' : 'hidden'}`}>
+            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-haze-accent" /> Texto
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-haze-muted">
-              {chatKind === 'chat'
-                ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
-                : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
+            <div className="space-y-2">
+              <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
+              <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
+                <option value="chat">Chat do servidor (cores do Editor RP)</option>
+                <option value="text">Título / legenda livre</option>
+              </select>
+              <textarea data-testid="chat-text" value={chatText} onChange={e => setChatText(e.target.value)} rows={3}
+                className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text" />
+              <div className="flex items-center gap-2 text-xs text-haze-muted">
+                início <input data-testid="chat-start" type="number" step="0.1" min="0" value={chatStart} onChange={e => setChatStart(+e.target.value)} className={input} />
+                duração <input data-testid="chat-duration" type="number" step="0.1" min={MIN_CLIP} value={chatDur} onChange={e => setChatDur(+e.target.value)} className={input} />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-haze-muted">
+                {chatKind === 'chat'
+                  ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
+                  : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
+              </div>
+              <button className={`${btn} w-full justify-center mb-1`} data-testid="chat-add" disabled={!chatText.trim()}
+                onClick={() => apply(x => {
+                  const id = makeId('chat');
+                  const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
+                  return chatKind === 'chat' && chatStep > 0 ? setLineStep(n, id, chatStep) : n;
+                })}>Adicionar texto</button>
             </div>
-            <button className={`${btn} w-full justify-center mb-1`} data-testid="chat-add" disabled={!chatText.trim()}
-              onClick={() => apply(x => {
-                const id = makeId('chat');
-                const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
-                return chatKind === 'chat' && chatStep > 0 ? setLineStep(n, id, chatStep) : n;
-              })}>Adicionar texto</button>
+          </div>
+
+          {/* Ferramenta: Legendas */}
+          <div className={`space-y-3 ${activeTool === 'subtitles' ? 'block' : 'hidden'}`}>
+            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Captions className="w-3.5 h-3.5 text-haze-accent" /> Legendas
+              </span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs text-haze-muted">Importe arquivos de legenda no formato SRT para embutir na timeline.</p>
+              <label className={`${btn} cursor-pointer w-full justify-center py-2.5`}>
+                <Captions className="w-4 h-4 mr-1.5" /> Importar legendas (.srt)
+                <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Ferramenta: Modelos */}
+          <div className={`space-y-3 ${activeTool === 'templates' ? 'block' : 'hidden'}`}>
+            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <LayoutTemplate className="w-3.5 h-3.5 text-haze-accent" /> Modelos
+              </span>
+            </div>
+            <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
           </div>
         </section>
 
         {/* Coluna Central: Player Canvas + Barra de Reprodução */}
-        <section className="w-full min-w-0 h-full min-h-0 flex flex-col items-center justify-between p-2 rounded-xl border border-haze-border bg-haze-panel/30 overflow-y-auto">
+        <section className="flex-1 min-w-0 h-full min-h-0 flex flex-col items-center justify-between p-2 rounded-xl border border-haze-border bg-haze-panel/30 overflow-y-auto">
           <div className="rounded-xl border border-haze-border bg-black p-2 flex justify-center items-center w-full max-w-[800px] flex-1 min-h-0 shadow-lg">
             <canvas ref={canvasRef} data-testid="video-preview" width={PREVIEW_W} height={previewH} style={{ width: PREVIEW_W, maxWidth: '100%', maxHeight: '100%', height: 'auto', objectFit: 'contain' }} />
           </div>
@@ -641,13 +810,13 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
         {/* Coluna Direita: Inspetor Contextual (304 px, Avançado) ou Fluxo Guiado (Simples) */}
         {uiMode === 'simple' ? (
-          <section className="w-full h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto">
+          <section className="w-[304px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto shadow-sm">
             <GuidedFlow tl={tl} mediaOf={id => mediaRef.current.get(id)} apply={apply} presetId={presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId}
               setPresetId={setPresetId} exporting={exp} result={result} onExport={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
               onCancel={() => abortRef.current?.abort()} />
           </section>
         ) : (
-          <section className="w-full h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto">
+          <section className="w-[304px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto shadow-sm">
             {selLayer && selLayerMedia && (() => {
               const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
               const cur = evalTransform(selLayer, rel);
@@ -857,9 +1026,13 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         </div>
       )}
 
-      {/* Painel / Popover de Exportação */}
+      {/* Painel / Popover de Exportação (Diálogo Acessível Não-Modal com Rolagem Interna) */}
       {showExportModal && (
-        <aside className="fixed top-14 right-4 z-50 w-full max-w-md rounded-2xl border border-haze-border bg-haze-panel p-5 shadow-2xl space-y-4" aria-label="Painel de exportação">
+        <div
+          role="dialog"
+          aria-label="Exportar vídeo"
+          className="fixed top-14 right-4 z-50 w-full max-w-md max-h-[calc(100vh-4.5rem)] overflow-y-auto rounded-2xl border border-haze-border bg-haze-panel p-5 shadow-2xl space-y-4"
+        >
             <div className="flex items-center justify-between border-b border-haze-border pb-3">
               <div className="flex items-center gap-2">
                 <Download className="w-5 h-5 text-haze-accent" />
@@ -874,7 +1047,13 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             <div className="space-y-3">
               <label className="text-xs text-haze-muted block space-y-1">
                 <span>Preset de exportação</span>
-                <select data-testid="export-preset" value={presetId} onChange={e => setPresetId(e.target.value)} className="w-full px-2.5 py-1.5 rounded-lg bg-haze-bg border border-haze-border text-xs text-white">
+                <select
+                  ref={exportPresetRef}
+                  data-testid="export-preset"
+                  value={presetId}
+                  onChange={e => setPresetId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-haze-bg border border-haze-border text-xs text-white"
+                >
                   <option value="custom">Personalizado (tamanho e fps abaixo)</option>
                   {EXPORT_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                 </select>
@@ -932,7 +1111,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                 </div>
               )}
             </div>
-        </aside>
+        </div>
       )}
     </div>
   );

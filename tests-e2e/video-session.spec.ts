@@ -7,6 +7,7 @@
  * pausada ao sair da aba ativa sem vazamento de decodificadores/áudio.
  */
 import { test, expect } from '@playwright/test';
+import { abrirFerramenta } from './helpers';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -54,6 +55,7 @@ test.describe('Video Studio: Preservação de Sessão e Desacoplamento de Abas',
     await expect(page.getByTestId('clip-block')).toBeVisible();
 
     // Adiciona um overlay de texto para testar múltiplos elementos de estado
+    await abrirFerramenta(page, 'texto');
     await page.getByTestId('chat-text').fill('Texto de Teste de Sessão');
     await page.getByTestId('chat-add').click();
 

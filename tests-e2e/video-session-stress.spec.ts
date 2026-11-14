@@ -3,6 +3,7 @@
  * Written by Challenger (challenger_m1_1)
  */
 import { test, expect } from '@playwright/test';
+import { abrirFerramenta } from './helpers';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -50,6 +51,7 @@ test.describe('Milestone 1 Empirical Stress Tests', () => {
     await expect(page.getByTestId('clip-block')).toBeVisible();
 
     // Add text overlay
+    await abrirFerramenta(page, 'texto');
     await page.getByTestId('chat-text').fill('Stress Test Overlay');
     await page.getByTestId('chat-add').click();
 
