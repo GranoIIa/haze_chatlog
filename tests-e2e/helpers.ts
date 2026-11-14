@@ -137,3 +137,19 @@ export async function abrirFerramenta(page: Page, ferramenta: FerramentaVideo) {
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
   }
 }
+
+export type AbaInspetor = 'video' | 'audio' | 'camada';
+
+/**
+ * Ativa uma aba específica no Inspetor Contextual do Video Studio.
+ * Se já estiver ativa, não faz nada.
+ */
+export async function abrirAbaInspetor(page: Page, aba: AbaInspetor) {
+  const tabId = `inspector-tab-${aba === 'camada' ? 'layer' : aba}`;
+  const btn = page.getByTestId(tabId);
+  if ((await btn.getAttribute('aria-selected')) !== 'true') {
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-selected', 'true');
+  }
+}
+
