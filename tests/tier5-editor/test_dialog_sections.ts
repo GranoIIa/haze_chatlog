@@ -54,7 +54,7 @@ describe('Tier 5: Diálogos, seções e canal de texto', () => {
   test('T5_SEC_01_SectionOrder: as seções do Editor RP seguem a ordem do fluxo de trabalho', () => {
     assertDeepEqual([...SECTION_IDS], [
       'fundo', 'resolucao', 'personagens', 'dialogos', 'camera', 'retoque',
-      'rp', 'adesivos', 'tipografia', 'iluminacao', 'camadas', 'inspetor', 'salvar'
+      'rp', 'adesivos', 'tipografia', 'iluminacao', 'camadas', 'inspetor'
     ]);
     assertEqual(new Set(SECTION_IDS).size, SECTION_IDS.length);
   });

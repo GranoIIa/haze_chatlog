@@ -198,11 +198,16 @@ test.describe('Adversarial Stress Test: PreviewAudio & Playhead Integrity', () =
     const observedPlayheads: { target: number; observed: string; numericObserved: number }[] = [];
 
     for (const target of seekTargets) {
-      // Dispara seek via playhead-input com intervalo de 50ms
+      // Dispara seek via playhead-input com intervalo de 50ms usando o descriptor nativo do protótipo
       await page.evaluate((targetTime) => {
         const input = document.querySelector('[data-testid="playhead-input"]') as HTMLInputElement;
         if (input) {
-          input.value = String(targetTime);
+          const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+          if (descriptor && descriptor.set) {
+            descriptor.set.call(input, String(targetTime));
+          } else {
+            input.value = String(targetTime);
+          }
           input.dispatchEvent(new Event('input', { bubbles: true }));
           input.dispatchEvent(new Event('change', { bubbles: true }));
         }

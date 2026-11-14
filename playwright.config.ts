@@ -9,6 +9,7 @@ const channel = process.env.PW_CHANNEL === 'chromium' ? undefined : (process.env
 
 export default defineConfig({
   testDir: './tests-e2e',
+  outputDir: process.env.PW_OUTPUT_DIR || 'test-results',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

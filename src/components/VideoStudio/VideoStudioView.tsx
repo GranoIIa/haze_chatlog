@@ -391,11 +391,12 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   }, [playing]);
   // qualquer edição durante a reprodução pausa (o áudio agendado seria da versão antiga)
   useEffect(() => { setPlaying(false); }, [tl]);
-  // quando a aba deixa de ser ativa, pausa imediatamente a reprodução
+  // quando a aba deixa de ser ativa, pausa imediatamente a reprodução e libera o contexto de áudio
   useEffect(() => {
     if (!active) {
       if (playing) setPlaying(false);
       audioRef.current?.stop();
+      PreviewAudio.closeSharedContext();
     }
   }, [active, playing]);
 

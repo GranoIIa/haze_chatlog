@@ -82,7 +82,7 @@ test.describe('Video Studio F4', () => {
 
     await page.getByTestId('export-preset').selectOption('discord');
     await page.getByTestId('export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
     const out = await download(page, 'documentario.mp4');
     const p = probe(out);
     expect(Number(p.format.duration)).toBeGreaterThan(6.1); expect(Number(p.format.duration)).toBeLessThan(6.5);
@@ -117,7 +117,7 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('tpl-apply').click();
     await page.getByTestId('export-preset').selectOption('discord');
     await page.getByTestId('export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
     const out = await download(page, 'policial.mp4');
     const hud = lumaStd(region(frame(out, 0.5), 10, 8, 420, 50));
     expect(hud).toBeGreaterThan(20);                                             // HUD da bodycam desde o início
@@ -134,7 +134,7 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('video-mode-simple').click();
     await expect(page.getByTestId('guided-flow')).toBeVisible();
     await expect(page.getByTestId('timeline')).toHaveCount(0);                   // sem a timeline avançada
-    await expect(page.getByTestId('simple-progress')).toContainText('importar');
+    await expect(page.getByTestId('guided-flow').getByTestId('simple-progress')).toContainText('importar');
     await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
     await expect(page.getByTestId('simple-clip-1')).toBeVisible();               // entraram sozinhos
     // cortar o vermelho para 2 s e trocar a ordem (azul primeiro)
@@ -148,11 +148,11 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('simple-visual-bodycam').click();
     await page.getByTestId('simple-transition').selectOption('0.5');
     await page.getByTestId('simple-fade').check();
-    await expect(page.getByTestId('simple-progress')).toContainText('4.5');      // 3 + 2 - 0,5
+    await expect(page.getByTestId('guided-flow').getByTestId('simple-progress')).toContainText('4.5');      // 3 + 2 - 0,5
     await page.getByTestId('simple-preset').selectOption('discord');
     await expect(page.getByTestId('simple-preset-note')).toContainText('kbps');
     await page.getByTestId('simple-export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
     const out = await download(page, 'simples.mp4');
     const p = probe(out);
     const v = p.streams.find((s: any) => s.codec_type === 'video');
@@ -182,7 +182,7 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('add-clip-0').click();
     await page.getByTestId('export-preset').selectOption('discord');
     await page.getByTestId('export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 250_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 250_000 });
     const small = statSync(await download(page, 'longo-discord.mp4')).size;
     console.log(`F4: 3 min no preset Discord = ${(small / 1048576).toFixed(2)} MB (alvo 10 MB)`);
     expect(small).toBeLessThan(10 * 1024 * 1024 * 1.15);
@@ -190,7 +190,7 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('export-size').selectOption({ label: '854×480' });
     await page.getByTestId('export-fps').selectOption('24');
     await page.getByTestId('export').click();
-    await expect(page.getByTestId('export-info')).toBeVisible({ timeout: 250_000 });
+    await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 250_000 });
     const big = statSync(await download(page, 'longo-custom.mp4')).size;
     console.log(`F4: 3 min personalizado 480p24 = ${(big / 1048576).toFixed(2)} MB`);
     expect(big).toBeGreaterThan(small * 1.3);
