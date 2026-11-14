@@ -220,37 +220,58 @@ test.describe('Video Studio PR C - Inspetor Contextual com Abas Condicionais', (
     }
   });
 
-  test('em 1280x720 os botões move-left e move-right do inspetor de clipe ficam dentro da viewport', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/');
-    await page.getByTestId('tab-video').click();
-    await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
-    await expect(page.getByTestId('video-library').locator('li')).toHaveCount(2);
+  test('a barra de ações do inspetor fica visível em 1280x720, 1366x768 e 1440x900 e o corpo rola quando maior', async ({ page }) => {
+    const viewports = [
+      { width: 1280, height: 720 },
+      { width: 1366, height: 768 },
+      { width: 1440, height: 900 },
+    ];
 
-    await page.getByTestId('add-clip-0').click();
-    await page.getByTestId('add-clip-1').click();
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/');
+      await page.getByTestId('tab-video').click();
+      await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
+      await expect(page.getByTestId('video-library').locator('li')).toHaveCount(2);
 
-    // Seleciona o primeiro clipe
-    await page.getByTestId('clip-block').first().click();
-    await expect(page.getByTestId('inspector')).toBeVisible();
+      await page.getByTestId('add-clip-0').click();
+      await page.getByTestId('add-clip-1').click();
 
-    // Valida que move-left e move-right estão visíveis e dentro da viewport vertical (<= 720px)
-    const moveLeft = page.getByTestId('move-left');
-    const moveRight = page.getByTestId('move-right');
+      // Seleciona o primeiro clipe
+      await page.getByTestId('clip-block').first().click();
+      await expect(page.getByTestId('inspector')).toBeVisible();
 
-    await expect(moveLeft).toBeVisible();
-    await expect(moveRight).toBeVisible();
+      // Ativa preset de câmera para expandir os campos e aumentar a altura do conteúdo
+      await page.getByTestId('cam-preset').selectOption('bodycam');
+      await expect(page.getByTestId('cam-fields')).toBeVisible();
 
-    const boxLeft = await moveLeft.boundingBox();
-    const boxRight = await moveRight.boundingBox();
+      // Valida que move-left e move-right estão visíveis e dentro da viewport vertical (<= viewport.height)
+      const moveLeft = page.getByTestId('move-left');
+      const moveRight = page.getByTestId('move-right');
 
-    expect(boxLeft).not.toBeNull();
-    expect(boxRight).not.toBeNull();
+      await expect(moveLeft).toBeVisible();
+      await expect(moveRight).toBeVisible();
 
-    expect(boxLeft!.y + boxLeft!.height).toBeLessThanOrEqual(720);
-    expect(boxLeft!.y).toBeGreaterThanOrEqual(0);
+      const boxLeft = await moveLeft.boundingBox();
+      const boxRight = await moveRight.boundingBox();
 
-    expect(boxRight!.y + boxRight!.height).toBeLessThanOrEqual(720);
-    expect(boxRight!.y).toBeGreaterThanOrEqual(0);
+      expect(boxLeft).not.toBeNull();
+      expect(boxRight).not.toBeNull();
+
+      expect(boxLeft!.y + boxLeft!.height).toBeLessThanOrEqual(vp.height);
+      expect(boxLeft!.y).toBeGreaterThanOrEqual(0);
+
+      expect(boxRight!.y + boxRight!.height).toBeLessThanOrEqual(vp.height);
+      expect(boxRight!.y).toBeGreaterThanOrEqual(0);
+
+      // Em 1280x720, valida explicitamente que o corpo do inspetor rola (scrollHeight > clientHeight)
+      if (vp.height === 720) {
+        const scrollInfo = await page.getByTestId('inspector-body').evaluate((el) => ({
+          scrollHeight: el.scrollHeight,
+          clientHeight: el.clientHeight,
+        }));
+        expect(scrollInfo.scrollHeight).toBeGreaterThan(scrollInfo.clientHeight);
+      }
+    }
   });
 });

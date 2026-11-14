@@ -26,9 +26,10 @@ test.beforeAll(() => {
 });
 
 test.describe('Video Studio PR D - Timeline, Barra de Ferramentas, Cabeçalhos e Atalhos', () => {
-  test('cabeçalhos de trilha fixos e barra de ferramentas visíveis na timeline', async ({ page }) => {
+  test('cabeçalhos de trilha fixos, alinhamento exato e barra de ferramentas visíveis na timeline', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('tab-video').click();
+    await abrirFerramenta(page, 'midia');
     await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
     await expect(page.getByTestId('video-library').locator('li')).toHaveCount(2);
 
@@ -50,12 +51,43 @@ test.describe('Video Studio PR D - Timeline, Barra de Ferramentas, Cabeçalhos e
     await expect(page.getByTestId('zoom-fit')).toBeVisible();
 
     // Valida cabeçalhos fixos de trilhas
-    await expect(page.getByTestId('track-v1')).toBeVisible();
-    await expect(page.getByTestId('track-v1')).toHaveText('V1 Vídeo');
-    await expect(page.getByTestId('track-v2')).toBeVisible();
-    await expect(page.getByTestId('track-v2')).toHaveText('V2 Sobrepor');
-    await expect(page.getByTestId('track-t')).toBeVisible();
-    await expect(page.getByTestId('track-t')).toHaveText('T Texto/Chat');
+    const h0 = page.getByTestId('track-v1');
+    const h1 = page.getByTestId('track-v2');
+    const h2 = page.getByTestId('track-t');
+
+    await expect(h0).toBeVisible();
+    await expect(h0).toHaveText('V1 Vídeo');
+    await expect(h1).toBeVisible();
+    await expect(h1).toHaveText('V2 Sobrepor');
+    await expect(h2).toBeVisible();
+    await expect(h2).toHaveText('T Texto/Chat');
+
+    // Valida largura de 88px dos cabeçalhos (igual a startLeft={88})
+    const boxH0 = await h0.boundingBox();
+    const boxH1 = await h1.boundingBox();
+    const boxH2 = await h2.boundingBox();
+
+    expect(boxH0).not.toBeNull();
+    expect(boxH1).not.toBeNull();
+    expect(boxH2).not.toBeNull();
+
+    expect(Math.abs(boxH0!.width - 88)).toBeLessThanOrEqual(1);
+    expect(Math.abs(boxH1!.width - 88)).toBeLessThanOrEqual(1);
+    expect(Math.abs(boxH2!.width - 88)).toBeLessThanOrEqual(1);
+
+    // Valida alinhamento vertical dos cabeçalhos com as trilhas reais (tolerância <= 2px)
+    const rows = page.locator('.timeline-editor-edit-row');
+    const boxR0 = await rows.nth(0).boundingBox();
+    const boxR1 = await rows.nth(1).boundingBox();
+    const boxR2 = await rows.nth(2).boundingBox();
+
+    expect(boxR0).not.toBeNull();
+    expect(boxR1).not.toBeNull();
+    expect(boxR2).not.toBeNull();
+
+    expect(Math.abs(boxH0!.y - boxR0!.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(boxH1!.y - boxR1!.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(boxH2!.y - boxR2!.y)).toBeLessThanOrEqual(2);
 
     // Valida alternância do ímã magnético (snap)
     const snapBtn = page.getByTestId('tl-tool-snap');
@@ -69,6 +101,7 @@ test.describe('Video Studio PR D - Timeline, Barra de Ferramentas, Cabeçalhos e
   test('atalho de teclado Espaço toca e pausa quando não estiver em campo de entrada', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('tab-video').click();
+    await abrirFerramenta(page, 'midia');
     await page.getByTestId('video-file-input').setInputFiles([fRed]);
     await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
     await page.getByTestId('add-clip-0').click();
@@ -86,27 +119,42 @@ test.describe('Video Studio PR D - Timeline, Barra de Ferramentas, Cabeçalhos e
     await expect(playBtn).toHaveText(/Reproduzir/);
   });
 
-  test('atalho de teclado Espaço NÃO toca nem pausa ao digitar dentro de campo de entrada', async ({ page }) => {
+  test('atalhos de teclado NÃO disparam com foco em campo de entrada (sem divisão nem remoção)', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('tab-video').click();
+    await abrirFerramenta(page, 'midia');
     await page.getByTestId('video-file-input').setInputFiles([fRed]);
     await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
     await page.getByTestId('add-clip-0').click();
 
+    // Contagem inicial de clipes = 1
+    await expect(page.getByTestId('clip-block')).toHaveCount(1);
+
     const playBtn = page.getByTestId('play');
     await expect(playBtn).toHaveText(/Reproduzir/);
 
-    // Foca no input de texto
+    // Foca no input de texto e limpa qualquer valor inicial
     await abrirFerramenta(page, 'texto');
     const input = page.getByTestId('chat-text');
     await input.click();
-    await input.fill('palavra');
-    await page.keyboard.press('Space');
-    await input.type('outra');
+    await input.fill('');
 
-    // Continua pausado (não tocou ao pressionar Espaço dentro do input)
+    // Digita 'c' no input: não deve dividir o clipe
+    await page.keyboard.press('c');
+    await expect(input).toHaveValue('c');
+    await expect(page.getByTestId('clip-block')).toHaveCount(1);
+
+    // Pressiona Espaço no input: não deve tocar nem pausar o player
+    await page.keyboard.press('Space');
     await expect(playBtn).toHaveText(/Reproduzir/);
-    await expect(input).toHaveValue('palavra outra');
+    await expect(input).toHaveValue('c ');
+
+    // Digita mais texto e pressiona Delete / Backspace: não deve remover o clipe
+    await input.type('teste');
+    await expect(input).toHaveValue('c teste');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Delete');
+    await expect(page.getByTestId('clip-block')).toHaveCount(1);
   });
 
   test('atalho C divide o clipe no cursor e Delete remove o clipe selecionado', async ({ page }) => {
@@ -122,7 +170,7 @@ test.describe('Video Studio PR D - Timeline, Barra de Ferramentas, Cabeçalhos e
     await page.getByTestId('playhead-input').fill('1.0');
     await page.getByTestId('playhead-input').blur();
 
-    // Pressiona C no corpo para dividir
+    // Pressiona C no corpo para dividir (sem modificadores)
     await page.locator('body').click();
     await page.keyboard.press('c');
     await expect(page.getByTestId('clip-block')).toHaveCount(2);
@@ -133,6 +181,38 @@ test.describe('Video Studio PR D - Timeline, Barra de Ferramentas, Cabeçalhos e
 
     await page.keyboard.press('Delete');
     await expect(page.getByTestId('clip-block')).toHaveCount(1);
+  });
+
+  test('atalhos são ignorados quando o diálogo de exportação está aberto', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+    await abrirFerramenta(page, 'midia');
+    await page.getByTestId('video-file-input').setInputFiles([fRed]);
+    await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
+    await page.getByTestId('add-clip-0').click();
+    await expect(page.getByTestId('clip-block')).toHaveCount(1);
+
+    // Abre diálogo de exportação
+    await page.getByTestId('export-open').click();
+    const dialog = page.getByRole('dialog', { name: 'Exportar vídeo' });
+    await expect(dialog).toBeVisible();
+
+    // Clica no container do diálogo para tirar foco de selects
+    await dialog.click();
+
+    // Tenta usar atalhos: Espaço, C, Delete com o diálogo aberto
+    await page.keyboard.press('Space');
+    await expect(page.getByTestId('play')).toHaveText(/Reproduzir/);
+
+    await page.keyboard.press('c');
+    await expect(page.getByTestId('clip-block')).toHaveCount(1);
+
+    await page.keyboard.press('Delete');
+    await expect(page.getByTestId('clip-block')).toHaveCount(1);
+
+    // Fecha com Escape
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
   });
 
   test('capturas da timeline em 1440x900 e 1280x720 com blocos coloridos e anel de seleção', async ({ page }) => {

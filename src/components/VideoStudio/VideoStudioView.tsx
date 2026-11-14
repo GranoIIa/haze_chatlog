@@ -63,7 +63,7 @@ const ClipBlock: React.FC<{ id: string; wave?: { peaks: Float32Array; mediaDur: 
           onReorder(others.filter(c => c < target).length);
         }}
         onPointerCancel={() => { start.current = null; setDx(0); }}
-        className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-haze-accent/25 border border-haze-accent/60 text-white font-medium select-none relative ${selected ? 'ring-2 ring-haze-accent border-haze-accent' : ''}`}>
+        className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-indigo-950/90 border border-indigo-500/70 text-indigo-100 font-medium select-none relative ${selected ? 'ring-2 ring-haze-accent border-haze-accent' : ''}`}>
         {muted && <VolumeX className="w-3 h-3 shrink-0" />}<span className="truncate">{label}</span>
         {wave && <canvas ref={cvRef} data-testid="waveform" className="absolute left-0 bottom-0 w-full pointer-events-none" style={{ height: 14 }} />}
       </div>
@@ -200,16 +200,30 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   }, [total]);
 
   // ResizeObserver para ajuste dinâmico do zoom automático na mudança de largura da timeline
+  const lastWidth = useRef<number>(0);
+  const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const el = tlWrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => {
-      if (total > 0 && !userZoomed.current) {
-        fitZoom(140);
-      }
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const w = entry?.contentRect?.width ?? el.clientWidth ?? 0;
+      if (Math.abs(w - lastWidth.current) < 2) return;
+      lastWidth.current = w;
+
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
+      resizeTimer.current = setTimeout(() => {
+        if (total > 0 && !userZoomed.current) {
+          fitZoom(140);
+        }
+      }, 100);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
+      ro.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [total]);
 
@@ -217,6 +231,9 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   useEffect(() => {
     if (!active) return;
     const onKeyDown = (e: KeyboardEvent) => {
+      // Nunca disparar se o diálogo de exportação estiver aberto
+      if (showExportModal) return;
+
       const target = e.target as HTMLElement | null;
       if (target) {
         const tag = target.tagName.toLowerCase();
@@ -225,14 +242,16 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         }
       }
 
-      // 1. Espaço: Tocar / Pausar
+      // 1. Espaço: Tocar / Pausar (sem modificadores)
       if (e.code === 'Space' || e.key === ' ') {
-        e.preventDefault();
-        setPlaying(p => !p);
-        return;
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          setPlaying(p => !p);
+          return;
+        }
       }
 
-      // 2. C: Dividir no cursor
+      // 2. C: Dividir no cursor (sem modificadores)
       if (e.key === 'c' || e.key === 'C') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
@@ -243,9 +262,9 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         }
       }
 
-      // 3. Delete / Backspace: Excluir item selecionado
+      // 3. Delete / Backspace: Excluir item selecionado (sem modificadores)
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (!e.ctrlKey && !e.metaKey) {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           if (selected) {
             e.preventDefault();
             apply(x => removeClip(x, selected));
@@ -263,7 +282,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         }
       }
 
-      // 4. Ctrl+Z / Ctrl+Y: Desfazer / Refazer
+      // 4. Ctrl+Z / Ctrl+Y: Desfazer / Refazer (histórico existente da timeline)
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
         if (e.key === 'z' || e.key === 'Z') {
           e.preventDefault();
@@ -284,7 +303,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [active, tl, t, selected, selectedLayer, selectedOverlay, apply, selectClip, selectLayer, selectOverlay]);
+  }, [active, showExportModal, tl, t, selected, selectedLayer, selectedOverlay, apply, selectClip, selectLayer, selectOverlay]);
   const [outW, outH] = [SIZES[sizeIdx][1], SIZES[sizeIdx][2]];
   const previewH = Math.round((PREVIEW_W * outH) / outW / 2) * 2;
   const selClip = tl.clips.find(c => c.id === selected) ?? null;
@@ -1060,7 +1079,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             {/* 2. SELEÇÃO: CLIPE DE VÍDEO */}
             {activeSelection === 'clip' && selClip && selMedia && (
               <div className="h-full min-h-0 flex flex-col justify-between text-xs" data-testid="inspector">
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
+                <div data-testid="inspector-body" className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
                   {/* Cabeçalho */}
                   <div className="pb-2 border-b border-haze-border/50">
                     <div className="font-semibold text-xs text-white truncate" title={selMedia.ref.name}>
@@ -1393,8 +1412,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
               ? <div className="flex-1 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
               : <div className="relative pt-1.5 flex-1 min-h-0">
                   {/* Cabeçalho fixo à esquerda de cada trilha */}
-                  <div className="absolute left-0 bottom-0 w-[84px] z-20 pointer-events-none flex flex-col justify-end" style={{ top: 28 }}>
-                    <div data-testid="track-v1" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-haze-accent uppercase tracking-wider border-b border-haze-border/30 bg-haze-panel/95">
+                  <div className="absolute left-0 w-[88px] z-20 pointer-events-none flex flex-col" style={{ top: 48 }}>
+                    <div data-testid="track-v1" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-indigo-300 uppercase tracking-wider border-b border-haze-border/30 bg-haze-panel/95">
                       V1 Vídeo
                     </div>
                     <div data-testid="track-v2" className="h-[34px] px-2 flex items-center text-[10px] font-semibold text-fuchsia-400 uppercase tracking-wider border-b border-haze-border/30 bg-haze-panel/95">
