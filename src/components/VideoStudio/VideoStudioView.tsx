@@ -3,7 +3,7 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers, X, Film, Type, LayoutTemplate, Plus } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, Volume2, Sliders, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers, X, Film, Type, LayoutTemplate, Plus } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
   addLayer, updateLayer, trimLayer, removeLayer, addKeyframe, removeKeyframe, evalTransform, activeLayers, activeLayerClips, layerDuration,
@@ -84,6 +84,32 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [selectedOverlay, setSelectedOverlay] = useState<string | null>(null);
+  const [inspectorTab, setInspectorTab] = useState<'video' | 'audio'>('video');
+
+  const selectClip = useCallback((id: string | null) => {
+    setSelected(id);
+    if (id) {
+      setSelectedLayer(null);
+      setSelectedOverlay(null);
+      setInspectorTab('video');
+    }
+  }, []);
+
+  const selectLayer = useCallback((id: string | null) => {
+    setSelectedLayer(id);
+    if (id) {
+      setSelected(null);
+      setSelectedOverlay(null);
+    }
+  }, []);
+
+  const selectOverlay = useCallback((id: string | null) => {
+    setSelectedOverlay(id);
+    if (id) {
+      setSelected(null);
+      setSelectedLayer(null);
+    }
+  }, []);
   // Avançado continua o padrão (compatibilidade); o Simples é opcional e lembrado neste navegador.
   const [uiMode, setUiMode] = useState<'simple' | 'advanced'>(() => {
     try { return localStorage.getItem('haze-video-mode-v1') === 'simple' ? 'simple' : 'advanced'; } catch { return 'advanced'; }
@@ -102,6 +128,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     setActiveTool(target);
     try { localStorage.setItem('haze-video-tool-v1', target); } catch { /* sem armazenamento */ }
   };
+  // No modo Simples, a coluna esquerda sempre exibe a biblioteca de Mídia (evita duplicar com o fluxo guiado)
+  const effectiveTool: VideoTool = uiMode === 'simple' ? 'media' : activeTool;
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -176,6 +204,20 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const selOverlay = tl.overlays.find(o => o.id === selectedOverlay) ?? null;
   const selLayerMedia = selLayer ? mediaRef.current.get(selLayer.mediaId) : undefined;
   const selMedia = selClip ? mediaRef.current.get(selClip.mediaId) : undefined;
+
+  const clipPlaced = useMemo(() => {
+    if (!selClip) return null;
+    return placed.find(p => p.clip.id === selClip.id) ?? null;
+  }, [placed, selClip]);
+  const clipStart = clipPlaced ? clipPlaced.start : 0;
+  const clipDur = selClip ? clipDuration(selClip) : 0;
+
+  const activeSelection: 'clip' | 'layer' | 'overlay' | 'none' = useMemo(() => {
+    if (selLayer && selLayerMedia) return 'layer';
+    if (selClip && selMedia) return 'clip';
+    if (selOverlay) return 'overlay';
+    return 'none';
+  }, [selLayer, selLayerMedia, selClip, selMedia, selOverlay]);
 
   useEffect(() => () => {
     abortRef.current?.abort();
@@ -658,8 +700,8 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
 
         {/* Coluna Esquerda: Painel da Ferramenta Ativa (284 px) */}
         <section className="w-[284px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto shadow-sm">
-          {/* Ferramenta: Mídia */}
-          <div className={`space-y-3 ${activeTool === 'media' ? 'block' : 'hidden'}`}>
+          {/* Ferramenta: Mídia (Sempre visível no Modo Simples, ou quando ativa no Modo Avançado) */}
+          <div className={`space-y-3 ${effectiveTool === 'media' ? 'block' : 'hidden'}`}>
             <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
                 <Film className="w-3.5 h-3.5 text-haze-accent" /> Mídia
@@ -697,12 +739,25 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                   <div className="text-[10px] text-haze-muted truncate">{m.ref.width}×{m.ref.height} · {m.ref.hasAudio ? 'áudio' : 'sem áudio'}</div>
 
                   <div className="flex items-center gap-1 mt-2">
-                    <button className={`${btn} flex-1 justify-center px-1 py-1 text-xs`} data-testid={`add-clip-${i}`} title="Adicionar à timeline" onClick={() => apply(x => addClip(x, m.ref))}>
-                      <Plus className="w-3 h-3 mr-0.5" /> +
+                    <button
+                      type="button"
+                      className="h-6 w-7 shrink-0 inline-flex items-center justify-center rounded-md text-xs font-semibold border border-haze-border bg-haze-panel text-haze-text hover:bg-haze-raised/60 hover:text-white transition-colors"
+                      data-testid={`add-clip-${i}`}
+                      aria-label="Adicionar à timeline"
+                      title="Adicionar à timeline"
+                      onClick={() => apply(x => addClip(x, m.ref))}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
-                    <button className={`${btn} px-1.5 py-1 text-xs`} data-testid={`add-layer-${i}`} title="Entra por cima do vídeo principal, a partir do cursor"
-                      onClick={() => { const id = makeId('layer'); apply(x => addLayer(x, m.ref, t, id)); setSelectedLayer(id); setSelected(null); }}>
-                      <Layers className="w-3 h-3 mr-0.5" /> Sobrepor
+                    <button
+                      type="button"
+                      className="h-6 flex-1 min-w-0 inline-flex items-center justify-center gap-1 px-1 rounded-md text-[10px] font-semibold border border-haze-border bg-haze-panel text-haze-text hover:bg-haze-raised/60 hover:text-white transition-colors truncate"
+                      data-testid={`add-layer-${i}`}
+                      title="Entra por cima do vídeo principal, a partir do cursor"
+                      onClick={() => { const id = makeId('layer'); apply(x => addLayer(x, m.ref, t, id)); setSelectedLayer(id); setSelected(null); }}
+                    >
+                      <Layers className="w-3 h-3 shrink-0" />
+                      <span className="truncate">Sobrepor</span>
                     </button>
                   </div>
                 </li>
@@ -723,64 +778,69 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             )}
           </div>
 
-          {/* Ferramenta: Texto */}
-          <div className={`space-y-3 ${activeTool === 'text' ? 'block' : 'hidden'}`}>
-            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Type className="w-3.5 h-3.5 text-haze-accent" /> Texto
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
-              <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
-                <option value="chat">Chat do servidor (cores do Editor RP)</option>
-                <option value="text">Título / legenda livre</option>
-              </select>
-              <textarea data-testid="chat-text" value={chatText} onChange={e => setChatText(e.target.value)} rows={3}
-                className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text" />
-              <div className="flex items-center gap-2 text-xs text-haze-muted">
-                início <input data-testid="chat-start" type="number" step="0.1" min="0" value={chatStart} onChange={e => setChatStart(+e.target.value)} className={input} />
-                duração <input data-testid="chat-duration" type="number" step="0.1" min={MIN_CLIP} value={chatDur} onChange={e => setChatDur(+e.target.value)} className={input} />
+          {/* Ferramentas do Modo Avançado (ocultas no Modo Simples para evitar duplicação com o fluxo guiado) */}
+          {uiMode === 'advanced' && (
+            <>
+              {/* Ferramenta: Texto */}
+              <div className={`space-y-3 ${effectiveTool === 'text' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-haze-accent" /> Texto
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
+                  <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
+                    <option value="chat">Chat do servidor (cores do Editor RP)</option>
+                    <option value="text">Título / legenda livre</option>
+                  </select>
+                  <textarea data-testid="chat-text" value={chatText} onChange={e => setChatText(e.target.value)} rows={3}
+                    className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text" />
+                  <div className="flex items-center gap-2 text-xs text-haze-muted">
+                    início <input data-testid="chat-start" type="number" step="0.1" min="0" value={chatStart} onChange={e => setChatStart(+e.target.value)} className={input} />
+                    duração <input data-testid="chat-duration" type="number" step="0.1" min={MIN_CLIP} value={chatDur} onChange={e => setChatDur(+e.target.value)} className={input} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-haze-muted">
+                    {chatKind === 'chat'
+                      ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
+                      : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
+                  </div>
+                  <button className={`${btn} w-full justify-center mb-1`} data-testid="chat-add" disabled={!chatText.trim()}
+                    onClick={() => apply(x => {
+                      const id = makeId('chat');
+                      const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
+                      return chatKind === 'chat' && chatStep > 0 ? setLineStep(n, id, chatStep) : n;
+                    })}>Adicionar texto</button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs text-haze-muted">
-                {chatKind === 'chat'
-                  ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
-                  : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
+
+              {/* Ferramenta: Legendas */}
+              <div className={`space-y-3 ${effectiveTool === 'subtitles' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Captions className="w-3.5 h-3.5 text-haze-accent" /> Legendas
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-haze-muted">Importe arquivos de legenda no formato SRT para embutir na timeline.</p>
+                  <label className={`${btn} cursor-pointer w-full justify-center py-2.5`}>
+                    <Captions className="w-4 h-4 mr-1.5" /> Importar legendas (.srt)
+                    <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
+                  </label>
+                </div>
               </div>
-              <button className={`${btn} w-full justify-center mb-1`} data-testid="chat-add" disabled={!chatText.trim()}
-                onClick={() => apply(x => {
-                  const id = makeId('chat');
-                  const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
-                  return chatKind === 'chat' && chatStep > 0 ? setLineStep(n, id, chatStep) : n;
-                })}>Adicionar texto</button>
-            </div>
-          </div>
 
-          {/* Ferramenta: Legendas */}
-          <div className={`space-y-3 ${activeTool === 'subtitles' ? 'block' : 'hidden'}`}>
-            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Captions className="w-3.5 h-3.5 text-haze-accent" /> Legendas
-              </span>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs text-haze-muted">Importe arquivos de legenda no formato SRT para embutir na timeline.</p>
-              <label className={`${btn} cursor-pointer w-full justify-center py-2.5`}>
-                <Captions className="w-4 h-4 mr-1.5" /> Importar legendas (.srt)
-                <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
-              </label>
-            </div>
-          </div>
-
-          {/* Ferramenta: Modelos */}
-          <div className={`space-y-3 ${activeTool === 'templates' ? 'block' : 'hidden'}`}>
-            <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <LayoutTemplate className="w-3.5 h-3.5 text-haze-accent" /> Modelos
-              </span>
-            </div>
-            <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
-          </div>
+              {/* Ferramenta: Modelos */}
+              <div className={`space-y-3 ${effectiveTool === 'templates' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <LayoutTemplate className="w-3.5 h-3.5 text-haze-accent" /> Modelos
+                  </span>
+                </div>
+                <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
+              </div>
+            </>
+          )}
         </section>
 
         {/* Coluna Central: Player Canvas + Barra de Reprodução */}
@@ -817,143 +877,352 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
           </section>
         ) : (
           <section className="w-[304px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto shadow-sm">
-            {selLayer && selLayerMedia && (() => {
+            {/* 1. SELEÇÃO: CAMADA DE SOBREPOSIÇÃO */}
+            {activeSelection === 'layer' && selLayer && selLayerMedia && (() => {
               const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
               const cur = evalTransform(selLayer, rel);
               const kfs = selLayer.keyframes ?? [];
               const edit = (patch: Partial<typeof cur>) => { if (!kfs.length) apply(x => updateLayer(x, selLayer.id, { base: patch })); };
               const fld = (name: 'x' | 'y' | 'scale' | 'opacity', label: string, step: string) => (
-                <label className="flex items-center gap-1">{label}
-                  <input data-testid={`layer-${name}`} type="number" step={step} className={input}
+                <label className="flex items-center justify-between gap-1 text-xs">
+                  <span>{label}</span>
+                  <input data-testid={`layer-${name}`} type="number" step={step} className={`${input} w-20 text-right`}
                     key={`${selLayer.id}-${name}-${Math.round(rel * 1000)}-${kfs.length}-${selLayer.base[name]}`} defaultValue={Number(cur[name].toFixed(3))}
                     onBlur={e => edit({ [name]: +e.target.value })} />
                 </label>
               );
               const read = (n: string) => Number((document.querySelector(`[data-testid="layer-${n}"]`) as HTMLInputElement | null)?.value);
               return (
-                <div className="space-y-2 text-xs border border-fuchsia-400/40 rounded-lg p-2" data-testid="layer-inspector">
-                  <div className="font-semibold">Sobreposição</div>
-                  <div className="truncate text-haze-muted">{selLayerMedia.ref.name} · começa em {fmt(selLayer.start)} · dura {fmt(layerDuration(selLayer))}</div>
-                  <div className="grid grid-cols-2 gap-1">
-                    {fld('x', 'x', '0.05')}{fld('y', 'y', '0.05')}{fld('scale', 'escala', '0.05')}{fld('opacity', 'opac.', '0.1')}
+                <div className="space-y-3 text-xs border border-fuchsia-400/40 rounded-lg p-2" data-testid="layer-inspector">
+                  {/* Cabeçalho */}
+                  <div className="pb-2 border-b border-haze-border/50">
+                    <div className="font-semibold text-xs text-white truncate" title={selLayerMedia.ref.name}>
+                      {selLayerMedia.ref.name}
+                    </div>
+                    <div className="text-[11px] text-haze-muted flex items-center gap-1.5 mt-0.5">
+                      <span>começa em {fmt(selLayer.start)}</span>
+                      <span>·</span>
+                      <span>dura {fmt(layerDuration(selLayer))}</span>
+                    </div>
                   </div>
-                  <div className="text-haze-faint">x e y = centro do quadro (0 a 1). {kfs.length ? 'Com keyframes os valores vêm deles; edite e use o botão para gravar no cursor.' : 'Sem keyframes: valores fixos.'}</div>
-                  <div className="flex items-center gap-2">volume
-                    <input data-testid="layer-volume" type="range" min="0" max="2" step="0.1" value={selLayer.volume} onChange={e => apply(x => updateLayer(x, selLayer.id, { volume: +e.target.value }))} />
+
+                  {/* Aba Camada */}
+                  <div role="tablist" aria-label="Abas do inspetor" className="flex items-center gap-1 p-0.5 rounded-lg bg-haze-bg border border-haze-border/50">
+                    <button role="tab" type="button" aria-selected={true} data-testid="inspector-tab-layer"
+                      className="flex-1 py-1 text-xs font-semibold rounded-md bg-haze-raised text-white shadow-sm">
+                      Camada
+                    </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button className={btn} data-testid="kf-add" onClick={() => apply(x => addKeyframe(x, selLayer.id, rel, { x: read('x'), y: read('y'), scale: read('scale'), opacity: read('opacity') }))}>◆ Keyframe no cursor</button>
-                    <button className={btn} data-testid="layer-remove" onClick={() => { apply(x => removeLayer(x, selLayer.id)); setSelectedLayer(null); }}><Trash2 className="w-4 h-4" /> Remover</button>
+
+                  {/* Controles de Posição / Escala / Opacidade */}
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-semibold text-haze-muted uppercase tracking-wider">Transformação</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {fld('x', 'x', '0.05')}{fld('y', 'y', '0.05')}{fld('scale', 'escala', '0.05')}{fld('opacity', 'opac.', '0.1')}
+                    </div>
+                    <div className="text-[10px] text-haze-faint leading-relaxed">
+                      x e y = centro do quadro (0 a 1). {kfs.length ? 'Com keyframes os valores vêm deles; edite e use o botão para gravar no cursor.' : 'Sem keyframes: valores fixos.'}
+                    </div>
                   </div>
-                  {kfs.length > 0 && (
-                    <ul className="space-y-1" data-testid="kf-list">
-                      {kfs.map((k, i) => (
-                        <li key={k.time} className="flex items-center gap-2" data-testid={`kf-${i}`}>
-                          <span className="font-mono">{fmt(k.time)}</span>
-                          <span className="truncate flex-1">x{k.x} y{k.y} ×{k.scale} α{k.opacity}</span>
-                          <button aria-label="Remover keyframe" data-testid={`kf-remove-${i}`} className="text-haze-muted hover:text-white" onClick={() => apply(x => removeKeyframe(x, selLayer.id, k.time))}><Trash2 className="w-3.5 h-3.5" /></button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+
+                  {/* Volume da Camada */}
+                  <div className="space-y-1.5 pt-1 border-t border-haze-border/40">
+                    <div className="flex items-center justify-between text-xs">
+                      <span>volume da camada</span>
+                      <span className="font-mono text-haze-muted">{Math.round(selLayer.volume * 100)}%</span>
+                    </div>
+                    <input data-testid="layer-volume" type="range" min="0" max="2" step="0.1" value={selLayer.volume} className="w-full"
+                      onChange={e => apply(x => updateLayer(x, selLayer.id, { volume: +e.target.value }))} />
+                  </div>
+
+                  {/* Keyframes */}
+                  <div className="space-y-2 pt-1 border-t border-haze-border/40">
+                    <div className="text-[11px] font-semibold text-haze-muted uppercase tracking-wider">Keyframes</div>
+                    <div className="flex flex-wrap gap-2">
+                      <button className={`${btn} flex-1 justify-center py-1.5`} data-testid="kf-add"
+                        onClick={() => apply(x => addKeyframe(x, selLayer.id, rel, { x: read('x'), y: read('y'), scale: read('scale'), opacity: read('opacity') }))}>
+                        ◆ Keyframe no cursor
+                      </button>
+                    </div>
+                    {kfs.length > 0 && (
+                      <ul className="space-y-1 max-h-32 overflow-y-auto" data-testid="kf-list">
+                        {kfs.map((k, i) => (
+                          <li key={k.time} className="flex items-center gap-2 p-1 rounded bg-haze-bg border border-haze-border/40" data-testid={`kf-${i}`}>
+                            <span className="font-mono text-[11px] text-haze-accent">{fmt(k.time)}</span>
+                            <span className="truncate flex-1 text-[10px] text-haze-muted">x{k.x} y{k.y} ×{k.scale} α{k.opacity}</span>
+                            <button aria-label="Remover keyframe" data-testid={`kf-remove-${i}`} className="text-haze-muted hover:text-white"
+                              onClick={() => apply(x => removeKeyframe(x, selLayer.id, k.time))}><Trash2 className="w-3.5 h-3.5" /></button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Ação de Exclusão da Camada */}
+                  <div className="pt-2 border-t border-haze-border/50">
+                    <button className={`${btn} w-full justify-center text-xs py-1.5 text-red-400 hover:text-red-300`} data-testid="layer-remove"
+                      onClick={() => { apply(x => removeLayer(x, selLayer.id)); selectLayer(null); }}>
+                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover Sobreposição
+                    </button>
+                  </div>
                 </div>
               );
             })()}
-            <div className="text-xs font-semibold">Clipe selecionado</div>
-            {selClip && selMedia ? (
-              <div className="space-y-2 text-xs" data-testid="inspector">
-                <div className="truncate text-haze-muted">{selMedia.ref.name}</div>
-                <div className="flex items-center gap-2">entrada
-                  <input data-testid="trim-in" type="number" step="0.1" className={input} key={`in-${selClip.id}-${selClip.inPoint}`} defaultValue={selClip.inPoint}
-                    onBlur={e => apply(x => trimClip(x, selClip.id, { inPoint: +e.target.value }, selMedia.ref.duration))} />
+
+            {/* 2. SELEÇÃO: CLIPE DE VÍDEO */}
+            {activeSelection === 'clip' && selClip && selMedia && (
+              <div className="space-y-3 text-xs" data-testid="inspector">
+                {/* Cabeçalho */}
+                <div className="pb-2 border-b border-haze-border/50">
+                  <div className="font-semibold text-xs text-white truncate" title={selMedia.ref.name}>
+                    {selMedia.ref.name}
+                  </div>
+                  <div className="text-[11px] text-haze-muted flex items-center gap-1.5 mt-0.5">
+                    <span>começa em {fmt(clipStart)}</span>
+                    <span>·</span>
+                    <span>dura {fmt(clipDur)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">saída
-                  <input data-testid="trim-out" type="number" step="0.1" className={input} key={`out-${selClip.id}-${selClip.outPoint}`} defaultValue={selClip.outPoint}
-                    onBlur={e => apply(x => trimClip(x, selClip.id, { outPoint: +e.target.value }, selMedia.ref.duration))} />
+
+                {/* Abas: Vídeo / Áudio */}
+                <div role="tablist" aria-label="Abas do inspetor" className="flex items-center gap-1 p-0.5 rounded-lg bg-haze-bg border border-haze-border/50">
+                  <button role="tab" type="button" aria-selected={inspectorTab === 'video'} data-testid="inspector-tab-video"
+                    className={`flex-1 py-1 text-xs font-semibold rounded-md transition-colors ${
+                      inspectorTab === 'video' ? 'bg-haze-raised text-white shadow-sm' : 'text-haze-muted hover:text-haze-text'
+                    }`}
+                    onClick={() => setInspectorTab('video')}>
+                    Vídeo
+                  </button>
+                  <button role="tab" type="button" aria-selected={inspectorTab === 'audio'} data-testid="inspector-tab-audio"
+                    className={`flex-1 py-1 text-xs font-semibold rounded-md transition-colors ${
+                      inspectorTab === 'audio' ? 'bg-haze-raised text-white shadow-sm' : 'text-haze-muted hover:text-haze-text'
+                    }`}
+                    onClick={() => setInspectorTab('audio')}>
+                    Áudio
+                  </button>
                 </div>
-                <div className="text-haze-muted">duração {fmt(clipDuration(selClip))}</div>
-                <div className="flex items-center gap-2">velocidade
-                  <select data-testid="speed" value={speedOf(selClip)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
-                    onChange={e => apply(x => setClipSpeed(x, selClip.id, +e.target.value))}>
-                    {[0.25, 0.5, 0.75, 1, 1.5, 2, 4].map(v => <option key={v} value={v}>{v}×</option>)}
-                  </select>
-                  <span className="text-haze-faint">muda o tom</span>
-                </div>
-                <div className="flex items-center gap-2">fade (s) entrada
-                  <input data-testid="fade-in" type="number" min="0" step="0.1" className={input} key={`fi-${selClip.id}-${selClip.fadeIn ?? 0}`} defaultValue={selClip.fadeIn ?? 0}
-                    onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeIn: +e.target.value }))} />
-                  saída
-                  <input data-testid="fade-out" type="number" min="0" step="0.1" className={input} key={`fo-${selClip.id}-${selClip.fadeOut ?? 0}`} defaultValue={selClip.fadeOut ?? 0}
-                    onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeOut: +e.target.value }))} />
-                </div>
-                <div className="flex items-center gap-2">transição (s)
-                  <input data-testid="transition" type="number" min="0" max="5" step="0.1" className={input} disabled={tl.clips[0]?.id === selClip.id}
-                    title={tl.clips[0]?.id === selClip.id ? 'O primeiro clipe não tem clipe anterior' : 'Fusão com o clipe anterior (0 = corte seco)'}
-                    key={`tr-${selClip.id}-${selClip.transition?.duration ?? 0}`} defaultValue={selClip.transition?.duration ?? 0}
-                    onBlur={e => apply(x => setClipTransition(x, selClip.id, +e.target.value))} />
-                </div>
-                <div className="flex items-center gap-2">câmera
-                  <select data-testid="cam-preset" value={selClip.camera?.preset ?? 'none'} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
-                    onChange={e => {
-                      const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
-                      const now = { date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, time: `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` };
-                      apply(x => setClipCamera(x, selClip.id, e.target.value as 'none' | 'bodycam' | 'cctv' | 'noir', now));
-                    }}>
-                    <option value="none">Nenhuma</option><option value="bodycam">Bodycam</option><option value="cctv">CCTV</option><option value="noir">Noir</option>
-                  </select>
-                </div>
-                {selClip.camera && selClip.camera.preset !== 'noir' && (
-                  <div className="space-y-1" data-testid="cam-fields">
-                    <div className="flex items-center gap-2">início do relógio
-                      <input data-testid="cam-date" className={input} defaultValue={selClip.camera.date} key={`d-${selClip.id}-${selClip.camera.date}`}
-                        onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { date: e.target.value }))} />
-                      <input data-testid="cam-time" className={input} defaultValue={selClip.camera.time} key={`t-${selClip.id}-${selClip.camera.time}`}
-                        onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { time: e.target.value }))} />
+
+                {/* Conteúdo Aba Vídeo */}
+                {inspectorTab === 'video' && (
+                  <div className="space-y-2.5">
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-semibold text-haze-muted uppercase tracking-wider">Corte (s)</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center justify-between gap-1 text-xs">
+                          <span>entrada</span>
+                          <input data-testid="trim-in" type="number" step="0.1" className={`${input} w-20 text-right`}
+                            key={`in-${selClip.id}-${selClip.inPoint}`} defaultValue={selClip.inPoint}
+                            onBlur={e => apply(x => trimClip(x, selClip.id, { inPoint: +e.target.value }, selMedia.ref.duration))} />
+                        </label>
+                        <label className="flex items-center justify-between gap-1 text-xs">
+                          <span>saída</span>
+                          <input data-testid="trim-out" type="number" step="0.1" className={`${input} w-20 text-right`}
+                            key={`out-${selClip.id}-${selClip.outPoint}`} defaultValue={selClip.outPoint}
+                            onBlur={e => apply(x => trimClip(x, selClip.id, { outPoint: +e.target.value }, selMedia.ref.duration))} />
+                        </label>
+                      </div>
                     </div>
-                    {selClip.camera.preset === 'bodycam'
-                      ? <input data-testid="cam-officer" placeholder="Oficial (ex.: M. MENDOZA)" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.officer ?? ''} key={`o-${selClip.id}`}
-                          onBlur={e => apply(x => setClipCamera(x, selClip.id, 'bodycam', { date: selClip.camera!.date, time: selClip.camera!.time }, { officer: e.target.value }))} />
-                      : <input data-testid="cam-name" placeholder="Nome da câmera" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.camName ?? ''} key={`n-${selClip.id}`}
-                          onBlur={e => apply(x => setClipCamera(x, selClip.id, 'cctv', { date: selClip.camera!.date, time: selClip.camera!.time }, { camName: e.target.value }))} />}
+
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span>velocidade</span>
+                      <div className="flex items-center gap-1.5">
+                        <select data-testid="speed" value={speedOf(selClip)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs"
+                          onChange={e => apply(x => setClipSpeed(x, selClip.id, +e.target.value))}>
+                          {[0.25, 0.5, 0.75, 1, 1.5, 2, 4].map(v => <option key={v} value={v}>{v}×</option>)}
+                        </select>
+                        <span className="text-[10px] text-haze-faint">muda o tom</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span>transição (s)</span>
+                      <input data-testid="transition" type="number" min="0" max="5" step="0.1" className={`${input} w-20 text-right`}
+                        disabled={tl.clips[0]?.id === selClip.id}
+                        title={tl.clips[0]?.id === selClip.id ? 'O primeiro clipe não tem clipe anterior' : 'Fusão com o clipe anterior (0 = corte seco)'}
+                        key={`tr-${selClip.id}-${selClip.transition?.duration ?? 0}`} defaultValue={selClip.transition?.duration ?? 0}
+                        onBlur={e => apply(x => setClipTransition(x, selClip.id, +e.target.value))} />
+                    </div>
+
+                    <div className="space-y-1.5 pt-1 border-t border-haze-border/40">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span>câmera</span>
+                        <select data-testid="cam-preset" value={selClip.camera?.preset ?? 'none'} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs"
+                          onChange={e => {
+                            const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
+                            const now = { date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, time: `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` };
+                            apply(x => setClipCamera(x, selClip.id, e.target.value as 'none' | 'bodycam' | 'cctv' | 'noir', now));
+                          }}>
+                          <option value="none">Nenhuma</option><option value="bodycam">Bodycam</option><option value="cctv">CCTV</option><option value="noir">Noir</option>
+                        </select>
+                      </div>
+
+                      {selClip.camera && selClip.camera.preset !== 'noir' && (
+                        <div className="space-y-1.5 pt-1" data-testid="cam-fields">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <span className="text-[11px] text-haze-muted shrink-0">relógio</span>
+                            <input data-testid="cam-date" className={`${input} flex-1 min-w-0`} defaultValue={selClip.camera.date} key={`d-${selClip.id}-${selClip.camera.date}`}
+                              onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { date: e.target.value }))} />
+                            <input data-testid="cam-time" className={`${input} w-20 text-center`} defaultValue={selClip.camera.time} key={`t-${selClip.id}-${selClip.camera.time}`}
+                              onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { time: e.target.value }))} />
+                          </div>
+                          {selClip.camera.preset === 'bodycam'
+                            ? <input data-testid="cam-officer" placeholder="Oficial (ex.: M. MENDOZA)" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs" defaultValue={selClip.camera.officer ?? ''} key={`o-${selClip.id}`}
+                                onBlur={e => apply(x => setClipCamera(x, selClip.id, 'bodycam', { date: selClip.camera!.date, time: selClip.camera!.time }, { officer: e.target.value }))} />
+                            : <input data-testid="cam-name" placeholder="Nome da câmera" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs" defaultValue={selClip.camera.camName ?? ''} key={`n-${selClip.id}`}
+                                onBlur={e => apply(x => setClipCamera(x, selClip.id, 'cctv', { date: selClip.camera!.date, time: selClip.camera!.time }, { camName: e.target.value }))} />}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-                <div className="flex items-center gap-2">volume
-                  <input data-testid="clip-volume" type="range" min="0" max="2" step="0.1" value={selClip.volume} onChange={e => apply(x => setClipVolume(x, selClip.id, +e.target.value))} />
-                  <span>{Math.round(selClip.volume * 100)}%</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button className={btn} data-testid="mute" onClick={() => apply(x => setClipVolume(x, selClip.id, selClip.volume === 0 ? 1 : 0))}>{selClip.volume === 0 ? 'Ativar som' : 'Silenciar'}</button>
-                  <button className={btn} data-testid="move-left" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) - 1))}>← Antes</button>
-                  <button className={btn} data-testid="move-right" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) + 1))}>Depois →</button>
-                  <button className={btn} data-testid="remove-clip" onClick={() => { apply(x => removeClip(x, selClip.id)); setSelected(null); }}><Trash2 className="w-4 h-4" /> Remover</button>
+
+                {/* Conteúdo Aba Áudio */}
+                {inspectorTab === 'audio' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span>volume</span>
+                        <span className="font-mono text-haze-muted">{Math.round(selClip.volume * 100)}%</span>
+                      </div>
+                      <input data-testid="clip-volume" type="range" min="0" max="2" step="0.1" value={selClip.volume} className="w-full"
+                        onChange={e => apply(x => setClipVolume(x, selClip.id, +e.target.value))} />
+                    </div>
+
+                    <div className="space-y-1.5 pt-1 border-t border-haze-border/40">
+                      <div className="text-[11px] font-semibold text-haze-muted uppercase tracking-wider">Fades (s)</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center justify-between gap-1 text-xs">
+                          <span>entrada</span>
+                          <input data-testid="fade-in" type="number" min="0" step="0.1" className={`${input} w-20 text-right`}
+                            key={`fi-${selClip.id}-${selClip.fadeIn ?? 0}`} defaultValue={selClip.fadeIn ?? 0}
+                            onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeIn: +e.target.value }))} />
+                        </label>
+                        <label className="flex items-center justify-between gap-1 text-xs">
+                          <span>saída</span>
+                          <input data-testid="fade-out" type="number" min="0" step="0.1" className={`${input} w-20 text-right`}
+                            key={`fo-${selClip.id}-${selClip.fadeOut ?? 0}`} defaultValue={selClip.fadeOut ?? 0}
+                            onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeOut: +e.target.value }))} />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ações do Clipe no Fim do Inspetor */}
+                <div className="space-y-2 pt-2 border-t border-haze-border/50">
+                  <button className={`${btn} w-full justify-center py-1.5`} data-testid="split" disabled={!locate(tl, t)}
+                    onClick={() => apply(x => splitAt(x, t))}>
+                    <Scissors className="w-3.5 h-3.5 mr-1.5" /> Dividir no cursor
+                  </button>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button className={`${btn} justify-center text-xs py-1 px-1.5`} data-testid="mute"
+                      onClick={() => apply(x => setClipVolume(x, selClip.id, selClip.volume === 0 ? 1 : 0))}>
+                      {selClip.volume === 0 ? <Volume2 className="w-3.5 h-3.5 mr-1 text-haze-accent" /> : <VolumeX className="w-3.5 h-3.5 mr-1 text-haze-muted" />}
+                      {selClip.volume === 0 ? 'Ativar som' : 'Silenciar'}
+                    </button>
+                    <button className={`${btn} justify-center text-xs py-1 px-1.5 text-red-400 hover:text-red-300`} data-testid="remove-clip"
+                      onClick={() => { apply(x => removeClip(x, selClip.id)); selectClip(null); }}>
+                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover
+                    </button>
+                    <button className={`${btn} justify-center text-xs py-1 px-1.5`} data-testid="move-left"
+                      onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) - 1))}>
+                      ← Antes
+                    </button>
+                    <button className={`${btn} justify-center text-xs py-1 px-1.5`} data-testid="move-right"
+                      onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) + 1))}>
+                      Depois →
+                    </button>
+                  </div>
                 </div>
               </div>
-            ) : <div className="text-xs text-haze-muted">Clique em um clipe da timeline.</div>}
-            <button className={`${btn} w-full justify-center`} data-testid="split" disabled={!locate(tl, t)} onClick={() => apply(x => splitAt(x, t))}><Scissors className="w-4 h-4" /> Dividir no cursor</button>
-            {tl.overlays.length > 0 && (
-              <ul className="text-xs space-y-1 border-t border-haze-border pt-2" data-testid="overlay-list">
-                {tl.overlays.map(o => (
-                  <li key={o.id} className="flex items-center gap-2"><button className={`truncate flex-1 text-left ${o.id === selectedOverlay ? 'text-white font-semibold' : ''}`} data-testid="overlay-select" onClick={() => { setSelectedOverlay(o.id); setSelectedLayer(null); }}>{fmt(o.start)} · {o.text}</button>
-                    <button aria-label="Remover chat" className="text-haze-muted hover:text-white" onClick={() => apply(x => removeOverlay(x, o.id))}><Trash2 className="w-3.5 h-3.5" /></button></li>
-                ))}
-              </ul>
             )}
 
-            {selOverlay && (
-              <div className="space-y-1.5 text-xs border border-sky-400/40 rounded-lg p-2" data-testid="overlay-editor">
-                <div className="font-semibold">Texto selecionado ({selOverlay.kind === 'text' ? 'título/legenda' : 'chat'})</div>
-                <textarea data-testid="ov-text" rows={3} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" key={`t-${selOverlay.id}`} defaultValue={selOverlay.text}
-                  onBlur={e => { const v = e.target.value; if (v.trim() && v !== selOverlay.text) apply(x => updateOverlay(x, selOverlay.id, { text: v, lineOffsets: undefined })); }} />
-                <div className="flex items-center gap-2 flex-wrap">
-                  início <input data-testid="ov-start" type="number" step="0.1" min="0" className={input} key={`s-${selOverlay.id}-${selOverlay.start}`} defaultValue={selOverlay.start}
-                    onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { start: +e.target.value }))} />
-                  duração <input data-testid="ov-duration" type="number" step="0.1" min="0.1" className={input} key={`d-${selOverlay.id}-${selOverlay.duration}`} defaultValue={selOverlay.duration}
-                    onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { duration: +e.target.value }))} />
-                  tamanho <input data-testid="ov-size" type="number" step="2" min="10" max="72" className={input} key={`z-${selOverlay.id}-${selOverlay.fontSize}`} defaultValue={selOverlay.fontSize}
-                    onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { fontSize: Math.max(10, Math.min(72, +e.target.value || 22)) }))} />
-                  {selOverlay.kind === 'text' && <>cor <input data-testid="ov-color" type="color" value={selOverlay.color ?? '#ffffff'} onChange={e => apply(x => updateOverlay(x, selOverlay.id, { color: e.target.value }))} /></>}
+            {/* 3. SELEÇÃO: TEXTO / SOBREPOSIÇÃO (OVERLAY) */}
+            {activeSelection === 'overlay' && selOverlay && (
+              <div className="space-y-3 text-xs" data-testid="overlay-editor">
+                <div className="pb-2 border-b border-haze-border/50">
+                  <div className="font-semibold text-xs text-white truncate">
+                    Texto selecionado ({selOverlay.kind === 'text' ? 'título/legenda' : 'chat'})
+                  </div>
+                  <div className="text-[11px] text-haze-muted flex items-center gap-1.5 mt-0.5">
+                    <span>começa em {fmt(selOverlay.start)}</span>
+                    <span>·</span>
+                    <span>dura {fmt(selOverlay.duration)}</span>
+                  </div>
                 </div>
-                <div className="text-haze-faint">Editar o texto desfaz a entrada linha a linha.</div>
+
+                <div className="space-y-2">
+                  <textarea data-testid="ov-text" rows={3} className="w-full px-2 py-1.5 rounded-md bg-haze-bg border border-haze-border text-xs"
+                    key={`t-${selOverlay.id}`} defaultValue={selOverlay.text}
+                    onBlur={e => { const v = e.target.value; if (v.trim() && v !== selOverlay.text) apply(x => updateOverlay(x, selOverlay.id, { text: v, lineOffsets: undefined })); }} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center justify-between gap-1 text-xs">
+                      <span>início</span>
+                      <input data-testid="ov-start" type="number" step="0.1" min="0" className={`${input} w-20 text-right`}
+                        key={`s-${selOverlay.id}-${selOverlay.start}`} defaultValue={selOverlay.start}
+                        onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { start: +e.target.value }))} />
+                    </label>
+                    <label className="flex items-center justify-between gap-1 text-xs">
+                      <span>duração</span>
+                      <input data-testid="ov-duration" type="number" step="0.1" min="0.1" className={`${input} w-20 text-right`}
+                        key={`d-${selOverlay.id}-${selOverlay.duration}`} defaultValue={selOverlay.duration}
+                        onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { duration: +e.target.value }))} />
+                    </label>
+                    <label className="flex items-center justify-between gap-1 text-xs">
+                      <span>tamanho</span>
+                      <input data-testid="ov-size" type="number" step="2" min="10" max="72" className={`${input} w-20 text-right`}
+                        key={`z-${selOverlay.id}-${selOverlay.fontSize}`} defaultValue={selOverlay.fontSize}
+                        onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { fontSize: Math.max(10, Math.min(72, +e.target.value || 22)) }))} />
+                    </label>
+                    {selOverlay.kind === 'text' && (
+                      <label className="flex items-center justify-between gap-1 text-xs">
+                        <span>cor</span>
+                        <input data-testid="ov-color" type="color" className="w-10 h-7 rounded border border-haze-border cursor-pointer bg-transparent"
+                          value={selOverlay.color ?? '#ffffff'} onChange={e => apply(x => updateOverlay(x, selOverlay.id, { color: e.target.value }))} />
+                      </label>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-haze-faint leading-relaxed">Editar o texto desfaz a entrada linha a linha.</div>
+                </div>
+
+                <div className="pt-2 border-t border-haze-border/50">
+                  <button className={`${btn} w-full justify-center text-xs py-1.5 text-red-400 hover:text-red-300`}
+                    onClick={() => { apply(x => removeOverlay(x, selOverlay.id)); selectOverlay(null); }}>
+                    <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover Texto
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 4. SEM SELEÇÃO */}
+            {activeSelection === 'none' && (
+              <div className="space-y-2 py-4 text-center">
+                <div className="w-8 h-8 mx-auto rounded-full bg-haze-raised/60 flex items-center justify-center text-haze-muted">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <div className="text-xs text-haze-muted">Clique em um clipe da timeline.</div>
+              </div>
+            )}
+
+            {/* LISTA DE TEXTOS / OVERLAYS QUANDO EXISTIREM NA TIMELINE */}
+            {tl.overlays.length > 0 && (
+              <div className="pt-3 border-t border-haze-border/50 space-y-1.5">
+                <div className="text-[11px] font-semibold text-haze-muted uppercase tracking-wider flex items-center justify-between">
+                  <span>Textos na Timeline ({tl.overlays.length})</span>
+                </div>
+                <ul className="text-xs space-y-1" data-testid="overlay-list">
+                  {tl.overlays.map(o => (
+                    <li key={o.id} className="flex items-center gap-2 p-1 rounded hover:bg-haze-raised/40 transition-colors">
+                      <button type="button" className={`truncate flex-1 text-left text-xs ${o.id === selectedOverlay ? 'text-white font-semibold' : 'text-haze-text'}`}
+                        data-testid="overlay-select" onClick={() => selectOverlay(o.id)}>
+                        <span className="font-mono text-[10px] text-haze-accent mr-1">{fmt(o.start)}</span>
+                        <span>{o.text}</span>
+                      </button>
+                      <button type="button" aria-label="Remover chat" className="text-haze-muted hover:text-red-400 transition-colors"
+                        onClick={() => apply(x => removeOverlay(x, o.id))}><Trash2 className="w-3.5 h-3.5" /></button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </section>
@@ -991,7 +1260,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                         const lay = (tl.layers ?? []).find(x => x.id === action.id);
                         return (
                           <div data-testid="layer-block" data-layer-id={action.id}
-                            onPointerDown={() => { setSelectedLayer(action.id); setSelected(null); }}
+                            onPointerDown={() => selectLayer(action.id)}
                             className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-fuchsia-500/25 border border-fuchsia-400/60 ${action.id === selectedLayer ? 'ring-2 ring-white' : ''}`}>
                             <span className="truncate">{mediaRef.current.get(lay?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === lay?.mediaId)?.name ?? 'sobreposição') + ' (offline)')}</span>
                             {(lay?.keyframes?.length ?? 0) > 0 && <span className="shrink-0 text-[10px]">◆{lay!.keyframes!.length}</span>}
@@ -999,9 +1268,9 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                         );
                       }
                       if (isClip) return <ClipBlock id={action.id} wave={c && peaks[c.mediaId] && mediaRef.current.get(c.mediaId) ? { peaks: peaks[c.mediaId], mediaDur: mediaRef.current.get(c.mediaId)!.ref.duration, inP: c.inPoint, outP: c.outPoint } : undefined} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={c && speedOf(c) !== 1 ? `${label} ×${speedOf(c)}` : label} selected={sel} muted={(c?.volume ?? 1) === 0}
-                        onSelect={() => { setSelected(action.id); setSelectedLayer(null); }} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
+                        onSelect={() => selectClip(action.id)} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
                       return (
-                        <div data-testid="chat-block" data-clip-id={action.id} onPointerDown={() => { setSelectedOverlay(action.id); setSelectedLayer(null); }}
+                        <div data-testid="chat-block" data-clip-id={action.id} onPointerDown={() => selectOverlay(action.id)}
                           className="h-full w-full px-2 flex items-center text-[11px] truncate rounded bg-sky-500/25 border border-sky-400/60">
                           {label}
                         </div>
