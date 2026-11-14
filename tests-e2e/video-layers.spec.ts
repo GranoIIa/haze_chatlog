@@ -179,10 +179,12 @@ test.describe('Video Studio: sobreposição e keyframes', () => {
     await page.getByTestId('layer-x').fill('0.25'); await page.getByTestId('kf-add').click();
     await goTo(page, 3);
     await page.getByTestId('layer-x').fill('0.75'); await page.getByTestId('kf-add').click();
-    const dl = page.waitForEvent('download', { timeout: 30_000 });
-    await page.getByTestId('project-save').click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30_000 }),
+      page.getByTestId('project-save').click()
+    ]);
     const saved = join(dir, 'pip.haze');
-    await (await dl).saveAs(saved);
+    await download.saveAs(saved);
 
     await page.goto('/');
     await page.getByTestId('tab-video').click();
