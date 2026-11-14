@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio (POC): monta um vídeo real no navegador (importar, cortar, dividir, reorganizar,
  * chat sincronizado), exporta e valida o ARQUIVO com ffprobe/ffmpeg fora do navegador.
@@ -105,6 +106,7 @@ test.describe('Video Studio (POC)', () => {
     await page.getByTestId('redo').click();
     await expect(page.getByTestId('chat-block')).toHaveCount(1);
 
+    await abrirExportacao(page);
     await page.getByTestId('export').click();
     await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 120_000 });
     const info = await page.getByTestId('export-result').getByTestId('export-info').innerText();
@@ -167,6 +169,7 @@ test.describe('Video Studio (POC)', () => {
     await page.getByTestId('video-file-input').setInputFiles([fileA]);
     await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
     for (let i = 0; i < 6; i++) await page.getByTestId('add-clip-0').click(); // 24 s
+    await abrirExportacao(page);
     await page.getByTestId('export-size').selectOption({ label: '1920×1080' });
     await page.getByTestId('export-fps').selectOption('60');
     await page.getByTestId('export').click();
@@ -194,6 +197,7 @@ test.describe('Video Studio (POC)', () => {
 
   test('exportar com a timeline vazia fica desabilitado', async ({ page }) => {
     await openStudio(page);
+    await abrirExportacao(page);
     await expect(page.getByTestId('export')).toBeDisabled();
   });
 });

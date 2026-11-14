@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio (POC): arrasto na timeline e medição de desempenho de exportação.
  * Requer ffmpeg/ffprobe no PATH.
@@ -63,6 +64,7 @@ test.describe('Video Studio (POC): arrasto e desempenho', () => {
     await page.getByTestId('video-file-input').setInputFiles([f441]);
     await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
     await page.getByTestId('add-clip-0').click();
+    await abrirExportacao(page);
     await page.getByTestId('export-size').selectOption({ label: '854×480' });
     await page.getByTestId('export').click();
     await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
@@ -85,6 +87,7 @@ test.describe('Video Studio (POC): arrasto e desempenho', () => {
     await page.getByTestId('video-file-input').setInputFiles([big]);
     await expect(page.getByTestId('video-library').locator('li')).toHaveCount(1);
     for (let i = 0; i < 2; i++) await page.getByTestId('add-clip-0').click(); // 60 s
+    await abrirExportacao(page);
     await page.getByTestId('export-size').selectOption({ label: '1920×1080' });
     await page.getByTestId('export').click();
     const t0 = Date.now();

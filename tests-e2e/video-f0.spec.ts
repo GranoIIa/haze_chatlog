@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio, F0: medições com fontes pesadas. NÃO é gate de aprovação: imprime números (linhas F0:)
  * e só falha se a exportação não terminar. Requer ffmpeg no PATH. Rode com: F0=1 npx playwright test video-f0
@@ -28,6 +29,7 @@ const heap = (page: import('@playwright/test').Page) =>
   page.evaluate(() => (performance as any).memory ? Math.round((performance as any).memory.usedJSHeapSize / 1048576) : -1);
 
 async function exportOnce(page: import('@playwright/test').Page, size: string, fps: number, timeoutMs: number) {
+  await abrirExportacao(page);
   await page.getByTestId('export-size').selectOption({ label: size });
   await page.getByTestId('export-fps').selectOption(String(fps));
   await page.getByTestId('export').click();

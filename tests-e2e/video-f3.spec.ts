@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio F3: transição, velocidade, fades, legendas SRT e forma de onda.
  * Valida os arquivos exportados com ffmpeg fora do navegador. Requer ffmpeg/ffprobe no PATH.
@@ -34,6 +35,7 @@ const open = async (page: Page, files: string[]) => {
   await expect(page.getByTestId('video-library').locator('li')).toHaveCount(files.length);
 };
 async function exportTo(page: Page, name: string) {
+  await abrirExportacao(page);
   await page.getByTestId('export-size').selectOption({ label: '854×480' });
   await page.getByTestId('export-fps').selectOption('24');
   await page.getByTestId('export').click();

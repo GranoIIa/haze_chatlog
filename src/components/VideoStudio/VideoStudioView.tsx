@@ -3,7 +3,7 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers, X } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
   addLayer, updateLayer, trimLayer, removeLayer, addKeyframe, removeKeyframe, evalTransform, activeLayers, activeLayerClips, layerDuration,
@@ -114,6 +114,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const [chatStep, setChatStep] = useState(0);
   // mídias do projeto aberto que ainda não foram reconectadas (clipes offline)
   const [pending, setPending] = useState<SavedMedia[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const placed = useMemo(() => layout(tl), [tl]);
   const total = totalDuration(tl);
@@ -489,38 +490,77 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
   const input = 'w-20 px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-haze-text';
 
   return (
-    <div className="max-w-[1500px] mx-auto p-4 space-y-4" data-testid="video-studio">
-      <div className="flex items-center gap-2">
-        <Clapperboard className="w-5 h-5 text-haze-accent" />
-        <h2 className="text-sm font-bold">Video Studio <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded border border-haze-accent/30 text-haze-accent font-mono">POC</span></h2>
-        <span className="text-xs text-haze-muted">Edição local: os arquivos não saem do seu computador.</span>
-        <div className="ml-auto flex gap-2 items-center">
-          <nav className="flex p-0.5 rounded-lg bg-haze-panel border border-haze-border" aria-label="Modo do Video Studio">
+    <div className="min-h-screen bg-haze-bg text-haze-text flex flex-col" data-testid="video-studio">
+      {/* Barra superior (52 px) */}
+      <header className="h-[52px] border-b border-haze-border bg-haze-panel px-4 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Clapperboard className="w-5 h-5 text-haze-accent shrink-0" />
+          <h2 className="text-sm font-bold text-white shrink-0 flex items-center">
+            Video Studio
+            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded border border-haze-accent/30 text-haze-accent font-mono font-medium">POC</span>
+          </h2>
+          <span className="text-xs text-haze-muted truncate hidden xl:inline">Arquivos ficam no seu computador.</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Alternador Simples / Avançado */}
+          <nav className="flex p-0.5 rounded-lg bg-haze-bg border border-haze-border" aria-label="Modo do Video Studio">
             {(['simple', 'advanced'] as const).map(m => (
               <button key={m} data-testid={`video-mode-${m}`} aria-pressed={uiMode === m} onClick={() => changeMode(m)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold ${uiMode === m ? 'bg-haze-accent-fill text-haze-on-accent' : 'text-haze-muted hover:text-white'}`}>{m === 'simple' ? 'Simples' : 'Avançado'}</button>
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${uiMode === m ? 'bg-haze-accent-fill text-haze-on-accent' : 'text-haze-muted hover:text-white'}`}>
+                {m === 'simple' ? 'Simples' : 'Avançado'}
+              </button>
             ))}
           </nav>
-          <button className={btn} data-testid="templates-toggle" aria-expanded={showTemplates} onClick={() => setShowTemplates(v => !v)}>Modelos</button>
-          <button className={btn} data-testid="project-save" disabled={!tl.clips.length && !(tl.layers ?? []).length} onClick={() => void saveProject()}><Save className="w-4 h-4" /> Salvar projeto</button>
-          <label className={`${btn} cursor-pointer`}><FolderOpen className="w-4 h-4" /> Abrir projeto
+
+          {/* Desfazer / Refazer (só ícones com aria-label) */}
+          <div className="flex items-center gap-1 border-l border-r border-haze-border/60 px-1.5">
+            <button className={btn} data-testid="undo" aria-label="Desfazer" title="Desfazer" disabled={!hist.past.length} onClick={() => setHist(undo)}>
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button className={btn} data-testid="redo" aria-label="Refazer" title="Refazer" disabled={!hist.future.length} onClick={() => setHist(redo)}>
+              <Redo2 className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Ações de projeto */}
+          <button className={btn} data-testid="templates-toggle" aria-expanded={showTemplates} onClick={() => setShowTemplates(v => !v)}>
+            Modelos
+          </button>
+          <label className={`${btn} cursor-pointer`}>
+            <FolderOpen className="w-4 h-4" /> Abrir projeto
             <input data-testid="project-open-input" type="file" accept=".haze" className="hidden" onChange={e => { void openProject(e.target.files?.[0]); e.target.value = ''; }} />
           </label>
+          <button className={btn} data-testid="project-save" disabled={!tl.clips.length && !(tl.layers ?? []).length} onClick={() => void saveProject()}>
+            <Save className="w-4 h-4" /> Salvar projeto
+          </button>
+
+          {/* Botão primário Exportar no canto direito */}
+          <button className={primary} data-testid="export-open" onClick={() => setShowExportModal(true)}>
+            <Download className="w-4 h-4" /> Exportar
+          </button>
         </div>
-      </div>
+      </header>
 
-      {message && <div role="alert" data-testid="video-message" className="px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-xs text-red-300">{message}</div>}
+      {/* Alerta de erro ou mensagem */}
+      {message && (
+        <div role="alert" data-testid="video-message" className="mx-4 mt-2 px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-xs text-red-300">
+          {message}
+        </div>
+      )}
 
+      {/* Painel expansível de Modelos */}
       {showTemplates && (
-        <div className="rounded-xl border border-haze-border bg-haze-panel p-3 max-w-xl">
+        <div className="mx-4 mt-2 rounded-xl border border-haze-border bg-haze-panel p-3 max-w-xl shadow-lg">
           <TemplatesPanel library={library} hasContent={tl.clips.length > 0} onApply={applyTemplateById} />
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_280px] gap-4">
-        {/* Biblioteca */}
-        <section className="rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3">
-          <label className={`${primary} cursor-pointer`}>
+      {/* Área Principal (3 Colunas) */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 p-3 min-h-0">
+        {/* Coluna Esquerda: Biblioteca de Mídias e Textos (284 px) */}
+        <section className="w-full lg:w-[284px] shrink-0 rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-52px-296px-32px)] min-h-[320px]">
+          <label className={`${primary} cursor-pointer w-full justify-center`}>
             <Upload className="w-4 h-4" /> Importar vídeos
             <input data-testid="video-file-input" type="file" accept="video/*" multiple className="hidden"
               onChange={e => { void onFiles(e.target.files); e.target.value = ''; }} />
@@ -545,12 +585,12 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             </div>
           )}
 
-          <label className={`${btn} cursor-pointer`}><Captions className="w-4 h-4" /> Importar legendas (.srt)
+          <label className={`${btn} cursor-pointer w-full justify-center`}><Captions className="w-4 h-4" /> Importar legendas (.srt)
             <input data-testid="srt-input" type="file" accept=".srt,text/plain" className="hidden" onChange={e => { void importSrt(e.target.files?.[0]); e.target.value = ''; }} />
           </label>
           <div className="border-t border-haze-border pt-3 space-y-2">
             <div className="text-xs font-semibold flex items-center gap-1"><MessageSquarePlus className="w-3.5 h-3.5" /> Texto sobre o vídeo</div>
-            <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
+            <select data-testid="chat-kind" value={chatKind} onChange={e => setChatKind(e.target.value as 'chat' | 'text')} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
               <option value="chat">Chat do servidor (cores do Editor RP)</option>
               <option value="text">Título / legenda livre</option>
             </select>
@@ -565,7 +605,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                 ? <>uma linha a cada (s) <input data-testid="chat-step" type="number" step="0.5" min="0" value={chatStep} onChange={e => setChatStep(Math.max(0, +e.target.value))} className={input} title="0 = todas as linhas juntas" /></>
                 : <>cor <input data-testid="chat-color" type="color" value={chatColor} onChange={e => setChatColor(e.target.value)} /></>}
             </div>
-            <button className={btn} data-testid="chat-add" disabled={!chatText.trim()}
+            <button className={`${btn} w-full justify-center`} data-testid="chat-add" disabled={!chatText.trim()}
               onClick={() => apply(x => {
                 const id = makeId('chat');
                 const n = addOverlay(x, chatKind === 'text' ? { text: chatText, start: chatStart, duration: chatDur, kind: 'text', color: chatColor } : { text: chatText, start: chatStart, duration: chatDur }, id);
@@ -574,18 +614,19 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
           </div>
         </section>
 
-        {/* Preview + timeline */}
-        <section className="space-y-3 min-w-0">
-          <div className="rounded-xl border border-haze-border bg-black p-2 flex justify-center">
+        {/* Coluna Central: Player Canvas + Barra de Reprodução */}
+        <section className="flex-1 min-w-0 flex flex-col items-center justify-center p-2 rounded-xl border border-haze-border bg-haze-panel/30">
+          <div className="rounded-xl border border-haze-border bg-black p-2 flex justify-center w-full max-w-[800px] shadow-lg">
             <canvas ref={canvasRef} data-testid="video-preview" width={PREVIEW_W} height={previewH} style={{ width: PREVIEW_W, maxWidth: '100%', height: 'auto' }} />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-3 p-2 bg-haze-panel rounded-xl border border-haze-border shadow-sm">
             <button className={btn} data-testid="play" disabled={!total} onClick={() => setPlaying(p => !p)}>
               {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />} {playing ? 'Pausar' : 'Reproduzir'}
             </button>
             <button className={btn} aria-label="Quadro anterior" disabled={!total} onClick={() => { seekingRef.current = true; setPlaying(false); setT(c => Math.max(0, round3(c - 1 / fps))); }}><ChevronLeft className="w-4 h-4" /></button>
             <button className={btn} aria-label="Próximo quadro" disabled={!total} onClick={() => { seekingRef.current = true; setPlaying(false); setT(c => Math.min(Math.max(0, total - 0.001), round3(c + 1 / fps))); }}><ChevronRight className="w-4 h-4" /></button>
-            <span className="text-xs font-mono text-haze-muted" data-testid="playhead">{fmt(t)} / {fmt(total)}</span>
+            <span className="text-xs font-mono text-haze-muted px-1.5" data-testid="playhead">{fmt(t)} / {fmt(total)}</span>
             <label className="text-xs text-haze-muted flex items-center gap-1">ir para (s)
               <input data-testid="playhead-input" type="number" step="0.01" min="0" className={input} value={Number(t.toFixed(2))}
                 onChange={e => {
@@ -595,241 +636,303 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                 }} />
             </label>
             <span className="text-[11px] text-haze-faint" data-testid="audio-status">áudio: {audioStatus}</span>
-            <label className="text-xs text-haze-muted flex items-center gap-1">zoom
-              <input data-testid="zoom" type="range" min="10" max="400" step="5" value={zoom} onChange={e => { userZoomed.current = true; setZoom(+e.target.value); }} />
-              <button className={btn} data-testid="zoom-fit" disabled={!total} onClick={() => { userZoomed.current = false; fitZoom(); }}>Ajustar</button>
-            </label>
-            <div className="ml-auto flex gap-2">
-              <button className={btn} data-testid="undo" disabled={!hist.past.length} onClick={() => setHist(undo)}><Undo2 className="w-4 h-4" /> Desfazer</button>
-              <button className={btn} data-testid="redo" disabled={!hist.future.length} onClick={() => setHist(redo)}><Redo2 className="w-4 h-4" /> Refazer</button>
-            </div>
           </div>
-
-          {uiMode === 'advanced' && <div ref={tlWrapRef} className="rounded-xl border border-haze-border bg-haze-panel p-2 overflow-hidden" data-testid="timeline">
-            <div className="flex items-center gap-3 text-[11px] text-haze-muted px-1 pb-1"><span>Trilha 1: vídeo</span><span>Trilha 2: chat</span></div>
-            {tl.clips.length === 0 && tl.overlays.length === 0 && !(tl.layers ?? []).length
-              ? <div className="h-24 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
-              : <TimelineUI ref={tlStateRef} style={{ width: '100%', height: 32 + 10 + Math.max(1, editorData.length) * 34 + 16 }} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
-                  autoScroll gridSnap dragLine={false}
-                  getActionRender={(action) => {
-                    const isClip = action.effectId === 'clip';
-                    const c = tl.clips.find(x => x.id === action.id);
-                    const label = isClip ? (mediaRef.current.get(c?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === c?.mediaId)?.name ?? 'clipe') + ' (offline)')) : (tl.overlays.find(x => x.id === action.id)?.text ?? 'chat');
-                    const sel = action.id === selected;
-                    if (action.effectId === 'layer') {
-                      const lay = (tl.layers ?? []).find(x => x.id === action.id);
-                      return (
-                        <div data-testid="layer-block" data-layer-id={action.id}
-                          onPointerDown={() => { setSelectedLayer(action.id); setSelected(null); }}
-                          className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-fuchsia-500/25 border border-fuchsia-400/60 ${action.id === selectedLayer ? 'ring-2 ring-white' : ''}`}>
-                          <span className="truncate">{mediaRef.current.get(lay?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === lay?.mediaId)?.name ?? 'sobreposição') + ' (offline)')}</span>
-                          {(lay?.keyframes?.length ?? 0) > 0 && <span className="shrink-0 text-[10px]">◆{lay!.keyframes!.length}</span>}
-                        </div>
-                      );
-                    }
-                    if (isClip) return <ClipBlock id={action.id} wave={c && peaks[c.mediaId] && mediaRef.current.get(c.mediaId) ? { peaks: peaks[c.mediaId], mediaDur: mediaRef.current.get(c.mediaId)!.ref.duration, inP: c.inPoint, outP: c.outPoint } : undefined} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={c && speedOf(c) !== 1 ? `${label} ×${speedOf(c)}` : label} selected={sel} muted={(c?.volume ?? 1) === 0}
-                      onSelect={() => { setSelected(action.id); setSelectedLayer(null); }} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
-                    return (
-                      <div data-testid="chat-block" data-clip-id={action.id} onPointerDown={() => { setSelectedOverlay(action.id); setSelectedLayer(null); }}
-                        className="h-full w-full px-2 flex items-center text-[11px] truncate rounded bg-sky-500/25 border border-sky-400/60">
-                        {label}
-                      </div>
-                    );
-                  }}
-                  onClickTimeArea={(time) => {
-                    seekingRef.current = true;
-                    setPlaying(false);
-                    setT(Math.max(0, time));
-                    return undefined;
-                  }}
-                  onCursorDrag={(time) => {
-                    seekingRef.current = true;
-                    setPlaying(false);
-                    setT(Math.max(0, time));
-                  }}
-                  onActionMoveEnd={onMoveEnd as any}
-                  onActionResizeEnd={onResizeEnd as any}
-                />}
-          </div>}
         </section>
 
-        {/* Inspetor + exportar (Avançado) ou fluxo guiado (Simples) */}
-        {uiMode === 'simple' && (
-          <section className="rounded-xl border border-haze-border bg-haze-panel p-3">
+        {/* Coluna Direita: Inspetor Contextual (304 px, Avançado) ou Fluxo Guiado (Simples) */}
+        {uiMode === 'simple' ? (
+          <section className="w-full lg:w-[304px] shrink-0 rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-52px-296px-32px)]">
             <GuidedFlow tl={tl} mediaOf={id => mediaRef.current.get(id)} apply={apply} presetId={presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId}
               setPresetId={setPresetId} exporting={exp} result={result} onExport={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
               onCancel={() => abortRef.current?.abort()} />
           </section>
-        )}
-        {uiMode === 'advanced' && <section className="rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3">
-          {selLayer && selLayerMedia && (() => {
-            const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
-            const cur = evalTransform(selLayer, rel);
-            const kfs = selLayer.keyframes ?? [];
-            const edit = (patch: Partial<typeof cur>) => { if (!kfs.length) apply(x => updateLayer(x, selLayer.id, { base: patch })); };
-            const fld = (name: 'x' | 'y' | 'scale' | 'opacity', label: string, step: string) => (
-              <label className="flex items-center gap-1">{label}
-                <input data-testid={`layer-${name}`} type="number" step={step} className={input}
-                  key={`${selLayer.id}-${name}-${Math.round(rel * 1000)}-${kfs.length}-${selLayer.base[name]}`} defaultValue={Number(cur[name].toFixed(3))}
-                  onBlur={e => edit({ [name]: +e.target.value })} />
-              </label>
-            );
-            const read = (n: string) => Number((document.querySelector(`[data-testid="layer-${n}"]`) as HTMLInputElement | null)?.value);
-            return (
-              <div className="space-y-2 text-xs border border-fuchsia-400/40 rounded-lg p-2" data-testid="layer-inspector">
-                <div className="font-semibold">Sobreposição</div>
-                <div className="truncate text-haze-muted">{selLayerMedia.ref.name} · começa em {fmt(selLayer.start)} · dura {fmt(layerDuration(selLayer))}</div>
-                <div className="grid grid-cols-2 gap-1">
-                  {fld('x', 'x', '0.05')}{fld('y', 'y', '0.05')}{fld('scale', 'escala', '0.05')}{fld('opacity', 'opac.', '0.1')}
+        ) : (
+          <section className="w-full lg:w-[304px] shrink-0 rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-52px-296px-32px)]">
+            {selLayer && selLayerMedia && (() => {
+              const rel = Math.max(0, Math.min(layerDuration(selLayer), t - selLayer.start));
+              const cur = evalTransform(selLayer, rel);
+              const kfs = selLayer.keyframes ?? [];
+              const edit = (patch: Partial<typeof cur>) => { if (!kfs.length) apply(x => updateLayer(x, selLayer.id, { base: patch })); };
+              const fld = (name: 'x' | 'y' | 'scale' | 'opacity', label: string, step: string) => (
+                <label className="flex items-center gap-1">{label}
+                  <input data-testid={`layer-${name}`} type="number" step={step} className={input}
+                    key={`${selLayer.id}-${name}-${Math.round(rel * 1000)}-${kfs.length}-${selLayer.base[name]}`} defaultValue={Number(cur[name].toFixed(3))}
+                    onBlur={e => edit({ [name]: +e.target.value })} />
+                </label>
+              );
+              const read = (n: string) => Number((document.querySelector(`[data-testid="layer-${n}"]`) as HTMLInputElement | null)?.value);
+              return (
+                <div className="space-y-2 text-xs border border-fuchsia-400/40 rounded-lg p-2" data-testid="layer-inspector">
+                  <div className="font-semibold">Sobreposição</div>
+                  <div className="truncate text-haze-muted">{selLayerMedia.ref.name} · começa em {fmt(selLayer.start)} · dura {fmt(layerDuration(selLayer))}</div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {fld('x', 'x', '0.05')}{fld('y', 'y', '0.05')}{fld('scale', 'escala', '0.05')}{fld('opacity', 'opac.', '0.1')}
+                  </div>
+                  <div className="text-haze-faint">x e y = centro do quadro (0 a 1). {kfs.length ? 'Com keyframes os valores vêm deles; edite e use o botão para gravar no cursor.' : 'Sem keyframes: valores fixos.'}</div>
+                  <div className="flex items-center gap-2">volume
+                    <input data-testid="layer-volume" type="range" min="0" max="2" step="0.1" value={selLayer.volume} onChange={e => apply(x => updateLayer(x, selLayer.id, { volume: +e.target.value }))} />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button className={btn} data-testid="kf-add" onClick={() => apply(x => addKeyframe(x, selLayer.id, rel, { x: read('x'), y: read('y'), scale: read('scale'), opacity: read('opacity') }))}>◆ Keyframe no cursor</button>
+                    <button className={btn} data-testid="layer-remove" onClick={() => { apply(x => removeLayer(x, selLayer.id)); setSelectedLayer(null); }}><Trash2 className="w-4 h-4" /> Remover</button>
+                  </div>
+                  {kfs.length > 0 && (
+                    <ul className="space-y-1" data-testid="kf-list">
+                      {kfs.map((k, i) => (
+                        <li key={k.time} className="flex items-center gap-2" data-testid={`kf-${i}`}>
+                          <span className="font-mono">{fmt(k.time)}</span>
+                          <span className="truncate flex-1">x{k.x} y{k.y} ×{k.scale} α{k.opacity}</span>
+                          <button aria-label="Remover keyframe" data-testid={`kf-remove-${i}`} className="text-haze-muted hover:text-white" onClick={() => apply(x => removeKeyframe(x, selLayer.id, k.time))}><Trash2 className="w-3.5 h-3.5" /></button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <div className="text-haze-faint">x e y = centro do quadro (0 a 1). {kfs.length ? 'Com keyframes os valores vêm deles; edite e use o botão para gravar no cursor.' : 'Sem keyframes: valores fixos.'}</div>
+              );
+            })()}
+            <div className="text-xs font-semibold">Clipe selecionado</div>
+            {selClip && selMedia ? (
+              <div className="space-y-2 text-xs" data-testid="inspector">
+                <div className="truncate text-haze-muted">{selMedia.ref.name}</div>
+                <div className="flex items-center gap-2">entrada
+                  <input data-testid="trim-in" type="number" step="0.1" className={input} key={`in-${selClip.id}-${selClip.inPoint}`} defaultValue={selClip.inPoint}
+                    onBlur={e => apply(x => trimClip(x, selClip.id, { inPoint: +e.target.value }, selMedia.ref.duration))} />
+                </div>
+                <div className="flex items-center gap-2">saída
+                  <input data-testid="trim-out" type="number" step="0.1" className={input} key={`out-${selClip.id}-${selClip.outPoint}`} defaultValue={selClip.outPoint}
+                    onBlur={e => apply(x => trimClip(x, selClip.id, { outPoint: +e.target.value }, selMedia.ref.duration))} />
+                </div>
+                <div className="text-haze-muted">duração {fmt(clipDuration(selClip))}</div>
+                <div className="flex items-center gap-2">velocidade
+                  <select data-testid="speed" value={speedOf(selClip)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
+                    onChange={e => apply(x => setClipSpeed(x, selClip.id, +e.target.value))}>
+                    {[0.25, 0.5, 0.75, 1, 1.5, 2, 4].map(v => <option key={v} value={v}>{v}×</option>)}
+                  </select>
+                  <span className="text-haze-faint">muda o tom</span>
+                </div>
+                <div className="flex items-center gap-2">fade (s) entrada
+                  <input data-testid="fade-in" type="number" min="0" step="0.1" className={input} key={`fi-${selClip.id}-${selClip.fadeIn ?? 0}`} defaultValue={selClip.fadeIn ?? 0}
+                    onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeIn: +e.target.value }))} />
+                  saída
+                  <input data-testid="fade-out" type="number" min="0" step="0.1" className={input} key={`fo-${selClip.id}-${selClip.fadeOut ?? 0}`} defaultValue={selClip.fadeOut ?? 0}
+                    onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeOut: +e.target.value }))} />
+                </div>
+                <div className="flex items-center gap-2">transição (s)
+                  <input data-testid="transition" type="number" min="0" max="5" step="0.1" className={input} disabled={tl.clips[0]?.id === selClip.id}
+                    title={tl.clips[0]?.id === selClip.id ? 'O primeiro clipe não tem clipe anterior' : 'Fusão com o clipe anterior (0 = corte seco)'}
+                    key={`tr-${selClip.id}-${selClip.transition?.duration ?? 0}`} defaultValue={selClip.transition?.duration ?? 0}
+                    onBlur={e => apply(x => setClipTransition(x, selClip.id, +e.target.value))} />
+                </div>
+                <div className="flex items-center gap-2">câmera
+                  <select data-testid="cam-preset" value={selClip.camera?.preset ?? 'none'} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
+                    onChange={e => {
+                      const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
+                      const now = { date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, time: `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` };
+                      apply(x => setClipCamera(x, selClip.id, e.target.value as 'none' | 'bodycam' | 'cctv' | 'noir', now));
+                    }}>
+                    <option value="none">Nenhuma</option><option value="bodycam">Bodycam</option><option value="cctv">CCTV</option><option value="noir">Noir</option>
+                  </select>
+                </div>
+                {selClip.camera && selClip.camera.preset !== 'noir' && (
+                  <div className="space-y-1" data-testid="cam-fields">
+                    <div className="flex items-center gap-2">início do relógio
+                      <input data-testid="cam-date" className={input} defaultValue={selClip.camera.date} key={`d-${selClip.id}-${selClip.camera.date}`}
+                        onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { date: e.target.value }))} />
+                      <input data-testid="cam-time" className={input} defaultValue={selClip.camera.time} key={`t-${selClip.id}-${selClip.camera.time}`}
+                        onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { time: e.target.value }))} />
+                    </div>
+                    {selClip.camera.preset === 'bodycam'
+                      ? <input data-testid="cam-officer" placeholder="Oficial (ex.: M. MENDOZA)" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.officer ?? ''} key={`o-${selClip.id}`}
+                          onBlur={e => apply(x => setClipCamera(x, selClip.id, 'bodycam', { date: selClip.camera!.date, time: selClip.camera!.time }, { officer: e.target.value }))} />
+                      : <input data-testid="cam-name" placeholder="Nome da câmera" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.camName ?? ''} key={`n-${selClip.id}`}
+                          onBlur={e => apply(x => setClipCamera(x, selClip.id, 'cctv', { date: selClip.camera!.date, time: selClip.camera!.time }, { camName: e.target.value }))} />}
+                  </div>
+                )}
                 <div className="flex items-center gap-2">volume
-                  <input data-testid="layer-volume" type="range" min="0" max="2" step="0.1" value={selLayer.volume} onChange={e => apply(x => updateLayer(x, selLayer.id, { volume: +e.target.value }))} />
+                  <input data-testid="clip-volume" type="range" min="0" max="2" step="0.1" value={selClip.volume} onChange={e => apply(x => setClipVolume(x, selClip.id, +e.target.value))} />
+                  <span>{Math.round(selClip.volume * 100)}%</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button className={btn} data-testid="kf-add" onClick={() => apply(x => addKeyframe(x, selLayer.id, rel, { x: read('x'), y: read('y'), scale: read('scale'), opacity: read('opacity') }))}>◆ Keyframe no cursor</button>
-                  <button className={btn} data-testid="layer-remove" onClick={() => { apply(x => removeLayer(x, selLayer.id)); setSelectedLayer(null); }}><Trash2 className="w-4 h-4" /> Remover</button>
+                  <button className={btn} data-testid="mute" onClick={() => apply(x => setClipVolume(x, selClip.id, selClip.volume === 0 ? 1 : 0))}>{selClip.volume === 0 ? 'Ativar som' : 'Silenciar'}</button>
+                  <button className={btn} data-testid="move-left" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) - 1))}>← Antes</button>
+                  <button className={btn} data-testid="move-right" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) + 1))}>Depois →</button>
+                  <button className={btn} data-testid="remove-clip" onClick={() => { apply(x => removeClip(x, selClip.id)); setSelected(null); }}><Trash2 className="w-4 h-4" /> Remover</button>
                 </div>
-                {kfs.length > 0 && (
-                  <ul className="space-y-1" data-testid="kf-list">
-                    {kfs.map((k, i) => (
-                      <li key={k.time} className="flex items-center gap-2" data-testid={`kf-${i}`}>
-                        <span className="font-mono">{fmt(k.time)}</span>
-                        <span className="truncate flex-1">x{k.x} y{k.y} ×{k.scale} α{k.opacity}</span>
-                        <button aria-label="Remover keyframe" data-testid={`kf-remove-${i}`} className="text-haze-muted hover:text-white" onClick={() => apply(x => removeKeyframe(x, selLayer.id, k.time))}><Trash2 className="w-3.5 h-3.5" /></button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
-            );
-          })()}
-          <div className="text-xs font-semibold">Clipe selecionado</div>
-          {selClip && selMedia ? (
-            <div className="space-y-2 text-xs" data-testid="inspector">
-              <div className="truncate text-haze-muted">{selMedia.ref.name}</div>
-              <div className="flex items-center gap-2">entrada
-                <input data-testid="trim-in" type="number" step="0.1" className={input} key={`in-${selClip.id}-${selClip.inPoint}`} defaultValue={selClip.inPoint}
-                  onBlur={e => apply(x => trimClip(x, selClip.id, { inPoint: +e.target.value }, selMedia.ref.duration))} />
-              </div>
-              <div className="flex items-center gap-2">saída
-                <input data-testid="trim-out" type="number" step="0.1" className={input} key={`out-${selClip.id}-${selClip.outPoint}`} defaultValue={selClip.outPoint}
-                  onBlur={e => apply(x => trimClip(x, selClip.id, { outPoint: +e.target.value }, selMedia.ref.duration))} />
-              </div>
-              <div className="text-haze-muted">duração {fmt(clipDuration(selClip))}</div>
-              <div className="flex items-center gap-2">velocidade
-                <select data-testid="speed" value={speedOf(selClip)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
-                  onChange={e => apply(x => setClipSpeed(x, selClip.id, +e.target.value))}>
-                  {[0.25, 0.5, 0.75, 1, 1.5, 2, 4].map(v => <option key={v} value={v}>{v}×</option>)}
-                </select>
-                <span className="text-haze-faint">muda o tom</span>
-              </div>
-              <div className="flex items-center gap-2">fade (s) entrada
-                <input data-testid="fade-in" type="number" min="0" step="0.1" className={input} key={`fi-${selClip.id}-${selClip.fadeIn ?? 0}`} defaultValue={selClip.fadeIn ?? 0}
-                  onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeIn: +e.target.value }))} />
-                saída
-                <input data-testid="fade-out" type="number" min="0" step="0.1" className={input} key={`fo-${selClip.id}-${selClip.fadeOut ?? 0}`} defaultValue={selClip.fadeOut ?? 0}
-                  onBlur={e => apply(x => setClipFades(x, selClip.id, { fadeOut: +e.target.value }))} />
-              </div>
-              <div className="flex items-center gap-2">transição (s)
-                <input data-testid="transition" type="number" min="0" max="5" step="0.1" className={input} disabled={tl.clips[0]?.id === selClip.id}
-                  title={tl.clips[0]?.id === selClip.id ? 'O primeiro clipe não tem clipe anterior' : 'Fusão com o clipe anterior (0 = corte seco)'}
-                  key={`tr-${selClip.id}-${selClip.transition?.duration ?? 0}`} defaultValue={selClip.transition?.duration ?? 0}
-                  onBlur={e => apply(x => setClipTransition(x, selClip.id, +e.target.value))} />
-              </div>
-              <div className="flex items-center gap-2">câmera
-                <select data-testid="cam-preset" value={selClip.camera?.preset ?? 'none'} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
-                  onChange={e => {
-                    const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
-                    const now = { date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, time: `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` };
-                    apply(x => setClipCamera(x, selClip.id, e.target.value as 'none' | 'bodycam' | 'cctv' | 'noir', now));
-                  }}>
-                  <option value="none">Nenhuma</option><option value="bodycam">Bodycam</option><option value="cctv">CCTV</option><option value="noir">Noir</option>
-                </select>
-              </div>
-              {selClip.camera && selClip.camera.preset !== 'noir' && (
-                <div className="space-y-1" data-testid="cam-fields">
-                  <div className="flex items-center gap-2">início do relógio
-                    <input data-testid="cam-date" className={input} defaultValue={selClip.camera.date} key={`d-${selClip.id}-${selClip.camera.date}`}
-                      onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { date: e.target.value }))} />
-                    <input data-testid="cam-time" className={input} defaultValue={selClip.camera.time} key={`t-${selClip.id}-${selClip.camera.time}`}
-                      onBlur={e => apply(x => setClipCamera(x, selClip.id, selClip.camera!.preset, { date: selClip.camera!.date, time: selClip.camera!.time }, { time: e.target.value }))} />
-                  </div>
-                  {selClip.camera.preset === 'bodycam'
-                    ? <input data-testid="cam-officer" placeholder="Oficial (ex.: M. MENDOZA)" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.officer ?? ''} key={`o-${selClip.id}`}
-                        onBlur={e => apply(x => setClipCamera(x, selClip.id, 'bodycam', { date: selClip.camera!.date, time: selClip.camera!.time }, { officer: e.target.value }))} />
-                    : <input data-testid="cam-name" placeholder="Nome da câmera" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" defaultValue={selClip.camera.camName ?? ''} key={`n-${selClip.id}`}
-                        onBlur={e => apply(x => setClipCamera(x, selClip.id, 'cctv', { date: selClip.camera!.date, time: selClip.camera!.time }, { camName: e.target.value }))} />}
+            ) : <div className="text-xs text-haze-muted">Clique em um clipe da timeline.</div>}
+            <button className={`${btn} w-full justify-center`} data-testid="split" disabled={!locate(tl, t)} onClick={() => apply(x => splitAt(x, t))}><Scissors className="w-4 h-4" /> Dividir no cursor</button>
+            {tl.overlays.length > 0 && (
+              <ul className="text-xs space-y-1 border-t border-haze-border pt-2" data-testid="overlay-list">
+                {tl.overlays.map(o => (
+                  <li key={o.id} className="flex items-center gap-2"><button className={`truncate flex-1 text-left ${o.id === selectedOverlay ? 'text-white font-semibold' : ''}`} data-testid="overlay-select" onClick={() => { setSelectedOverlay(o.id); setSelectedLayer(null); }}>{fmt(o.start)} · {o.text}</button>
+                    <button aria-label="Remover chat" className="text-haze-muted hover:text-white" onClick={() => apply(x => removeOverlay(x, o.id))}><Trash2 className="w-3.5 h-3.5" /></button></li>
+                ))}
+              </ul>
+            )}
+
+            {selOverlay && (
+              <div className="space-y-1.5 text-xs border border-sky-400/40 rounded-lg p-2" data-testid="overlay-editor">
+                <div className="font-semibold">Texto selecionado ({selOverlay.kind === 'text' ? 'título/legenda' : 'chat'})</div>
+                <textarea data-testid="ov-text" rows={3} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" key={`t-${selOverlay.id}`} defaultValue={selOverlay.text}
+                  onBlur={e => { const v = e.target.value; if (v.trim() && v !== selOverlay.text) apply(x => updateOverlay(x, selOverlay.id, { text: v, lineOffsets: undefined })); }} />
+                <div className="flex items-center gap-2 flex-wrap">
+                  início <input data-testid="ov-start" type="number" step="0.1" min="0" className={input} key={`s-${selOverlay.id}-${selOverlay.start}`} defaultValue={selOverlay.start}
+                    onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { start: +e.target.value }))} />
+                  duração <input data-testid="ov-duration" type="number" step="0.1" min="0.1" className={input} key={`d-${selOverlay.id}-${selOverlay.duration}`} defaultValue={selOverlay.duration}
+                    onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { duration: +e.target.value }))} />
+                  tamanho <input data-testid="ov-size" type="number" step="2" min="10" max="72" className={input} key={`z-${selOverlay.id}-${selOverlay.fontSize}`} defaultValue={selOverlay.fontSize}
+                    onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { fontSize: Math.max(10, Math.min(72, +e.target.value || 22)) }))} />
+                  {selOverlay.kind === 'text' && <>cor <input data-testid="ov-color" type="color" value={selOverlay.color ?? '#ffffff'} onChange={e => apply(x => updateOverlay(x, selOverlay.id, { color: e.target.value }))} /></>}
                 </div>
-              )}
-              <div className="flex items-center gap-2">volume
-                <input data-testid="clip-volume" type="range" min="0" max="2" step="0.1" value={selClip.volume} onChange={e => apply(x => setClipVolume(x, selClip.id, +e.target.value))} />
-                <span>{Math.round(selClip.volume * 100)}%</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button className={btn} data-testid="mute" onClick={() => apply(x => setClipVolume(x, selClip.id, selClip.volume === 0 ? 1 : 0))}>{selClip.volume === 0 ? 'Ativar som' : 'Silenciar'}</button>
-                <button className={btn} data-testid="move-left" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) - 1))}>← Antes</button>
-                <button className={btn} data-testid="move-right" onClick={() => apply(x => moveClip(x, selClip.id, x.clips.findIndex(c => c.id === selClip.id) + 1))}>Depois →</button>
-                <button className={btn} data-testid="remove-clip" onClick={() => { apply(x => removeClip(x, selClip.id)); setSelected(null); }}><Trash2 className="w-4 h-4" /> Remover</button>
-              </div>
-            </div>
-          ) : <div className="text-xs text-haze-muted">Clique em um clipe da timeline.</div>}
-          <button className={btn} data-testid="split" disabled={!locate(tl, t)} onClick={() => apply(x => splitAt(x, t))}><Scissors className="w-4 h-4" /> Dividir no cursor</button>
-          {tl.overlays.length > 0 && (
-            <ul className="text-xs space-y-1 border-t border-haze-border pt-2" data-testid="overlay-list">
-              {tl.overlays.map(o => (
-                <li key={o.id} className="flex items-center gap-2"><button className={`truncate flex-1 text-left ${o.id === selectedOverlay ? 'text-white font-semibold' : ''}`} data-testid="overlay-select" onClick={() => { setSelectedOverlay(o.id); setSelectedLayer(null); }}>{fmt(o.start)} · {o.text}</button>
-                  <button aria-label="Remover chat" className="text-haze-muted hover:text-white" onClick={() => apply(x => removeOverlay(x, o.id))}><Trash2 className="w-3.5 h-3.5" /></button></li>
-              ))}
-            </ul>
-          )}
-
-          {selOverlay && (
-            <div className="space-y-1.5 text-xs border border-sky-400/40 rounded-lg p-2" data-testid="overlay-editor">
-              <div className="font-semibold">Texto selecionado ({selOverlay.kind === 'text' ? 'título/legenda' : 'chat'})</div>
-              <textarea data-testid="ov-text" rows={3} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" key={`t-${selOverlay.id}`} defaultValue={selOverlay.text}
-                onBlur={e => { const v = e.target.value; if (v.trim() && v !== selOverlay.text) apply(x => updateOverlay(x, selOverlay.id, { text: v, lineOffsets: undefined })); }} />
-              <div className="flex items-center gap-2 flex-wrap">
-                início <input data-testid="ov-start" type="number" step="0.1" min="0" className={input} key={`s-${selOverlay.id}-${selOverlay.start}`} defaultValue={selOverlay.start}
-                  onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { start: +e.target.value }))} />
-                duração <input data-testid="ov-duration" type="number" step="0.1" min="0.1" className={input} key={`d-${selOverlay.id}-${selOverlay.duration}`} defaultValue={selOverlay.duration}
-                  onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { duration: +e.target.value }))} />
-                tamanho <input data-testid="ov-size" type="number" step="2" min="10" max="72" className={input} key={`z-${selOverlay.id}-${selOverlay.fontSize}`} defaultValue={selOverlay.fontSize}
-                  onBlur={e => apply(x => updateOverlay(x, selOverlay.id, { fontSize: Math.max(10, Math.min(72, +e.target.value || 22)) }))} />
-                {selOverlay.kind === 'text' && <>cor <input data-testid="ov-color" type="color" value={selOverlay.color ?? '#ffffff'} onChange={e => apply(x => updateOverlay(x, selOverlay.id, { color: e.target.value }))} /></>}
-              </div>
-              <div className="text-haze-faint">Editar o texto desfaz a entrada linha a linha.</div>
-            </div>
-          )}
-
-          <div className="border-t border-haze-border pt-3 space-y-2">
-            <div className="text-xs font-semibold">Exportar</div>
-            <select data-testid="export-preset" value={presetId} onChange={e => setPresetId(e.target.value)} className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs">
-              <option value="custom">Personalizado (tamanho e fps abaixo)</option>
-              {EXPORT_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-            <div className="flex items-center gap-2 text-xs">
-              <select data-testid="export-size" disabled={presetId !== 'custom'} value={sizeIdx} onChange={e => setSizeIdx(+e.target.value)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border">
-                {SIZES.map((s, i) => <option key={s[0]} value={i}>{s[0]}</option>)}
-              </select>
-              <select data-testid="export-fps" disabled={presetId !== 'custom'} value={fps} onChange={e => setFps(+e.target.value)} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border">
-                {[24, 30, 60].map(f => <option key={f} value={f}>{f} fps</option>)}
-              </select>
-            </div>
-            {!exp
-              ? <button className={primary} data-testid="export" disabled={!tl.clips.length && !(tl.layers ?? []).length} onClick={() => void startExport()}>Exportar vídeo</button>
-              : <button className={btn} data-testid="export-cancel" onClick={() => abortRef.current?.abort()}>Cancelar</button>}
-            {exp && <div className="text-xs text-haze-muted" data-testid="export-status" role="status">{exp.phase}… {exp.pct}%</div>}
-            {result && (
-              <div className="text-xs space-y-1" data-testid="export-result">
-                <div data-testid="export-info">{result.r.ext.toUpperCase()} · {result.r.videoCodec}{result.r.audioCodec ? ` + ${result.r.audioCodec}` : ''} · {result.r.width}×{result.r.height} · {result.r.fps} fps · {result.r.frames} quadros · {(result.r.blob.size / 1024).toFixed(0)} KB · {(result.r.elapsedMs / 1000).toFixed(1)} s</div>
-                <div className="text-haze-faint" data-testid="export-timing">decodificar {(result.r.timing.decodeMs / 1000).toFixed(1)} s · desenhar {(result.r.timing.composeMs / 1000).toFixed(1)} s · codificar {(result.r.timing.encodeMs / 1000).toFixed(1)} s · áudio {(result.r.timing.audioMs / 1000).toFixed(1)} s</div>
-                <a data-testid="export-download" className={`${primary} no-underline`} href={result.url} download={`haze-video.${result.r.ext}`}><Download className="w-4 h-4" /> Baixar</a>
+                <div className="text-haze-faint">Editar o texto desfaz a entrada linha a linha.</div>
               </div>
             )}
-          </div>
-        </section>}
+          </section>
+        )}
       </div>
+
+      {/* Linha Inferior: Timeline em largura total (~296 px, Modo Avançado) */}
+      {uiMode === 'advanced' && (
+        <div className="w-full px-3 pb-3 shrink-0">
+          <div ref={tlWrapRef} className="rounded-xl border border-haze-border bg-haze-panel p-3 min-h-[200px]" data-testid="timeline">
+            <div className="flex items-center justify-between gap-3 text-[11px] text-haze-muted pb-2 border-b border-haze-border/50">
+              <div className="flex items-center gap-3 font-medium">
+                <span>Trilha 1: vídeo</span>
+                <span>Trilha 2: chat</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-haze-muted flex items-center gap-1">zoom
+                  <input data-testid="zoom" type="range" min="10" max="400" step="5" value={zoom} onChange={e => { userZoomed.current = true; setZoom(+e.target.value); }} />
+                  <button className={btn} data-testid="zoom-fit" disabled={!total} onClick={() => { userZoomed.current = false; fitZoom(); }}>Ajustar</button>
+                </label>
+              </div>
+            </div>
+            {tl.clips.length === 0 && tl.overlays.length === 0 && !(tl.layers ?? []).length
+              ? <div className="h-32 flex items-center justify-center text-xs text-haze-muted">A timeline está vazia.</div>
+              : <div className="pt-2">
+                  <TimelineUI ref={tlStateRef} style={{ width: '100%', height: 32 + 10 + Math.max(1, editorData.length) * 34 + 16 }} editorData={editorData} effects={EFFECTS} scale={1} scaleWidth={zoom} startLeft={16} rowHeight={34}
+                    autoScroll gridSnap dragLine={false}
+                    getActionRender={(action) => {
+                      const isClip = action.effectId === 'clip';
+                      const c = tl.clips.find(x => x.id === action.id);
+                      const label = isClip ? (mediaRef.current.get(c?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === c?.mediaId)?.name ?? 'clipe') + ' (offline)')) : (tl.overlays.find(x => x.id === action.id)?.text ?? 'chat');
+                      const sel = action.id === selected;
+                      if (action.effectId === 'layer') {
+                        const lay = (tl.layers ?? []).find(x => x.id === action.id);
+                        return (
+                          <div data-testid="layer-block" data-layer-id={action.id}
+                            onPointerDown={() => { setSelectedLayer(action.id); setSelected(null); }}
+                            className={`h-full w-full px-2 flex items-center gap-1 text-[11px] truncate rounded bg-fuchsia-500/25 border border-fuchsia-400/60 ${action.id === selectedLayer ? 'ring-2 ring-white' : ''}`}>
+                            <span className="truncate">{mediaRef.current.get(lay?.mediaId ?? '')?.ref.name ?? ((pending.find(p => p.id === lay?.mediaId)?.name ?? 'sobreposição') + ' (offline)')}</span>
+                            {(lay?.keyframes?.length ?? 0) > 0 && <span className="shrink-0 text-[10px]">◆{lay!.keyframes!.length}</span>}
+                          </div>
+                        );
+                      }
+                      if (isClip) return <ClipBlock id={action.id} wave={c && peaks[c.mediaId] && mediaRef.current.get(c.mediaId) ? { peaks: peaks[c.mediaId], mediaDur: mediaRef.current.get(c.mediaId)!.ref.duration, inP: c.inPoint, outP: c.outPoint } : undefined} thumb={c ? thumbs[`${c.mediaId}@${c.inPoint}`] : undefined} label={c && speedOf(c) !== 1 ? `${label} ×${speedOf(c)}` : label} selected={sel} muted={(c?.volume ?? 1) === 0}
+                        onSelect={() => { setSelected(action.id); setSelectedLayer(null); }} onReorder={(to) => apply(x => moveClip(x, action.id, to))} />;
+                      return (
+                        <div data-testid="chat-block" data-clip-id={action.id} onPointerDown={() => { setSelectedOverlay(action.id); setSelectedLayer(null); }}
+                          className="h-full w-full px-2 flex items-center text-[11px] truncate rounded bg-sky-500/25 border border-sky-400/60">
+                          {label}
+                        </div>
+                      );
+                    }}
+                    onClickTimeArea={(time) => {
+                      seekingRef.current = true;
+                      setPlaying(false);
+                      setT(Math.max(0, time));
+                      return undefined;
+                    }}
+                    onCursorDrag={(time) => {
+                      seekingRef.current = true;
+                      setPlaying(false);
+                      setT(Math.max(0, time));
+                    }}
+                    onActionMoveEnd={onMoveEnd as any}
+                    onActionResizeEnd={onResizeEnd as any}
+                  />
+                </div>}
+          </div>
+        </div>
+      )}
+
+      {/* Painel / Popover de Exportação */}
+      {showExportModal && (
+        <aside className="fixed top-14 right-4 z-50 w-full max-w-md rounded-2xl border border-haze-border bg-haze-panel p-5 shadow-2xl space-y-4" aria-label="Painel de exportação">
+            <div className="flex items-center justify-between border-b border-haze-border pb-3">
+              <div className="flex items-center gap-2">
+                <Download className="w-5 h-5 text-haze-accent" />
+                <h3 className="text-sm font-bold text-white">Exportar Vídeo</h3>
+              </div>
+              <button aria-label="Fechar exportação" className="p-1 rounded-lg text-haze-muted hover:text-white hover:bg-haze-raised/40 transition-colors"
+                onClick={() => setShowExportModal(false)}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-xs text-haze-muted block space-y-1">
+                <span>Preset de exportação</span>
+                <select data-testid="export-preset" value={presetId} onChange={e => setPresetId(e.target.value)} className="w-full px-2.5 py-1.5 rounded-lg bg-haze-bg border border-haze-border text-xs text-white">
+                  <option value="custom">Personalizado (tamanho e fps abaixo)</option>
+                  {EXPORT_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+              </label>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <label className="text-haze-muted block space-y-1">
+                  <span>Resolução</span>
+                  <select data-testid="export-size" disabled={presetId !== 'custom'} value={sizeIdx} onChange={e => setSizeIdx(+e.target.value)} className="w-full px-2.5 py-1.5 rounded-lg bg-haze-bg border border-haze-border text-xs text-white disabled:opacity-50">
+                    {SIZES.map((s, i) => <option key={s[0]} value={i}>{s[0]}</option>)}
+                  </select>
+                </label>
+                <label className="text-haze-muted block space-y-1">
+                  <span>Taxa de quadros</span>
+                  <select data-testid="export-fps" disabled={presetId !== 'custom'} value={fps} onChange={e => setFps(+e.target.value)} className="w-full px-2.5 py-1.5 rounded-lg bg-haze-bg border border-haze-border text-xs text-white disabled:opacity-50">
+                    {[24, 30, 60].map(f => <option key={f} value={f}>{f} fps</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="pt-2">
+                {!exp
+                  ? <button className={`w-full justify-center ${primary}`} data-testid="export" disabled={!tl.clips.length && !(tl.layers ?? []).length} onClick={() => void startExport()}>
+                      <Download className="w-4 h-4" /> Exportar vídeo
+                    </button>
+                  : <button className={`w-full justify-center ${btn}`} data-testid="export-cancel" onClick={() => abortRef.current?.abort()}>
+                      <X className="w-4 h-4" /> Cancelar exportação
+                    </button>}
+              </div>
+
+              {exp && (
+                <div className="rounded-lg bg-haze-bg border border-haze-border p-3 text-xs space-y-2">
+                  <div className="flex justify-between text-haze-muted" role="status" data-testid="export-status">
+                    <span>{exp.phase}…</span>
+                    <span className="font-mono font-bold text-haze-accent">{exp.pct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-haze-panel rounded-full overflow-hidden">
+                    <div className="h-full bg-haze-accent-fill transition-all duration-200" style={{ width: `${exp.pct}%` }} />
+                  </div>
+                </div>
+              )}
+
+              {result && (
+                <div className="rounded-xl border border-haze-accent/30 bg-haze-accent/10 p-3 text-xs space-y-2" data-testid="export-result">
+                  <div className="font-semibold text-haze-accent">Vídeo pronto para download!</div>
+                  <div data-testid="export-info" className="text-haze-text">
+                    {result.r.ext.toUpperCase()} · {result.r.videoCodec}{result.r.audioCodec ? ` + ${result.r.audioCodec}` : ''} · {result.r.width}×{result.r.height} · {result.r.fps} fps · {result.r.frames} quadros · {(result.r.blob.size / 1024).toFixed(0)} KB · {(result.r.elapsedMs / 1000).toFixed(1)} s
+                  </div>
+                  <div className="text-haze-faint text-[11px]" data-testid="export-timing">
+                    decodificar {(result.r.timing.decodeMs / 1000).toFixed(1)} s · desenhar {(result.r.timing.composeMs / 1000).toFixed(1)} s · codificar {(result.r.timing.encodeMs / 1000).toFixed(1)} s · áudio {(result.r.timing.audioMs / 1000).toFixed(1)} s
+                  </div>
+                  <a data-testid="export-download" className={`w-full justify-center ${primary} no-underline mt-2`} href={result.url} download={`haze-video.${result.r.ext}`}>
+                    <Download className="w-4 h-4" /> Baixar arquivo ({result.r.ext.toUpperCase()})
+                  </a>
+                </div>
+              )}
+            </div>
+        </aside>
+      )}
     </div>
   );
 };

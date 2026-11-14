@@ -1,3 +1,4 @@
+import { abrirExportacao } from './helpers';
 /**
  * Video Studio F4: modelos, fluxo guiado (Simples), presets de destino e edição de texto.
  * Valida os arquivos exportados com ffmpeg fora do navegador. Requer ffmpeg/ffprobe no PATH.
@@ -80,6 +81,7 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('ov-text').fill('MEU DOCUMENTÁRIO'); await page.getByTestId('ov-text').blur();
     await expect(page.getByTestId('overlay-list')).toContainText('MEU DOCUMENTÁRIO');
 
+    await abrirExportacao(page);
     await page.getByTestId('export-preset').selectOption('discord');
     await page.getByTestId('export').click();
     await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
@@ -115,6 +117,7 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('tpl-registro-policial').click();
     await page.getByTestId('tpl-slot-bodycam1').selectOption({ label: 'vermelho.mp4' });
     await page.getByTestId('tpl-apply').click();
+    await abrirExportacao(page);
     await page.getByTestId('export-preset').selectOption('discord');
     await page.getByTestId('export').click();
     await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 100_000 });
@@ -180,6 +183,7 @@ test.describe('Video Studio F4', () => {
     test.setTimeout(280_000);
     await open(page, [fLong]);
     await page.getByTestId('add-clip-0').click();
+    await abrirExportacao(page);
     await page.getByTestId('export-preset').selectOption('discord');
     await page.getByTestId('export').click();
     await expect(page.getByTestId('export-result').getByTestId('export-info')).toBeVisible({ timeout: 250_000 });
