@@ -15,6 +15,7 @@ O **Haze RP Studio** roda **100% no navegador** (nada é enviado a servidores) e
 |---|---|
 | **Editor RP** (Chat Log + Canvas) | Monta a imagem final: foto, chat log, presets de câmera, adesivos, texto, luz e efeitos, tudo no mesmo canvas |
 | **Video to GIF Lab** | Converte trechos de vídeo em GIF, com o chat do Editor sobre os quadros |
+| **Video Studio** (v2.0) | Montagem e edição de vídeos de RP com corte, sobreposições (PiP), chatlog animado e exportação MP4 direta. Possui Modo Simples guiado (4 passos) e Modo Avançado com timeline multitrilha |
 
 Construído com **Vite + React 18 + TypeScript + Tailwind CSS**. Deploy contínuo na Vercel.
 
@@ -79,6 +80,40 @@ Fundo da cena → Resolução → Personagens da cena → Diálogos e ações �
 
 ---
 
+## 🎥 Video Studio
+
+Ambiente completo de edição e finalização de vídeos para GTA RP e FiveM, operando **100% no navegador** (Client-Side com WebCodecs, Canvas e AudioContext). Suporta dois fluxos integrados sem qualquer perda de dados ao alternar:
+
+### 🚀 Modo Simples (Assistente Guiado em 4 Passos)
+Projetado para máxima agilidade e ergonomia visual em 3 colunas (sem timeline complexa nem ferramentas intrusivas):
+- **Passo 1: Modelo:** Seleção de templates cinematográficos pré-definidos ou modo livre de edição.
+- **Passo 2: Seus vídeos:** Importação de cena principal (Cena 1) e cena secundária opcional (Cena 2), miniaturas dos clipes, substituição em um clique (`simple-replace`) e ajuste dos pontos de corte (`in/out`).
+- **Passo 3: Texto do chat & Visual:** Inserção de títulos e transcrições de chat formatadas, tons de voz, ritmos de digitação e filtros de câmera RP (Bodycam AXON, CCTV).
+- **Passo 4: Exportação direta:** Resumo da composição e exportação rápida.
+- **Painel Lateral de Destino:** Presets reais calibrados para o ecossistema de RP:
+  - **Discord:** Alvo de até 10 MB (otimizado para servidores sem Nitro).
+  - **Fórum:** Alvo de até 25 MB (qualidade balanceada para tópicos de facções/corporações).
+  - **Melhor Qualidade:** Resolução 1080p nativa sem restrição severa de bitrate.
+- **Transição Fluida:** Troca instantânea para o Modo Avançado sem perda de clipes, cortes, chat ou camadas.
+
+### 🎛️ Modo Avançado (Timeline Multitrilha & Inspetor Contextual)
+Para montagens profissionais com controle preciso quadro a quadro:
+- **Timeline Multitrilha:** Trilhas fixas e identificadas (`V1 Vídeo`, `V2 Sobrepor`, `T Texto/Chat`) com alinhamento vertical e horizontal rigoroso.
+- **Barra de Ferramentas:** Ações reais para seleção, divisão no cursor (`C`), exclusão de clipe (`Delete`), controle de zoom deslizante e ajuste automático (`zoom-fit`) integrado a `ResizeObserver` (com debounce e preservação de zoom manual).
+- **Inspetor Contextual:** Abas dinâmicas (Vídeo, Áudio, Camada, Chat), rolagem interna independente (`overflow-y-auto`) e barra de ações persistente em qualquer resolução (1280×720, 1366×768, 1440×900, 1920×1080).
+- **Trilho de Ferramentas (Tool Rail):** Alternância rápida entre Mídia, Texto/Chat, Legendas (parser SRT inteligente) e Modelos.
+- **Camadas & Keyframes:** Picture-in-Picture (PiP), interpolação linear de escala, opacidade e posição.
+- **Áudio Reamostrado:** Resampling contínuo de áudios de 44.1 kHz para 48 kHz sem distorções de pitch ou duração.
+
+### ⌨️ Atalhos de Teclado
+| Atalho | Modo Ativo | Ação |
+|---|---|---|
+| `Espaço` | Simples & Avançado | Reproduzir / Pausar (ignorado dentro de inputs/textareas) |
+| `C` | Avançado | Dividir/cortar clipe no cursor de reprodução |
+| `Delete` | Avançado | Excluir clipe selecionado |
+
+---
+
 ## 🧪 Qualidade
 
 ```bash
@@ -124,7 +159,14 @@ src/
 │   ├── ChatLog/ChatLogView.tsx        # Editor RP (canvas, painéis, interação)
 │   ├── RpElements/                    # painel de presets, adesivos e inspetor
 │   ├── GifLab/                        # conversor de vídeo para GIF + worker
+│   ├── VideoStudio/                   # Video Studio (Timeline, GuidedFlow, FramePlayer, TrackHeaders)
 │   └── Navbar.tsx
+├── video/                             # Motor do Video Studio
+│   ├── timeline.ts                    # Estruturas, operações, cortes e sanitização da timeline
+│   ├── templates.ts                   # Definição e aplicação de modelos de vídeo
+│   ├── exporter.ts                    # Pipeline de exportação WebCodecs MP4/AAC
+│   ├── mediaIO.ts                     # Abertura, decodificação e thumbnails de mídia
+│   └── audioResample.ts               # Reamostragem de áudio para 48 kHz
 ├── utils/
 │   ├── chatParser.ts / chatRenderer.ts   # parser e renderizador do chat
 │   ├── chatStore.ts                      # chat compartilhado com o GIF Lab
