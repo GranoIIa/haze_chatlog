@@ -84,17 +84,18 @@ Fundo da cena → Resolução → Personagens da cena → Diálogos e ações �
 
 Ambiente completo de edição e finalização de vídeos para GTA RP e FiveM, operando **100% no navegador** (Client-Side com WebCodecs, Canvas e AudioContext). Suporta dois fluxos integrados sem qualquer perda de dados ao alternar:
 
-### 🚀 Modo Simples (Assistente Guiado em 4 Passos)
+### 🚀 Modo Simples (Assistente Guiado em 4 Passos — Accordion Polido)
 Projetado para máxima agilidade e ergonomia visual em 3 colunas (sem timeline complexa nem ferramentas intrusivas):
+- **Visualização em Accordion (1 Passo por Vez):** Apenas o conteúdo do passo ativo permanece expandido e interativo; os passos inativos retraem-se em linhas compactas com número, título e indicador estrito de conclusão (`✓`).
 - **Passo 1: Modelo:** Seleção de templates cinematográficos pré-definidos ou modo livre de edição.
-- **Passo 2: Seus vídeos:** Importação de cena principal (Cena 1) e cena secundária opcional (Cena 2), miniaturas dos clipes, substituição em um clique (`simple-replace`) e ajuste dos pontos de corte (`in/out`).
+- **Passo 2: Seus vídeos:** Importação de cena principal (Cena 1) e cena secundária opcional (Cena 2), miniaturas dos clipes, substituição em um clique (`simple-replace`), ajuste de corte (`in/out`), ordenação e remoção.
 - **Passo 3: Texto do chat & Visual:** Inserção de títulos e transcrições de chat formatadas, tons de voz, ritmos de digitação e filtros de câmera RP (Bodycam AXON, CCTV).
-- **Passo 4: Exportação direta:** Resumo da composição e exportação rápida.
-- **Painel Lateral de Destino:** Presets reais calibrados para o ecossistema de RP:
-  - **Discord:** Alvo de até 10 MB (otimizado para servidores sem Nitro).
-  - **Fórum:** Alvo de até 25 MB (qualidade balanceada para tópicos de facções/corporações).
-  - **Melhor Qualidade:** Resolução 1080p nativa sem restrição severa de bitrate.
-- **Transição Fluida:** Troca instantânea para o Modo Avançado sem perda de clipes, cortes, chat ou camadas.
+- **Passo 4: Resumo da Montagem & Destino:** Quadro consolidado de metadados da montagem (contagem de cenas, duração calculada, textos/overlays adicionados e especificações do preset ativo). O botão do rodapé conduz o foco programático diretamente para o botão de exportação (`simple-export`) na coluna lateral sem disparo acidental.
+- **Painel Lateral de Destino:** Presets reais calibrados para o ecossistema de RP sem rótulos duplicados:
+  - **Discord:** 854×480 · 24 fps com orçamento de bitrate adaptado para até 10 MB (otimizado para servidores sem Nitro).
+  - **Fórum:** 1280×720 · 30 fps com alvo de até 25 MB (qualidade balanceada para tópicos de facções/corporações).
+  - **Melhor Qualidade:** Resolução 1080p nativa (1920×1080 · 30 fps) sem restrição severa de bitrate.
+- **Transição Fluida e Zero Perda:** Troca instantânea para o Modo Avançado sem perda de clipes, cortes, chat, estilos ou camadas. Responsividade estrita sem rolagem interna em 1440×900 e 1366×768, com rolagem confinada ao corpo do passo em 1280×720.
 
 ### 🎛️ Modo Avançado (Timeline Multitrilha & Inspetor Contextual)
 Para montagens profissionais com controle preciso quadro a quadro:

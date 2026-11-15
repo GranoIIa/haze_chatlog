@@ -1307,7 +1307,10 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
                         {isSel && <span className="text-[10px] font-bold text-haze-accent uppercase tracking-wider">Ativo</span>}
                       </div>
                       <div className="text-[11px] text-haze-muted mb-0.5">{p.width}×{p.height} · {p.fps} fps</div>
-                      <div className="text-[11px] text-haze-faint">{p.note}</div>
+                      {p.note && (() => {
+                        const cleanNote = p.note.replace(/^\d+×\d+,\s*\d+\s*fps\.\s*/i, '');
+                        return cleanNote ? <div className="text-[11px] text-haze-faint">{cleanNote}</div> : null;
+                      })()}
                     </button>
                   );
                 })}
