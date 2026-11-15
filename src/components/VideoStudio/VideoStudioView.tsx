@@ -3,7 +3,7 @@ import { Timeline as TimelineUI } from '@xzdarcy/react-timeline-editor';
 import type { TimelineState } from '@xzdarcy/react-timeline-editor';
 import type { TimelineRow, TimelineEffect } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
-import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, Volume2, Sliders, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers, X, Film, Type, LayoutTemplate, Plus, MousePointer, Magnet } from 'lucide-react';
+import { Clapperboard, Upload, Scissors, Undo2, Redo2, Play, Pause, Download, Trash2, VolumeX, Volume2, Sliders, ChevronLeft, ChevronRight, MessageSquarePlus, Save, FolderOpen, Captions, Layers, X, Film, Type, LayoutTemplate, Plus, MousePointer, Magnet, Sparkles } from 'lucide-react';
 import {
   addClip, addOverlay, clipDuration, commit, createHistory, layout, locate, moveClip, redo, removeClip, removeOverlay,
   addLayer, updateLayer, trimLayer, removeLayer, addKeyframe, removeKeyframe, evalTransform, activeLayers, activeLayerClips, layerDuration,
@@ -232,6 +232,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     try { return localStorage.getItem('haze-video-mode-v1') === 'simple' ? 'simple' : 'advanced'; } catch { return 'advanced'; }
   });
   const changeMode = (m: 'simple' | 'advanced') => { setUiMode(m); try { localStorage.setItem('haze-video-mode-v1', m); } catch { /* sem armazenamento */ } };
+  const [simpleStep, setSimpleStep] = useState<number>(1);
   const [presetId, setPresetId] = useState<string>('custom');
   const [activeTool, setActiveTool] = useState<VideoTool>(() => {
     try {
@@ -391,6 +392,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     selectClip,
     selectLayer,
     selectOverlay,
+    uiMode,
   });
   actionRef.current = {
     showExportModal,
@@ -404,6 +406,7 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     selectClip,
     selectLayer,
     selectOverlay,
+    uiMode,
   };
 
   useEffect(() => {
@@ -419,6 +422,17 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) {
           return;
         }
+      }
+
+      // No modo Simples, apenas Espaço toca/pausa (fora de inputs); C e Delete são ignorados
+      if (a.uiMode === 'simple') {
+        if (e.code === 'Space' || e.key === ' ') {
+          if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            a.setPlaying(p => !p);
+          }
+        }
+        return;
       }
 
       // 1. Espaço: Tocar / Pausar (sem modificadores)
@@ -539,6 +553,28 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     }
   };
 
+  const handleReplaceClip = async (index: number, file: File) => {
+    try {
+      const m = await openMedia(file, makeId('media'));
+      mediaRef.current.set(m.ref.id, m);
+      setLibrary(l => [...l, m]);
+      apply(x => {
+        const clips = [...x.clips];
+        if (clips[index]) {
+          clips[index] = {
+            ...clips[index],
+            mediaId: m.ref.id,
+            inPoint: 0,
+            outPoint: Math.min(clips[index].outPoint, m.ref.duration)
+          };
+        }
+        return { ...x, clips };
+      });
+    } catch (e) {
+      setMessage(e instanceof MediaError ? e.message : `Não foi possível trocar o vídeo.`);
+    }
+  };
+
   // ------------------------------------------------------------ modelos
   const applyTemplateById = (templateId: string, picks: Record<string, string | undefined>): string[] => {
     const def = findTemplate(templateId);
@@ -546,7 +582,16 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
     const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
     const now = { date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, time: `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` };
     const media: Record<string, ReturnType<typeof mediaRef.current.get> extends infer M ? (M extends { ref: infer R } ? R : never) | undefined : never> = {};
-    for (const [slot, id] of Object.entries(picks)) media[slot] = id ? mediaRef.current.get(id)?.ref : undefined;
+    const hasPicks = Object.keys(picks).length > 0;
+    let libIdx = 0;
+    for (const slot of def.slots) {
+      if (hasPicks) {
+        media[slot.id] = picks[slot.id] ? mediaRef.current.get(picks[slot.id]!)?.ref : undefined;
+      } else if (libIdx < library.length) {
+        media[slot.id] = library[libIdx]?.ref;
+        libIdx++;
+      }
+    }
     const r = applyTemplate(def, media, now);
     if (r.errors.length) return r.errors;
     setPlaying(false);
@@ -1015,8 +1060,31 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
           </aside>
         )}
 
-        {/* Coluna Esquerda: Painel da Ferramenta Ativa (284 px) */}
-        <section className="w-[284px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto shadow-sm">
+        {/* Modo Simples: Coluna 1 Esquerda (~380 px) */}
+        {uiMode === 'simple' && (
+          <section className="w-[380px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-hidden shadow-sm">
+            <GuidedFlow
+              tl={tl}
+              mediaOf={id => mediaRef.current.get(id)}
+              apply={apply}
+              presetId={presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId}
+              setPresetId={setPresetId}
+              exporting={exp}
+              result={result}
+              onExport={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
+              onCancel={() => abortRef.current?.abort()}
+              onFiles={onFiles}
+              onReplaceClip={handleReplaceClip}
+              onApplyTemplate={tId => void applyTemplateById(tId, {})}
+              currentStep={simpleStep}
+              setCurrentStep={setSimpleStep}
+            />
+          </section>
+        )}
+
+        {/* Modo Avançado: Coluna Esquerda com Painel da Ferramenta Ativa (284 px) */}
+        {uiMode === 'advanced' && (
+          <section className="w-[284px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto shadow-sm">
           {/* Ferramenta: Mídia (Sempre visível no Modo Simples, ou quando ativa no Modo Avançado) */}
           <div className={`space-y-3 ${effectiveTool === 'media' ? 'block' : 'hidden'}`}>
             <div className="flex items-center justify-between pb-1 border-b border-haze-border/50">
@@ -1159,12 +1227,30 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
             </>
           )}
         </section>
+        )}
 
         {/* Coluna Central: Player Canvas + Barra de Reprodução */}
         <section className="flex-1 min-w-0 h-full min-h-0 flex flex-col items-center justify-between p-2 rounded-xl border border-haze-border bg-haze-panel/30 overflow-y-auto">
           <div className="rounded-xl border border-haze-border bg-black p-2 flex justify-center items-center w-full max-w-[800px] flex-1 min-h-0 shadow-lg">
             <canvas ref={canvasRef} data-testid="video-preview" width={PREVIEW_W} height={previewH} style={{ width: PREVIEW_W, maxWidth: '100%', maxHeight: '100%', height: 'auto', objectFit: 'contain' }} />
           </div>
+
+          {uiMode === 'simple' && (
+            <div className="w-full max-w-[800px] mt-2 p-2.5 rounded-lg border border-haze-border/70 bg-haze-panel flex items-center justify-between gap-3 text-xs" data-testid="simple-advanced-tip">
+              <div className="flex items-center gap-2 text-haze-muted min-w-0">
+                <Sparkles className="w-4 h-4 text-haze-accent shrink-0" />
+                <span className="truncate">Quer cortar, sobrepor ou animar? Troque para o modo Avançado sem perder nada.</span>
+              </div>
+              <button
+                type="button"
+                data-testid="simple-switch-advanced"
+                onClick={() => changeMode('advanced')}
+                className="shrink-0 px-3 py-1 rounded-md text-xs font-semibold border border-haze-border bg-haze-bg hover:bg-haze-raised text-white transition-colors"
+              >
+                Modo Avançado →
+              </button>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-center gap-2 mt-2 p-2 bg-haze-panel rounded-xl border border-haze-border shadow-sm shrink-0">
             <button className={btn} data-testid="play" title={playing ? 'Pausar (Espaço)' : 'Reproduzir (Espaço)'} disabled={!total} onClick={() => setPlaying(p => !p)}>
@@ -1185,12 +1271,96 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({ active = true 
           </div>
         </section>
 
-        {/* Coluna Direita: Inspetor Contextual (304 px, Avançado) ou Fluxo Guiado (Simples) */}
+        {/* Coluna Direita: Painel de Destino (Simples, 360 px) ou Inspetor Contextual (Avançado, 304 px) */}
         {uiMode === 'simple' ? (
-          <section className="w-[304px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 overflow-y-auto shadow-sm">
-            <GuidedFlow tl={tl} mediaOf={id => mediaRef.current.get(id)} apply={apply} presetId={presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId}
-              setPresetId={setPresetId} exporting={exp} result={result} onExport={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
-              onCancel={() => abortRef.current?.abort()} />
+          <section className="w-[360px] shrink-0 h-full min-h-0 flex flex-col justify-between rounded-xl border border-haze-border bg-haze-panel p-3 shadow-sm overflow-y-auto space-y-3" data-testid="simple-export-panel">
+            <div className="space-y-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Download className="w-4 h-4 text-haze-accent" />
+                <span>Para onde vai o vídeo?</span>
+              </h2>
+
+              <div className="text-xs text-haze-muted flex items-center justify-between bg-haze-bg/50 p-2 rounded-lg border border-haze-border/50">
+                <span>Duração total:</span>
+                <span className="font-mono font-bold text-white" data-testid="simple-total-dur">{fmt(total)}</span>
+              </div>
+
+              <div className="space-y-2">
+                {EXPORT_PRESETS.map(p => {
+                  const activePreset = presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId;
+                  const isSel = activePreset === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      data-testid={`preset-card-${p.id}`}
+                      aria-pressed={isSel}
+                      onClick={() => setPresetId(p.id)}
+                      className={`w-full text-left p-2.5 rounded-lg border transition-all ${
+                        isSel
+                          ? 'border-haze-accent bg-haze-accent/10 ring-1 ring-haze-accent'
+                          : 'border-haze-border bg-haze-bg hover:border-haze-border/80'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-xs text-white">{p.label}</span>
+                        {isSel && <span className="text-[10px] font-bold text-haze-accent uppercase tracking-wider">Ativo</span>}
+                      </div>
+                      <div className="text-[11px] text-haze-muted mb-0.5">{p.width}×{p.height} · {p.fps} fps</div>
+                      {p.note && (() => {
+                        const cleanNote = p.note.replace(/^\d+×\d+,\s*\d+\s*fps\.\s*/i, '');
+                        return cleanNote ? <div className="text-[11px] text-haze-faint">{cleanNote}</div> : null;
+                      })()}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-[11px] text-haze-muted/80 leading-relaxed bg-haze-bg/40 p-2 rounded-lg border border-haze-border/50">
+                A meta de tamanho de arquivo depende das configurações do servidor e da compressão final.
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-haze-border/50 space-y-2 shrink-0">
+              <button
+                type="button"
+                data-testid="simple-export"
+                disabled={!tl.clips.length || Boolean(exp)}
+                onClick={() => void startExport(presetId === 'custom' ? EXPORT_PRESETS[0].id : presetId)}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-haze-accent-fill text-haze-on-accent hover:opacity-95 shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                {exp ? `Exportando (${exp.pct}%)…` : 'Exportar vídeo'}
+              </button>
+
+              {exp && (
+                <button
+                  type="button"
+                  className={`${btn} w-full justify-center text-xs`}
+                  data-testid="export-cancel"
+                  onClick={() => abortRef.current?.abort()}
+                >
+                  Cancelar exportação
+                </button>
+              )}
+
+              {exp && (
+                <div className="text-haze-accent text-xs font-semibold text-center" data-testid="export-status" role="status">
+                  {exp.phase}… {exp.pct}%
+                </div>
+              )}
+
+              {result && (
+                <div className="space-y-1.5 p-2 rounded-lg border border-haze-accent/40 bg-haze-accent/10" data-testid="export-result">
+                  <div data-testid="export-info" className="text-[11px] font-mono text-white">
+                    {result.r.ext.toUpperCase()} · {result.r.videoCodec}{result.r.audioCodec ? ` + ${result.r.audioCodec}` : ''} · {result.r.width}×{result.r.height} · {result.r.fps} fps · {result.r.frames} quadros · {(result.r.blob.size / 1024).toFixed(0)} KB · {(result.r.elapsedMs / 1000).toFixed(1)} s
+                  </div>
+                  <a data-testid="export-download" className={`${primary} w-full justify-center no-underline inline-flex`} href={result.url} download={`haze-video.${result.r.ext}`}>
+                    <Download className="w-3.5 h-3.5 mr-1" /> Baixar vídeo
+                  </a>
+                </div>
+              )}
+            </div>
           </section>
         ) : (
           <section className="w-[304px] shrink-0 h-full min-h-0 flex flex-col rounded-xl border border-haze-border bg-haze-panel p-3 space-y-3 overflow-y-auto shadow-sm">

@@ -139,12 +139,14 @@ test.describe('Video Studio F4', () => {
     await expect(page.getByTestId('timeline')).toHaveCount(0);                   // sem a timeline avançada
     await expect(page.getByTestId('guided-flow').getByTestId('simple-progress')).toContainText('importar');
     await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
+    await page.getByTestId('simple-step-2').click();
     await expect(page.getByTestId('simple-clip-1')).toBeVisible();               // entraram sozinhos
     // cortar o vermelho para 2 s e trocar a ordem (azul primeiro)
     await page.getByTestId('simple-out-0').fill('2'); await page.getByTestId('simple-out-0').blur();
     await page.getByTestId('simple-up-1').click();
     await expect(page.getByTestId('simple-clip-0')).toContainText('azul.mp4');
     // texto e visual
+    await page.getByTestId('simple-step-3').click();
     await page.getByTestId('simple-title').fill('MINHA CENA');
     await page.getByTestId('simple-title-add').click();
     await expect(page.getByTestId('simple-overlays')).toContainText('MINHA CENA');
@@ -152,6 +154,7 @@ test.describe('Video Studio F4', () => {
     await page.getByTestId('simple-transition').selectOption('0.5');
     await page.getByTestId('simple-fade').check();
     await expect(page.getByTestId('guided-flow').getByTestId('simple-progress')).toContainText('4.5');      // 3 + 2 - 0,5
+    await page.getByTestId('simple-step-4').click();
     await page.getByTestId('simple-preset').selectOption('discord');
     await expect(page.getByTestId('simple-preset-note')).toContainText('kbps');
     await page.getByTestId('simple-export').click();

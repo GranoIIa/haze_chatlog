@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { ArrowUp, ArrowDown, Trash2, Download } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  ArrowUp, ArrowDown, Trash2, Download, Upload, Plus, RefreshCw, LayoutTemplate, Video, MessageSquare, Film
+} from 'lucide-react';
 import {
   addOverlay, clipDuration, makeId, moveClip, removeClip, removeOverlay, setClipCamera, setClipFades, setClipTransition, setLineStep,
   trimClip, totalDuration, Timeline
 } from '../../video/timeline';
-import { EXPORT_PRESETS, bitrateFor, findExportPreset } from '../../video/templates';
+import { EXPORT_PRESETS, bitrateFor, findExportPreset, TEMPLATES, TemplateDef } from '../../video/templates';
 import type { OpenedMedia } from '../../video/mediaIO';
 import type { ExportResult } from '../../video/exporter';
 
@@ -13,6 +15,13 @@ const nowParts = () => {
   const d = new Date(); const p = (n: number) => String(n).padStart(2, '0');
   return { date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}` };
 };
+
+export const SIMPLE_STEPS = [
+  { id: 1, title: 'Modelo', desc: 'Escolha o modelo de vídeo' },
+  { id: 2, title: 'Vídeos', desc: 'Importe e ordene suas cenas' },
+  { id: 3, title: 'Chat/Texto', desc: 'Adicione textos e falas do chat' },
+  { id: 4, title: 'Exportar', desc: 'Escolha o destino e exporte' },
+] as const;
 
 interface Props {
   tl: Timeline;
@@ -24,122 +33,700 @@ interface Props {
   result: { r: ExportResult; url: string } | null;
   onExport: () => void;
   onCancel: () => void;
+  onFiles: (files: FileList | null) => void;
+  onReplaceClip?: (index: number, file: File) => void;
+  onApplyTemplate?: (templateId: string) => void;
+  currentStep: number;
+  setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
 }
 
-/** Fluxo guiado: Vídeos → Cortar → Texto → Visual → Exportar. Só o que já está testado nas fases anteriores. */
-export const GuidedFlow: React.FC<Props> = ({ tl, mediaOf, apply, presetId, setPresetId, exporting, result, onExport, onCancel }) => {
+/**
+ * Assistente de 4 passos do Modo Simples (Accordion - 1 passo visível por vez):
+ * 1. Modelo (reaproveita modelos existentes e fluxo livre)
+ * 2. Seus vídeos (importar cena 1/cena 2 opcional, ordenar, cortar e trocar)
+ * 3. Texto do chat (título, chat sincronizado e estilo visual)
+ * 4. Exportar (resumo estruturado da montagem e foco na exportação)
+ */
+export const GuidedFlow: React.FC<Props> = ({
+  tl,
+  mediaOf,
+  apply,
+  presetId,
+  setPresetId,
+  exporting,
+  result,
+  onExport,
+  onCancel,
+  onFiles,
+  onReplaceClip,
+  onApplyTemplate,
+  currentStep,
+  setCurrentStep
+}) => {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('none');
   const [title, setTitle] = useState('');
   const [titleDur, setTitleDur] = useState(3);
   const [chat, setChat] = useState('');
   const [step, setStep] = useState(1.5);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceIndexRef = useRef<number>(0);
+
+  const cardRef1 = useRef<HTMLDivElement>(null);
+  const cardRef2 = useRef<HTMLDivElement>(null);
+  const cardRef3 = useRef<HTMLDivElement>(null);
+  const cardRef4 = useRef<HTMLDivElement>(null);
+
   const total = totalDuration(tl);
   const preset = findExportPreset(presetId) ?? EXPORT_PRESETS[0];
   const budget = preset.targetBytes ? bitrateFor(preset.targetBytes, Math.max(0.1, total)) : null;
-  const input = 'w-16 px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs';
-  const btn = 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-haze-border bg-haze-panel hover:bg-haze-raised/40 disabled:opacity-40 disabled:cursor-not-allowed';
-  const primary = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-haze-accent-fill text-haze-on-accent disabled:opacity-40 disabled:cursor-not-allowed';
+
+  const input = 'w-16 px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs focus:ring-1 focus:ring-haze-accent outline-none text-white';
+  const btn = 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-haze-border bg-haze-panel hover:bg-haze-raised/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-white';
+  const primary = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-haze-accent-fill text-haze-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm';
   const hasClips = tl.clips.length > 0;
   const cam = tl.clips[0]?.camera?.preset ?? 'none';
-  const status = (done: boolean) => <span className={`ml-2 text-[11px] ${done ? 'text-haze-accent' : 'text-haze-faint'}`}>{done ? '✓' : 'pendente'}</span>;
-  const box = 'rounded-lg border border-haze-border p-2 space-y-2';
+
+  // Critérios de conclusão estritos:
+  // Passo 1: modelo ou edição livre escolhidos
+  // Passo 2: pelo menos 1 vídeo importado
+  // Passo 3: texto adicionado ou usuário avançou além dele
+  // Passo 4: exportação concluída
+  const isStepComplete = (stepNum: number): boolean => {
+    if (stepNum === 1) return selectedTemplateId !== '';
+    if (stepNum === 2) return tl.clips.length >= 1;
+    if (stepNum === 3) return tl.overlays.length > 0 || currentStep > 3;
+    if (stepNum === 4) return Boolean(result);
+    return false;
+  };
+
+  const isStepLocked = (stepNum: number): boolean => {
+    return stepNum > 2 && !hasClips;
+  };
+
+  // Callbacks de manipulação
+  const handleTriggerReplace = (index: number) => {
+    replaceIndexRef.current = index;
+    replaceInputRef.current?.click();
+  };
+
+  const handleTemplateChange = (id: string) => {
+    setSelectedTemplateId(id);
+    if (id !== 'none' && onApplyTemplate) {
+      onApplyTemplate(id);
+    }
+  };
+
+  const activeTemplateDef = TEMPLATES.find(t => t.id === selectedTemplateId);
 
   return (
-    <div className="space-y-3 text-xs" data-testid="guided-flow">
-      <div className="text-haze-muted" data-testid="simple-progress">
-        {!hasClips ? 'Falta: importar ao menos um vídeo.' : `${tl.clips.length} cena(s) · ${fmt(total)} no total. Siga os passos abaixo.`}
+    <div className="h-full flex flex-col justify-between text-xs" data-testid="guided-flow">
+      {/* 1. Cabeçalho com Lista Ordenada de Passos (<ol>) */}
+      <div className="shrink-0 pb-2 border-b border-haze-border/50 space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold text-white tracking-wide uppercase">Monte em 4 passos</h2>
+          <span className="text-[11px] text-haze-muted" data-testid="simple-progress">
+            {!hasClips ? 'Falta: importar ao menos um vídeo.' : `${tl.clips.length} cena(s) · ${fmt(total)}`}
+          </span>
+        </div>
+
+        <ol className="grid grid-cols-4 gap-1 p-1 bg-haze-bg rounded-lg border border-haze-border" aria-label="Passos da montagem" data-testid="simple-steps">
+          {SIMPLE_STEPS.map((s, idx) => {
+            const num = idx + 1;
+            const isActive = currentStep === num;
+            const isCompleted = isStepComplete(num);
+            const isLocked = isStepLocked(num);
+
+            return (
+              <li key={s.id} className="min-w-0">
+                <button
+                  type="button"
+                  data-testid={`simple-step-${num}`}
+                  aria-current={isActive ? 'step' : undefined}
+                  disabled={isLocked}
+                  onClick={() => !isLocked && setCurrentStep(num)}
+                  className={`w-full flex flex-col items-center justify-center py-1.5 px-0.5 rounded-md text-[11px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-haze-accent ${
+                    isActive
+                      ? 'bg-haze-accent-fill text-haze-on-accent shadow-sm'
+                      : isCompleted
+                      ? 'text-haze-accent hover:bg-haze-panel'
+                      : 'text-haze-muted/60 opacity-60 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="flex items-center gap-0.5">
+                    {isCompleted && !isActive ? '✓' : num}
+                  </span>
+                  <span className="truncate text-[10px]">{s.title}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
       </div>
 
-      <div className={box} data-testid="step-cut">
-        <div className="font-semibold">2. Cortar e ordenar{status(hasClips)}</div>
-        {!hasClips && <div className="text-haze-muted">Importe vídeos na coluna da esquerda: eles entram aqui sozinhos.</div>}
-        {tl.clips.map((c, i) => {
-          const m = mediaOf(c.mediaId);
-          return (
-            <div key={c.id} className="rounded-md border border-haze-border/60 p-1.5 space-y-1" data-testid={`simple-clip-${i}`}>
-              <div className="truncate font-medium">{i + 1}. {m?.ref.name ?? 'mídia offline'} <span className="text-haze-muted">({fmt(clipDuration(c))})</span></div>
-              {m && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  início <input data-testid={`simple-in-${i}`} type="number" step="0.1" min="0" className={input} defaultValue={c.inPoint} key={`i-${c.id}-${c.inPoint}`}
-                    onBlur={e => apply(x => trimClip(x, c.id, { inPoint: +e.target.value }, m.ref.duration))} />
-                  fim <input data-testid={`simple-out-${i}`} type="number" step="0.1" min="0" className={input} defaultValue={c.outPoint} key={`o-${c.id}-${c.outPoint}`}
-                    onBlur={e => apply(x => trimClip(x, c.id, { outPoint: +e.target.value }, m.ref.duration))} />
-                  <button aria-label="Subir" className={btn} disabled={i === 0} data-testid={`simple-up-${i}`} onClick={() => apply(x => moveClip(x, c.id, i - 1))}><ArrowUp className="w-3.5 h-3.5" /></button>
-                  <button aria-label="Descer" className={btn} disabled={i === tl.clips.length - 1} data-testid={`simple-down-${i}`} onClick={() => apply(x => moveClip(x, c.id, i + 1))}><ArrowDown className="w-3.5 h-3.5" /></button>
-                  <button aria-label="Remover cena" className={btn} data-testid={`simple-remove-${i}`} onClick={() => apply(x => removeClip(x, c.id))}><Trash2 className="w-3.5 h-3.5" /></button>
+      {/* Inputs de arquivo ocultos */}
+      <input
+        ref={fileInputRef}
+        data-testid="video-file-input"
+        type="file"
+        accept="video/*"
+        multiple
+        className="hidden"
+        onChange={e => { void onFiles(e.target.files); e.target.value = ''; }}
+      />
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file && onReplaceClip) {
+            onReplaceClip(replaceIndexRef.current, file);
+          }
+          e.target.value = '';
+        }}
+      />
+
+      {/* 2. Área Central dos 4 Passos (Accordion: Apenas o passo ativo exibe conteúdo completo) */}
+      <div className="flex-1 min-h-0 flex flex-col space-y-2 py-2 overflow-hidden">
+        {/* Passo 1: Modelo */}
+        {currentStep === 1 ? (
+          <div
+            ref={cardRef1}
+            className="flex-1 min-h-0 flex flex-col rounded-xl border border-haze-accent ring-1 ring-haze-accent/40 bg-haze-panel p-3 space-y-2.5 shadow-sm overflow-hidden"
+            data-testid="simple-step-card-1"
+          >
+            <div className="shrink-0 flex items-center justify-between font-semibold text-white">
+              <span className="flex items-center gap-1.5">
+                <LayoutTemplate className="w-3.5 h-3.5 text-haze-accent" /> 1. Modelo de montagem
+              </span>
+              {isStepComplete(1) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
+              <label className="text-[11px] text-haze-muted block">Escolha o formato ou use edição livre:</label>
+              <select
+                data-testid="simple-template-select"
+                className="w-full px-2 py-1.5 rounded-md bg-haze-bg border border-haze-border text-xs text-white"
+                value={selectedTemplateId}
+                onChange={e => handleTemplateChange(e.target.value)}
+              >
+                <option value="none">Sem modelo (Edição livre)</option>
+                {TEMPLATES.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-haze-faint leading-tight">
+                {activeTemplateDef ? activeTemplateDef.description : 'Montagem livre com suas próprias cenas e textos.'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={cardRef1}
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
+            data-testid="simple-step-card-1"
+          >
+            <button
+              type="button"
+              onClick={() => setCurrentStep(1)}
+              className="w-full h-full flex items-center justify-between text-left font-medium text-xs text-white hover:text-haze-accent cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-haze-raised flex items-center justify-center text-[10px] text-haze-muted font-bold">1</span>
+                <span>1. Modelo</span>
+              </span>
+              {isStepComplete(1) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+            </button>
+          </div>
+        )}
+
+        {/* Passo 2: Seus vídeos */}
+        {currentStep === 2 ? (
+          <div
+            ref={cardRef2}
+            className="flex-1 min-h-0 flex flex-col rounded-xl border border-haze-accent ring-1 ring-haze-accent/40 bg-haze-panel p-3 space-y-2.5 shadow-sm overflow-hidden"
+            data-testid="simple-step-card-2"
+          >
+            <div className="shrink-0 flex items-center justify-between font-semibold text-white" data-testid="step-cut">
+              <span className="flex items-center gap-1.5">
+                <Video className="w-3.5 h-3.5 text-haze-accent" /> 2. Seus vídeos
+              </span>
+              {isStepComplete(2) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+            </div>
+
+            <div data-testid="video-library" className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+              {!hasClips && (
+                <div className="space-y-2">
+                  <p className="text-haze-muted text-xs leading-relaxed">
+                    Importe vídeos para começar. O primeiro vídeo será sua cena principal.
+                  </p>
+                  <div data-testid="simple-step2-hint" className="text-[11px] text-amber-300 bg-amber-400/10 p-2 rounded-md border border-amber-400/20">
+                    Importe ao menos um vídeo para continuar.
+                  </div>
+                  <button
+                    type="button"
+                    className={primary}
+                    data-testid="simple-import-scene-1"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Importar cena 1
+                  </button>
+                </div>
+              )}
+
+              {hasClips && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <button
+                      type="button"
+                      className={btn}
+                      data-testid="simple-import-scene-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> {tl.clips.length === 1 ? 'Importar cena 2 (opcional)' : 'Adicionar outra cena'}
+                    </button>
+                    {tl.clips.length === 1 && (
+                      <span className="text-[10px] text-haze-faint">Cena 2 é opcional</span>
+                    )}
+                  </div>
+
+                  <ul className="space-y-2 list-none m-0 p-0">
+                    {tl.clips.map((c, i) => {
+                      const m = mediaOf(c.mediaId);
+                      return (
+                        <li key={c.id} className="rounded-lg border border-haze-border/60 bg-haze-bg/40 p-2 space-y-1.5 list-none" data-testid={`simple-clip-${i}`}>
+                          <div className="flex items-center justify-between font-medium">
+                            <span className="truncate flex-1 text-white">
+                              {i + 1}. {m?.ref.name ?? 'mídia offline'} <span className="text-haze-muted">({fmt(clipDuration(c))})</span>
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Trocar vídeo"
+                              title="Trocar vídeo"
+                              className="text-haze-muted hover:text-white p-1 ml-1"
+                              data-testid={`simple-replace-${i}`}
+                              onClick={() => handleTriggerReplace(i)}
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {m && (
+                            <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-haze-border/40">
+                              <span className="text-[11px] text-haze-muted">início</span>
+                              <input
+                                data-testid={`simple-in-${i}`}
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                className={input}
+                                defaultValue={c.inPoint}
+                                key={`i-${c.id}-${c.inPoint}`}
+                                onBlur={e => apply(x => trimClip(x, c.id, { inPoint: +e.target.value }, m.ref.duration))}
+                              />
+                              <span className="text-[11px] text-haze-muted">fim</span>
+                              <input
+                                data-testid={`simple-out-${i}`}
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                className={input}
+                                defaultValue={c.outPoint}
+                                key={`o-${c.id}-${c.outPoint}`}
+                                onBlur={e => apply(x => trimClip(x, c.id, { outPoint: +e.target.value }, m.ref.duration))}
+                              />
+                              <button aria-label="Subir" className={btn} disabled={i === 0} data-testid={`simple-up-${i}`} onClick={() => apply(x => moveClip(x, c.id, i - 1))}>
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button aria-label="Descer" className={btn} disabled={i === tl.clips.length - 1} data-testid={`simple-down-${i}`} onClick={() => apply(x => moveClip(x, c.id, i + 1))}>
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                              <button aria-label="Remover cena" className={btn} data-testid={`simple-remove-${i}`} onClick={() => apply(x => removeClip(x, c.id))}>
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        ) : (
+          <div
+            ref={cardRef2}
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
+            data-testid="simple-step-card-2"
+          >
+            <div className="w-full h-full flex items-center justify-between text-xs" data-testid="step-cut">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(2)}
+                className="flex items-center gap-2 font-medium text-white hover:text-haze-accent cursor-pointer"
+              >
+                <span className="w-5 h-5 rounded-full bg-haze-raised flex items-center justify-center text-[10px] text-haze-muted font-bold">2</span>
+                <span>2. Seus vídeos</span>
+              </button>
 
-      <div className={box} data-testid="step-text">
-        <div className="font-semibold">3. Adicionar texto{status(tl.overlays.length > 0)}</div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <input data-testid="simple-title" placeholder="Título (opcional)" value={title} onChange={e => setTitle(e.target.value)}
-            className="flex-1 min-w-[8rem] px-2 py-1 rounded-md bg-haze-bg border border-haze-border" />
-          por <input data-testid="simple-title-dur" type="number" min="1" step="0.5" className={input} value={titleDur} onChange={e => setTitleDur(+e.target.value)} /> s
-          <button className={btn} data-testid="simple-title-add" disabled={!title.trim() || !hasClips}
-            onClick={() => { apply(x => addOverlay(x, { text: title.trim(), kind: 'text', start: 0.5, duration: titleDur, y: 300, fontSize: 44, align: 'center' })); setTitle(''); }}>Adicionar título</button>
-        </div>
-        <textarea data-testid="simple-chat" rows={3} placeholder={'Chat do servidor, uma fala por linha\nEx.: Ana diz: Precisamos conversar.'} value={chat} onChange={e => setChat(e.target.value)}
-          className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" />
-        <div className="flex items-center gap-1.5">
-          uma linha a cada <input data-testid="simple-chat-step" type="number" min="0" step="0.5" className={input} value={step} onChange={e => setStep(Math.max(0, +e.target.value))} /> s
-          <button className={btn} data-testid="simple-chat-add" disabled={!chat.trim() || !hasClips}
-            onClick={() => { const id = makeId('chat'); apply(x => { const n = addOverlay(x, { text: chat.trim(), start: 1, duration: Math.max(2, chat.trim().split('\n').length * (step || 1) + 3) }, id); return step > 0 ? setLineStep(n, id, step) : n; }); setChat(''); }}>Adicionar chat</button>
-        </div>
-        {tl.overlays.length > 0 && (
-          <ul className="space-y-1" data-testid="simple-overlays">
-            {tl.overlays.map((o, i) => (
-              <li key={o.id} className="flex items-center gap-2"><span className="truncate flex-1">{fmt(o.start)} · {o.text.replace(/\n/g, ' / ')}</span>
-                <button aria-label="Remover texto" data-testid={`simple-overlay-remove-${i}`} className="text-haze-muted hover:text-white" onClick={() => apply(x => removeOverlay(x, o.id))}><Trash2 className="w-3.5 h-3.5" /></button></li>
-            ))}
-          </ul>
+              <div className="flex items-center gap-2">
+                <ul
+                  data-testid="video-library"
+                  className="inline-flex items-center gap-1 list-none m-0 p-0 min-w-[32px] min-h-[18px]"
+                >
+                  {tl.clips.length === 0 ? (
+                    <span className="text-[10px] text-haze-muted/60">0 vídeos</span>
+                  ) : (
+                    tl.clips.map((c, i) => {
+                      const m = mediaOf(c.mediaId);
+                      return (
+                        <li
+                          key={c.id}
+                          data-testid={`simple-clip-${i}`}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-haze-bg border border-haze-border/60 text-[10px] text-haze-text font-normal truncate max-w-[90px]"
+                        >
+                          <Film className="w-2.5 h-2.5 text-haze-muted shrink-0" />
+                          <span className="truncate">{m?.ref.name ?? 'cena'}</span>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+                {isStepComplete(2) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Passo 3: Texto do chat e estilo visual */}
+        {currentStep === 3 ? (
+          <div
+            ref={cardRef3}
+            className="flex-1 min-h-0 flex flex-col rounded-xl border border-haze-accent ring-1 ring-haze-accent/40 bg-haze-panel p-3 space-y-2.5 shadow-sm overflow-hidden"
+            data-testid="simple-step-card-3"
+          >
+            <div className="shrink-0 flex items-center justify-between font-semibold text-white" data-testid="step-text">
+              <span className="flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5 text-haze-accent" /> 3. Texto do chat & Visual
+              </span>
+              {isStepComplete(3) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <input
+                  data-testid="simple-title"
+                  placeholder="Título (opcional)"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  className="flex-1 min-w-[7rem] px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-white"
+                />
+                <span className="text-[11px] text-haze-muted">por</span>
+                <input
+                  data-testid="simple-title-dur"
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  className={input}
+                  value={titleDur}
+                  onChange={e => setTitleDur(+e.target.value)}
+                />
+                <span className="text-[11px] text-haze-muted">s</span>
+                <button
+                  className={btn}
+                  data-testid="simple-title-add"
+                  disabled={!title.trim() || !hasClips}
+                  onClick={() => {
+                    apply(x => addOverlay(x, { text: title.trim(), kind: 'text', start: 0.5, duration: titleDur, y: 300, fontSize: 44, align: 'center' }));
+                    setTitle('');
+                  }}
+                >
+                  Adicionar título
+                </button>
+              </div>
+
+              <textarea
+                data-testid="simple-chat"
+                rows={3}
+                placeholder={'Chat do servidor, uma fala por linha\nEx.: Ana diz: Precisamos conversar.'}
+                value={chat}
+                onChange={e => setChat(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-md bg-haze-bg border border-haze-border text-xs leading-normal text-white"
+              />
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] text-haze-muted">uma linha a cada</span>
+                <input
+                  data-testid="simple-chat-step"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  className={input}
+                  value={step}
+                  onChange={e => setStep(Math.max(0, +e.target.value))}
+                />
+                <span className="text-[11px] text-haze-muted">s</span>
+                <button
+                  className={btn}
+                  data-testid="simple-chat-add"
+                  disabled={!chat.trim() || !hasClips}
+                  onClick={() => {
+                    const id = makeId('chat');
+                    apply(x => {
+                      const n = addOverlay(x, { text: chat.trim(), start: 1, duration: Math.max(2, chat.trim().split('\n').length * (step || 1) + 3) }, id);
+                      return step > 0 ? setLineStep(n, id, step) : n;
+                    });
+                    setChat('');
+                  }}
+                >
+                  Adicionar chat
+                </button>
+              </div>
+
+              {tl.overlays.length > 0 && (
+                <ul className="space-y-1 bg-haze-bg/40 p-1.5 rounded-md border border-haze-border/50" data-testid="simple-overlays">
+                  {tl.overlays.map((o, i) => (
+                    <li key={o.id} className="flex items-center gap-1.5 text-[11px]">
+                      <span className="truncate flex-1 text-white">{fmt(o.start)} · {o.text.replace(/\n/g, ' / ')}</span>
+                      <button
+                        aria-label="Remover texto"
+                        data-testid={`simple-overlay-remove-${i}`}
+                        className="text-haze-muted hover:text-white p-0.5"
+                        onClick={() => apply(x => removeOverlay(x, o.id))}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Sub-seção de visual para preservar testids existentes */}
+              <div className="pt-2 border-t border-haze-border/40 space-y-2" data-testid="step-visual">
+                <div className="font-semibold text-white flex items-center justify-between">
+                  <span>Estilo visual & câmera</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {([['none', 'Original'], ['bodycam', 'Bodycam'], ['cctv', 'CCTV'], ['noir', 'Noir']] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      data-testid={`simple-visual-${id}`}
+                      disabled={!hasClips}
+                      aria-pressed={cam === id}
+                      className={`${btn} ${cam === id ? 'border-haze-accent bg-haze-accent/10 text-white' : ''}`}
+                      onClick={() => apply(x => x.clips.reduce((t, c) => setClipCamera(t, c.id, id, nowParts()), x))}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap text-[11px] text-haze-muted">
+                  <span>entre cenas</span>
+                  <select
+                    data-testid="simple-transition"
+                    disabled={tl.clips.length < 2}
+                    className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-white"
+                    value={tl.clips[1]?.transition?.duration ?? 0}
+                    onChange={e => apply(x => x.clips.slice(1).reduce((t, c) => setClipTransition(t, c.id, +e.target.value), x))}
+                  >
+                    <option value={0}>corte seco</option>
+                    <option value={0.5}>fusão 0,5 s</option>
+                    <option value={1}>fusão 1 s</option>
+                  </select>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      data-testid="simple-fade"
+                      type="checkbox"
+                      disabled={!hasClips}
+                      checked={(tl.clips[0]?.fadeIn ?? 0) > 0}
+                      onChange={e => apply(x => {
+                        const v = e.target.checked ? 1 : 0;
+                        const first = x.clips[0], last = x.clips[x.clips.length - 1];
+                        return first && last ? setClipFades(setClipFades(x, first.id, { fadeIn: v }), last.id, { fadeOut: v }) : x;
+                      })}
+                    />
+                    <span>entrada e saída graduais</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={cardRef3}
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
+            data-testid="simple-step-card-3"
+          >
+            <button
+              type="button"
+              disabled={isStepLocked(3)}
+              onClick={() => !isStepLocked(3) && setCurrentStep(3)}
+              className={`w-full h-full flex items-center justify-between text-left text-xs font-medium ${
+                isStepLocked(3)
+                  ? 'opacity-40 cursor-not-allowed text-haze-muted'
+                  : 'text-white hover:text-haze-accent cursor-pointer'
+              }`}
+              data-testid="step-text"
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-haze-raised flex items-center justify-center text-[10px] text-haze-muted font-bold">3</span>
+                <span>3. Texto do chat & Visual</span>
+              </span>
+              {isStepComplete(3) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+            </button>
+          </div>
+        )}
+
+        {/* Passo 4: Exportar */}
+        {currentStep === 4 ? (
+          <div
+            ref={cardRef4}
+            className="flex-1 min-h-0 flex flex-col rounded-xl border border-haze-accent ring-1 ring-haze-accent/40 bg-haze-panel p-3 space-y-2 shadow-sm overflow-hidden"
+            data-testid="simple-step-card-4"
+          >
+            <div className="shrink-0 flex items-center justify-between font-semibold text-white" data-testid="step-export">
+              <span className="flex items-center gap-1.5">
+                <Download className="w-3.5 h-3.5 text-haze-accent" /> 4. Exportar vídeo
+              </span>
+              {isStepComplete(4) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5" data-testid="simple-summary">
+              <div className="text-xs font-bold text-white pb-0.5 border-b border-haze-border/50">
+                Resumo da montagem
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Cenas / Vídeos</span>
+                  <span className="text-white font-semibold flex items-center gap-1 text-[11px]" data-testid="summary-scenes">
+                    <Film className="w-3 h-3 text-haze-accent" /> {tl.clips.length} cena(s)
+                  </span>
+                </div>
+
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Duração total</span>
+                  <span className="text-white font-semibold flex items-center gap-1 font-mono text-[11px]" data-testid="summary-duration">
+                    {fmt(total)} ({total.toFixed(1)}s)
+                  </span>
+                </div>
+
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Textos e Diálogos</span>
+                  <span className="text-white font-semibold truncate block text-[11px]" data-testid="summary-texts">
+                    {tl.overlays.length > 0 ? `${tl.overlays.length} texto(s)` : 'Sem texto'}
+                  </span>
+                </div>
+
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Destino</span>
+                  <span className="text-white font-semibold truncate block text-[11px]" data-testid="summary-preset">
+                    {preset.label.split('(')[0].trim()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Informação sobre o preset */}
+              <div className="p-1.5 rounded-lg bg-haze-raised/40 border border-haze-border/60 text-[10px] text-haze-text space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white">{preset.label}</span>
+                  <span className="font-mono text-[10px] text-haze-accent">{preset.width}×{preset.height} · {preset.fps} fps</span>
+                </div>
+                {budget && (
+                  <div className="text-[10px] text-haze-muted">
+                    Orçamento: ~{Math.round(budget.videoBps / 1000)} kbps para {fmt(total)}.
+                  </div>
+                )}
+                {budget && !budget.ok && (
+                  <div role="alert" data-testid="simple-preset-warn" className="text-amber-300 text-[10px]">
+                    {budget.message}
+                  </div>
+                )}
+              </div>
+
+              {/* Select de preset mantido para compatibilidade com testid simple-preset */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-haze-muted block">Alterar preset:</label>
+                <select
+                  data-testid="simple-preset"
+                  className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-white"
+                  value={presetId}
+                  onChange={e => setPresetId(e.target.value)}
+                >
+                  {EXPORT_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+                <div className="text-haze-muted text-[11px] hidden" data-testid="simple-preset-note">
+                  {preset.note}{budget ? ` Orçamento de vídeo: ~${Math.round(budget.videoBps / 1000)} kbps para ${fmt(total)}.` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={cardRef4}
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
+            data-testid="simple-step-card-4"
+          >
+            <button
+              type="button"
+              disabled={isStepLocked(4)}
+              onClick={() => !isStepLocked(4) && setCurrentStep(4)}
+              className={`w-full h-full flex items-center justify-between text-left text-xs font-medium ${
+                isStepLocked(4)
+                  ? 'opacity-40 cursor-not-allowed text-haze-muted'
+                  : 'text-white hover:text-haze-accent cursor-pointer'
+              }`}
+              data-testid="step-export"
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-haze-raised flex items-center justify-center text-[10px] text-haze-muted font-bold">4</span>
+                <span>4. Exportar vídeo</span>
+              </span>
+              {isStepComplete(4) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
+            </button>
+          </div>
         )}
       </div>
 
-      <div className={box} data-testid="step-visual">
-        <div className="font-semibold">4. Escolher o visual{status(hasClips && cam !== 'none')}</div>
-        <div className="flex flex-wrap gap-1.5">
-          {([['none', 'Original'], ['bodycam', 'Bodycam'], ['cctv', 'CCTV'], ['noir', 'Noir']] as const).map(([id, label]) => (
-            <button key={id} data-testid={`simple-visual-${id}`} disabled={!hasClips} aria-pressed={cam === id}
-              className={`${btn} ${cam === id ? 'border-haze-accent bg-haze-accent/10' : ''}`}
-              onClick={() => apply(x => x.clips.reduce((t, c) => setClipCamera(t, c.id, id, nowParts()), x))}>{label}</button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          entre cenas
-          <select data-testid="simple-transition" disabled={tl.clips.length < 2} className="px-2 py-1 rounded-md bg-haze-bg border border-haze-border"
-            value={tl.clips[1]?.transition?.duration ?? 0}
-            onChange={e => apply(x => x.clips.slice(1).reduce((t, c) => setClipTransition(t, c.id, +e.target.value), x))}>
-            <option value={0}>corte seco</option><option value={0.5}>fusão 0,5 s</option><option value={1}>fusão 1 s</option>
-          </select>
-          <label className="flex items-center gap-1"><input data-testid="simple-fade" type="checkbox" disabled={!hasClips} checked={(tl.clips[0]?.fadeIn ?? 0) > 0}
-            onChange={e => apply(x => {
-              const v = e.target.checked ? 1 : 0;
-              const first = x.clips[0], last = x.clips[x.clips.length - 1];
-              return first && last ? setClipFades(setClipFades(x, first.id, { fadeIn: v }), last.id, { fadeOut: v }) : x;
-            })} /> entrada e saída graduais</label>
-        </div>
-      </div>
+      {/* 3. Rodapé Fixo com Botões "Voltar" e "Próximo: <nome>" / Ação final de exportação */}
+      <div className="shrink-0 pt-2 border-t border-haze-border/50 flex items-center justify-between gap-2" data-testid="simple-footer">
+        <button
+          type="button"
+          data-testid="simple-back"
+          disabled={currentStep === 1}
+          onClick={() => setCurrentStep(c => Math.max(1, c - 1))}
+          className={btn}
+        >
+          ← Voltar{currentStep > 1 ? `: ${SIMPLE_STEPS[currentStep - 2].title}` : ''}
+        </button>
 
-      <div className={box} data-testid="step-export">
-        <div className="font-semibold">5. Exportar</div>
-        <select data-testid="simple-preset" className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border" value={presetId} onChange={e => setPresetId(e.target.value)}>
-          {EXPORT_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
-        <div className="text-haze-muted" data-testid="simple-preset-note">{preset.note}{budget ? ` Orçamento de vídeo: ~${Math.round(budget.videoBps / 1000)} kbps para ${fmt(total)}.` : ''}</div>
-        {budget && !budget.ok && <div role="alert" data-testid="simple-preset-warn" className="text-amber-300">{budget.message}</div>}
-        {!exporting
-          ? <button className={primary} data-testid="simple-export" disabled={!hasClips} onClick={onExport}>Exportar vídeo</button>
-          : <button className={btn} data-testid="export-cancel" onClick={onCancel}>Cancelar</button>}
-        {exporting && <div className="text-haze-muted" data-testid="export-status" role="status">{exporting.phase}… {exporting.pct}%</div>}
-        {result && (
-          <div className="space-y-1" data-testid="export-result">
-            <div data-testid="export-info">{result.r.ext.toUpperCase()} · {result.r.videoCodec}{result.r.audioCodec ? ` + ${result.r.audioCodec}` : ''} · {result.r.width}×{result.r.height} · {result.r.fps} fps · {result.r.frames} quadros · {(result.r.blob.size / 1024).toFixed(0)} KB · {(result.r.elapsedMs / 1000).toFixed(1)} s</div>
-            <a data-testid="export-download" className={`${primary} no-underline`} href={result.url} download={`haze-video.${result.r.ext}`}><Download className="w-4 h-4" /> Baixar</a>
-          </div>
+        {currentStep < 4 ? (
+          <button
+            type="button"
+            data-testid="simple-next"
+            disabled={currentStep === 2 && !hasClips}
+            title={currentStep === 2 && !hasClips ? 'Importe ao menos um vídeo para continuar.' : undefined}
+            onClick={() => setCurrentStep(c => Math.min(4, c + 1))}
+            className={primary}
+          >
+            Próximo: {SIMPLE_STEPS[currentStep].title} →
+          </button>
+        ) : (
+          <button
+            type="button"
+            data-testid="simple-next"
+            onClick={() => {
+              const exportBtn = document.querySelector<HTMLElement>('[data-testid="simple-export"]');
+              exportBtn?.focus();
+              exportBtn?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            className={primary}
+          >
+            Ir para exportação →
+          </button>
         )}
       </div>
     </div>
