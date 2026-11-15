@@ -105,12 +105,7 @@ export const GuidedFlow: React.FC<Props> = ({
     return stepNum > 2 && !hasClips;
   };
 
-  // Rolar suavemente até o cartão ativo quando o passo muda
-  useEffect(() => {
-    const refs = [null, cardRef1, cardRef2, cardRef3, cardRef4];
-    refs[currentStep]?.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [currentStep]);
-
+  // Callbacks de manipulação
   const handleTriggerReplace = (index: number) => {
     replaceIndexRef.current = index;
     replaceInputRef.current?.click();
@@ -230,13 +225,13 @@ export const GuidedFlow: React.FC<Props> = ({
         ) : (
           <div
             ref={cardRef1}
-            className="shrink-0 rounded-xl border border-haze-border/60 bg-haze-panel/60 p-2.5 transition-all"
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
             data-testid="simple-step-card-1"
           >
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
-              className="w-full flex items-center justify-between text-left font-medium text-xs text-white hover:text-haze-accent transition-colors cursor-pointer"
+              className="w-full h-full flex items-center justify-between text-left font-medium text-xs text-white hover:text-haze-accent cursor-pointer"
             >
               <span className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-haze-raised flex items-center justify-center text-[10px] text-haze-muted font-bold">1</span>
@@ -364,14 +359,14 @@ export const GuidedFlow: React.FC<Props> = ({
         ) : (
           <div
             ref={cardRef2}
-            className="shrink-0 rounded-xl border border-haze-border/60 bg-haze-panel/60 p-2.5 transition-all"
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
             data-testid="simple-step-card-2"
           >
-            <div className="flex items-center justify-between text-xs" data-testid="step-cut">
+            <div className="w-full h-full flex items-center justify-between text-xs" data-testid="step-cut">
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className="flex items-center gap-2 font-medium text-white hover:text-haze-accent transition-colors cursor-pointer"
+                className="flex items-center gap-2 font-medium text-white hover:text-haze-accent cursor-pointer"
               >
                 <span className="w-5 h-5 rounded-full bg-haze-raised flex items-center justify-center text-[10px] text-haze-muted font-bold">2</span>
                 <span>2. Seus vídeos</span>
@@ -562,14 +557,14 @@ export const GuidedFlow: React.FC<Props> = ({
         ) : (
           <div
             ref={cardRef3}
-            className="shrink-0 rounded-xl border border-haze-border/60 bg-haze-panel/60 p-2.5 transition-all"
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
             data-testid="simple-step-card-3"
           >
             <button
               type="button"
               disabled={isStepLocked(3)}
               onClick={() => !isStepLocked(3) && setCurrentStep(3)}
-              className={`w-full flex items-center justify-between text-left text-xs font-medium transition-colors ${
+              className={`w-full h-full flex items-center justify-between text-left text-xs font-medium ${
                 isStepLocked(3)
                   ? 'opacity-40 cursor-not-allowed text-haze-muted'
                   : 'text-white hover:text-haze-accent cursor-pointer'
@@ -589,7 +584,7 @@ export const GuidedFlow: React.FC<Props> = ({
         {currentStep === 4 ? (
           <div
             ref={cardRef4}
-            className="flex-1 min-h-0 flex flex-col rounded-xl border border-haze-accent ring-1 ring-haze-accent/40 bg-haze-panel p-3 space-y-2.5 shadow-sm overflow-hidden"
+            className="flex-1 min-h-0 flex flex-col rounded-xl border border-haze-accent ring-1 ring-haze-accent/40 bg-haze-panel p-3 space-y-2 shadow-sm overflow-hidden"
             data-testid="simple-step-card-4"
           >
             <div className="shrink-0 flex items-center justify-between font-semibold text-white" data-testid="step-export">
@@ -599,50 +594,50 @@ export const GuidedFlow: React.FC<Props> = ({
               {isStepComplete(4) && <span className="text-[11px] font-bold text-haze-accent">✓</span>}
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-0.5" data-testid="simple-summary">
-              <div className="text-xs font-bold text-white pb-1 border-b border-haze-border/50">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5" data-testid="simple-summary">
+              <div className="text-xs font-bold text-white pb-0.5 border-b border-haze-border/50">
                 Resumo da montagem
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div className="bg-haze-bg/60 p-2 rounded-lg border border-haze-border/50 space-y-0.5">
-                  <span className="text-haze-muted block text-[10px] uppercase font-bold tracking-wider">Cenas / Vídeos</span>
-                  <span className="text-white font-semibold flex items-center gap-1" data-testid="summary-scenes">
+              <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Cenas / Vídeos</span>
+                  <span className="text-white font-semibold flex items-center gap-1 text-[11px]" data-testid="summary-scenes">
                     <Film className="w-3 h-3 text-haze-accent" /> {tl.clips.length} cena(s)
                   </span>
                 </div>
 
-                <div className="bg-haze-bg/60 p-2 rounded-lg border border-haze-border/50 space-y-0.5">
-                  <span className="text-haze-muted block text-[10px] uppercase font-bold tracking-wider">Duração total</span>
-                  <span className="text-white font-semibold flex items-center gap-1 font-mono" data-testid="summary-duration">
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Duração total</span>
+                  <span className="text-white font-semibold flex items-center gap-1 font-mono text-[11px]" data-testid="summary-duration">
                     {fmt(total)} ({total.toFixed(1)}s)
                   </span>
                 </div>
 
-                <div className="bg-haze-bg/60 p-2 rounded-lg border border-haze-border/50 space-y-0.5">
-                  <span className="text-haze-muted block text-[10px] uppercase font-bold tracking-wider">Textos e Diálogos</span>
-                  <span className="text-white font-semibold truncate block" data-testid="summary-texts">
-                    {tl.overlays.length > 0 ? `${tl.overlays.length} texto(s) adicionado(s)` : 'Sem texto'}
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Textos e Diálogos</span>
+                  <span className="text-white font-semibold truncate block text-[11px]" data-testid="summary-texts">
+                    {tl.overlays.length > 0 ? `${tl.overlays.length} texto(s)` : 'Sem texto'}
                   </span>
                 </div>
 
-                <div className="bg-haze-bg/60 p-2 rounded-lg border border-haze-border/50 space-y-0.5">
-                  <span className="text-haze-muted block text-[10px] uppercase font-bold tracking-wider">Destino escolhido</span>
-                  <span className="text-white font-semibold truncate block" data-testid="summary-preset">
+                <div className="bg-haze-bg/60 p-1.5 rounded-lg border border-haze-border/50 space-y-0.5">
+                  <span className="text-haze-muted block text-[9px] uppercase font-bold tracking-wider">Destino</span>
+                  <span className="text-white font-semibold truncate block text-[11px]" data-testid="summary-preset">
                     {preset.label.split('(')[0].trim()}
                   </span>
                 </div>
               </div>
 
               {/* Informação sobre o preset */}
-              <div className="p-2 rounded-lg bg-haze-raised/40 border border-haze-border/60 text-[11px] text-haze-text space-y-1">
-                <div className="flex items-center justify-between text-xs">
+              <div className="p-1.5 rounded-lg bg-haze-raised/40 border border-haze-border/60 text-[10px] text-haze-text space-y-0.5">
+                <div className="flex items-center justify-between">
                   <span className="font-semibold text-white">{preset.label}</span>
                   <span className="font-mono text-[10px] text-haze-accent">{preset.width}×{preset.height} · {preset.fps} fps</span>
                 </div>
                 {budget && (
                   <div className="text-[10px] text-haze-muted">
-                    Orçamento de vídeo: ~{Math.round(budget.videoBps / 1000)} kbps para {fmt(total)}.
+                    Orçamento: ~{Math.round(budget.videoBps / 1000)} kbps para {fmt(total)}.
                   </div>
                 )}
                 {budget && !budget.ok && (
@@ -653,8 +648,8 @@ export const GuidedFlow: React.FC<Props> = ({
               </div>
 
               {/* Select de preset mantido para compatibilidade com testid simple-preset */}
-              <div className="space-y-1 pt-1">
-                <label className="text-[11px] text-haze-muted block">Alterar preset:</label>
+              <div className="space-y-1">
+                <label className="text-[10px] text-haze-muted block">Alterar preset:</label>
                 <select
                   data-testid="simple-preset"
                   className="w-full px-2 py-1 rounded-md bg-haze-bg border border-haze-border text-xs text-white"
@@ -672,14 +667,14 @@ export const GuidedFlow: React.FC<Props> = ({
         ) : (
           <div
             ref={cardRef4}
-            className="shrink-0 rounded-xl border border-haze-border/60 bg-haze-panel/60 p-2.5 transition-all"
+            className="shrink-0 h-10 max-h-[44px] rounded-xl border border-haze-border/60 bg-haze-panel/60 px-2.5 flex items-center overflow-hidden"
             data-testid="simple-step-card-4"
           >
             <button
               type="button"
               disabled={isStepLocked(4)}
               onClick={() => !isStepLocked(4) && setCurrentStep(4)}
-              className={`w-full flex items-center justify-between text-left text-xs font-medium transition-colors ${
+              className={`w-full h-full flex items-center justify-between text-left text-xs font-medium ${
                 isStepLocked(4)
                   ? 'opacity-40 cursor-not-allowed text-haze-muted'
                   : 'text-white hover:text-haze-accent cursor-pointer'
