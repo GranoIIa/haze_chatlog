@@ -246,9 +246,20 @@ test.describe('Video Studio PR E - Modo Simples Guiado (Assistente em 4 Passos)'
       expect(nextBox!.y + nextBox!.height).toBeLessThanOrEqual(vp.height);
       expect(expBox!.y + expBox!.height).toBeLessThanOrEqual(vp.height);
 
-      // Capturas específicas dos 4 passos para 1440x900 e 1280x720
+      // Capturas específicas dos 4 passos para 1440x900 e 1280x720 com garantia de layout estabilizado
       if (vp.name === '1440x900' || vp.name === '1280x720') {
         // Passo 1: Inicial
+        await expect(page.getByTestId('simple-step-1')).toHaveAttribute('aria-current', 'step');
+        await expect(page.getByTestId('simple-template-select')).toBeVisible();
+        const c1_1 = await page.getByTestId('simple-step-card-1').boundingBox();
+        const c2_1 = await page.getByTestId('simple-step-card-2').boundingBox();
+        const c3_1 = await page.getByTestId('simple-step-card-3').boundingBox();
+        const c4_1 = await page.getByTestId('simple-step-card-4').boundingBox();
+        expect(c1_1!.height).toBeGreaterThan(56);
+        expect(c2_1!.height).toBeLessThanOrEqual(56);
+        expect(c3_1!.height).toBeLessThanOrEqual(56);
+        expect(c4_1!.height).toBeLessThanOrEqual(56);
+
         const p1 = join(dir, `simple_step1_${vp.name}.png`);
         await page.screenshot({ path: p1 });
         if (existsSync(ARTIFACTS_DIR)) copyFileSync(p1, join(ARTIFACTS_DIR, `simple_step1_${vp.name}.png`));
@@ -256,24 +267,268 @@ test.describe('Video Studio PR E - Modo Simples Guiado (Assistente em 4 Passos)'
         // Passo 2: Vídeos importados
         await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
         await page.getByTestId('simple-step-2').click();
+        await expect(page.getByTestId('simple-step-2')).toHaveAttribute('aria-current', 'step');
+        await expect(page.getByTestId('simple-clip-0')).toBeVisible();
+        const c1_2 = await page.getByTestId('simple-step-card-1').boundingBox();
+        const c2_2 = await page.getByTestId('simple-step-card-2').boundingBox();
+        const c3_2 = await page.getByTestId('simple-step-card-3').boundingBox();
+        const c4_2 = await page.getByTestId('simple-step-card-4').boundingBox();
+        expect(c2_2!.height).toBeGreaterThan(56);
+        expect(c1_2!.height).toBeLessThanOrEqual(56);
+        expect(c3_2!.height).toBeLessThanOrEqual(56);
+        expect(c4_2!.height).toBeLessThanOrEqual(56);
+
         const p2 = join(dir, `simple_step2_${vp.name}.png`);
         await page.screenshot({ path: p2 });
         if (existsSync(ARTIFACTS_DIR)) copyFileSync(p2, join(ARTIFACTS_DIR, `simple_step2_${vp.name}.png`));
 
         // Passo 3: Chat/Texto
         await page.getByTestId('simple-step-3').click();
+        await expect(page.getByTestId('simple-step-3')).toHaveAttribute('aria-current', 'step');
+        await expect(page.getByTestId('guided-flow').getByTestId('simple-chat')).toBeVisible();
         await page.getByTestId('guided-flow').getByTestId('simple-chat').fill('Santos diz: Teste do modo simples');
         await page.getByTestId('simple-chat-add').click();
+        const c1_3 = await page.getByTestId('simple-step-card-1').boundingBox();
+        const c2_3 = await page.getByTestId('simple-step-card-2').boundingBox();
+        const c3_3 = await page.getByTestId('simple-step-card-3').boundingBox();
+        const c4_3 = await page.getByTestId('simple-step-card-4').boundingBox();
+        expect(c3_3!.height).toBeGreaterThan(56);
+        expect(c1_3!.height).toBeLessThanOrEqual(56);
+        expect(c2_3!.height).toBeLessThanOrEqual(56);
+        expect(c4_3!.height).toBeLessThanOrEqual(56);
+
         const p3 = join(dir, `simple_step3_${vp.name}.png`);
         await page.screenshot({ path: p3 });
         if (existsSync(ARTIFACTS_DIR)) copyFileSync(p3, join(ARTIFACTS_DIR, `simple_step3_${vp.name}.png`));
 
         // Passo 4: Exportar
         await page.getByTestId('simple-step-4').click();
+        await expect(page.getByTestId('simple-step-4')).toHaveAttribute('aria-current', 'step');
+        await expect(page.getByTestId('simple-summary')).toBeVisible();
+        await expect(page.getByTestId('summary-scenes')).toBeVisible();
+        await expect(page.getByTestId('summary-duration')).toBeVisible();
+        await expect(page.getByTestId('summary-texts')).toBeVisible();
+        await expect(page.getByTestId('summary-preset')).toBeVisible();
+
+        const s1 = await page.getByTestId('summary-scenes').boundingBox();
+        const s2 = await page.getByTestId('summary-duration').boundingBox();
+        const s3 = await page.getByTestId('summary-texts').boundingBox();
+        const s4 = await page.getByTestId('summary-preset').boundingBox();
+
+        expect(s1).not.toBeNull();
+        expect(s2).not.toBeNull();
+        expect(s3).not.toBeNull();
+        expect(s4).not.toBeNull();
+
+        expect(s1!.y + s1!.height).toBeLessThanOrEqual(vp.height);
+        expect(s2!.y + s2!.height).toBeLessThanOrEqual(vp.height);
+        expect(s3!.y + s3!.height).toBeLessThanOrEqual(vp.height);
+        expect(s4!.y + s4!.height).toBeLessThanOrEqual(vp.height);
+
+        const c1_4 = await page.getByTestId('simple-step-card-1').boundingBox();
+        const c2_4 = await page.getByTestId('simple-step-card-2').boundingBox();
+        const c3_4 = await page.getByTestId('simple-step-card-3').boundingBox();
+        const c4_4 = await page.getByTestId('simple-step-card-4').boundingBox();
+        expect(c4_4!.height).toBeGreaterThan(56);
+        expect(c1_4!.height).toBeLessThanOrEqual(56);
+        expect(c2_4!.height).toBeLessThanOrEqual(56);
+        expect(c3_4!.height).toBeLessThanOrEqual(56);
+
         const p4 = join(dir, `simple_step4_${vp.name}.png`);
         await page.screenshot({ path: p4 });
         if (existsSync(ARTIFACTS_DIR)) copyFileSync(p4, join(ARTIFACTS_DIR, `simple_step4_${vp.name}.png`));
       }
     }
+  });
+
+  test('8. Apenas um passo visível por vez: conteúdo ativo expandido e outros compactos', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-mode-simple').click();
+
+    const assertCardHeights = async (activeStep: number) => {
+      for (let s = 1; s <= 4; s++) {
+        const box = await page.getByTestId(`simple-step-card-${s}`).boundingBox();
+        expect(box).not.toBeNull();
+        if (s === activeStep) {
+          expect(box!.height).toBeGreaterThan(56);
+          await expect(page.getByTestId(`simple-step-${s}`)).toHaveAttribute('aria-current', 'step');
+        } else {
+          expect(box!.height).toBeLessThanOrEqual(56);
+          await expect(page.getByTestId(`simple-step-${s}`)).not.toHaveAttribute('aria-current', 'step');
+        }
+      }
+    };
+
+    // 1. Passo 1 ativo
+    await expect(page.getByTestId('simple-template-select')).toBeVisible();
+    await expect(page.getByTestId('simple-step2-hint')).not.toBeAttached();
+    await expect(page.getByTestId('guided-flow').getByTestId('simple-chat')).not.toBeAttached();
+    await expect(page.getByTestId('simple-summary')).not.toBeAttached();
+    await assertCardHeights(1);
+
+    // 2. Avança para Passo 2
+    await page.getByTestId('simple-next').click();
+    await expect(page.getByTestId('simple-step2-hint')).toBeVisible();
+    await expect(page.getByTestId('simple-template-select')).not.toBeAttached();
+    await expect(page.getByTestId('guided-flow').getByTestId('simple-chat')).not.toBeAttached();
+    await expect(page.getByTestId('simple-summary')).not.toBeAttached();
+    await assertCardHeights(2);
+
+    // 3. Importa vídeo e avança para Passo 3
+    await page.getByTestId('video-file-input').setInputFiles([fRed]);
+    await page.getByTestId('simple-next').click();
+    await expect(page.getByTestId('guided-flow').getByTestId('simple-chat')).toBeVisible();
+    await expect(page.getByTestId('simple-template-select')).not.toBeAttached();
+    await expect(page.getByTestId('simple-step2-hint')).not.toBeAttached();
+    await expect(page.getByTestId('simple-summary')).not.toBeAttached();
+    await assertCardHeights(3);
+
+    // 4. Avança para Passo 4
+    await page.getByTestId('simple-next').click();
+    await expect(page.getByTestId('simple-summary')).toBeVisible();
+    await expect(page.getByTestId('summary-scenes')).toBeVisible();
+    await expect(page.getByTestId('summary-duration')).toBeVisible();
+    await expect(page.getByTestId('summary-texts')).toBeVisible();
+    await expect(page.getByTestId('summary-preset')).toBeVisible();
+    await expect(page.getByTestId('simple-template-select')).not.toBeAttached();
+    await expect(page.getByTestId('guided-flow').getByTestId('simple-chat')).not.toBeAttached();
+    await assertCardHeights(4);
+  });
+
+  test('9. Passo 4 exibe resumo da montagem: cenas, duração, texto e preset escolhido', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-mode-simple').click();
+
+    // Importa 2 cenas
+    await page.getByTestId('video-file-input').setInputFiles([fRed, fBlue]);
+    await expect(page.getByTestId('simple-clip-0')).toBeVisible();
+
+    // Adiciona texto no Passo 3
+    await page.getByTestId('simple-step-3').click();
+    await page.getByTestId('simple-title').fill('Operação Policial');
+    await page.getByTestId('simple-title-add').click();
+    await expect(page.getByTestId('simple-overlays')).toContainText('Operação Policial');
+
+    // Seleciona preset Discord
+    await page.getByTestId('preset-card-discord').click();
+
+    // Vai para o Passo 4
+    await page.getByTestId('simple-step-4').click();
+    await expect(page.getByTestId('simple-summary')).toBeVisible();
+
+    // Valida itens do resumo
+    await expect(page.getByTestId('summary-scenes')).toContainText('2 cena(s)');
+    await expect(page.getByTestId('summary-duration')).toContainText('0:06');
+    await expect(page.getByTestId('summary-texts')).toContainText('1 texto(s)');
+    await expect(page.getByTestId('summary-preset')).toContainText('Discord');
+  });
+
+  test('10. Atribuição de ✓ só nos passos completos e remoção de "pendente" solto', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-mode-simple').click();
+
+    // Passo 1 inicial tem ✓ (modelo/edição livre já definida)
+    const step1 = page.getByTestId('simple-step-1');
+    const step2 = page.getByTestId('simple-step-2');
+    const step3 = page.getByTestId('simple-step-3');
+    const step4 = page.getByTestId('simple-step-4');
+
+    // Ao iniciar: Passo 1 é ativo (mostra "1"), mas o cartão não tem a palavra "pendente" solta
+    await expect(page.getByTestId('simple-step-card-1')).not.toContainText('pendente');
+    await expect(page.getByTestId('simple-step-card-2')).not.toContainText('pendente');
+    await expect(page.getByTestId('simple-step-card-3')).not.toContainText('pendente');
+    await expect(page.getByTestId('simple-step-card-4')).not.toContainText('pendente');
+
+    // Passos 2, 3 e 4 NÃO têm ✓
+    await expect(step2).not.toContainText('✓');
+    await expect(step3).not.toContainText('✓');
+    await expect(step4).not.toContainText('✓');
+
+    // Importa vídeo: Passo 2 ganha ✓
+    await page.getByTestId('video-file-input').setInputFiles([fRed]);
+    await expect(step2).toContainText('✓');
+    await expect(step3).not.toContainText('✓');
+
+    // No Passo 3 sem texto: não tem ✓
+    await page.getByTestId('simple-step-3').click();
+    await expect(step3).not.toContainText('✓');
+
+    // Adiciona chat no Passo 3: ganha ✓
+    await page.getByTestId('guided-flow').getByTestId('simple-chat').fill('Santos diz: Teste');
+    await page.getByTestId('simple-chat-add').click();
+    await expect(page.getByTestId('simple-step-card-3')).toContainText('✓');
+
+    // Ao avançar para o Passo 4, step3 no stepper também exibe ✓
+    await page.getByTestId('simple-step-4').click();
+    await expect(step3).toContainText('✓');
+    await expect(step4).not.toContainText('✓');
+  });
+
+  test('11. Botões Voltar, Próximo e Exportar dentro da viewport nos 3 tamanhos (1440x900, 1366x768, 1280x720)', async ({ page }) => {
+    const viewports = [
+      { name: '1440x900', width: 1440, height: 900 },
+      { name: '1366x768', width: 1366, height: 768 },
+      { name: '1280x720', width: 1280, height: 720 }
+    ];
+
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/');
+      await page.getByTestId('tab-video').click();
+      await page.getByTestId('video-mode-simple').click();
+      await page.getByTestId('video-file-input').setInputFiles([fRed]);
+
+      // Testa em cada um dos 4 passos
+      for (let s = 1; s <= 4; s++) {
+        await page.getByTestId(`simple-step-${s}`).click();
+
+        const backBox = await page.getByTestId('simple-back').boundingBox();
+        const nextBox = await page.getByTestId('simple-next').boundingBox();
+        const expBox = await page.getByTestId('simple-export').boundingBox();
+
+        expect(backBox).not.toBeNull();
+        expect(nextBox).not.toBeNull();
+        expect(expBox).not.toBeNull();
+
+        expect(backBox!.y).toBeGreaterThanOrEqual(0);
+        expect(backBox!.y + backBox!.height).toBeLessThanOrEqual(vp.height);
+
+        expect(nextBox!.y).toBeGreaterThanOrEqual(0);
+        expect(nextBox!.y + nextBox!.height).toBeLessThanOrEqual(vp.height);
+
+        expect(expBox!.y).toBeGreaterThanOrEqual(0);
+        expect(expBox!.y + expBox!.height).toBeLessThanOrEqual(vp.height);
+      }
+    }
+  });
+
+  test('12. Ação do último passo foca simple-export sem disparar exportação sozinho', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-video').click();
+    await page.getByTestId('video-mode-simple').click();
+    await page.getByTestId('video-file-input').setInputFiles([fRed]);
+
+    // Vai para o Passo 4
+    await page.getByTestId('simple-step-4').click();
+
+    // Confere que no Passo 4 o botão indica ação de exportação
+    const actionBtn = page.getByTestId('simple-next');
+    await expect(actionBtn).toContainText('Ir para exportação');
+    await expect(actionBtn).toBeEnabled();
+
+    // Clica no botão
+    await actionBtn.click();
+
+    // Valida que o botão de exportação à direita recebeu o foco
+    const exportBtn = page.getByTestId('simple-export');
+    await expect(exportBtn).toBeFocused();
+
+    // Valida que nenhuma exportação foi iniciada de forma autônoma
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('export-result')).toHaveCount(0);
+    await expect(page.getByTestId('export-progress')).toHaveCount(0);
   });
 });
