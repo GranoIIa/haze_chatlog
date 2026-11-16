@@ -8,6 +8,8 @@ dist-ssr/
 # Arquivos de mídia e vídeos pesados
 *.mp4
 *.gif
+*.wav
+whisper-*-results.json
 01_*
 03_*
 06_*

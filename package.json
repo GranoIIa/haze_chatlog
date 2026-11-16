@@ -12,6 +12,7 @@
     "test:browser:report": "playwright show-report"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.3.3",
     "@xzdarcy/react-timeline-editor": "^1.0.0",
     "jszip": "^3.10.2",
     "lucide-react": "^1.16.0",
